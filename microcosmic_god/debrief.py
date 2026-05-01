@@ -64,6 +64,8 @@ def build_debrief(sim: Any, reason: str, elapsed_seconds: float) -> dict[str, An
         "deaths_by_kind_cause": dict(sim.deaths_by_kind_cause),
         "tool_successes": dict(sim.tool_successes),
         "marks_created": dict(sim.marks_created),
+        "artifacts_created": dict(sim.artifacts_created),
+        "artifacts_broken": dict(sim.artifacts_broken),
         "reproduction_attempts": dict(sim.reproduction_attempts),
         "reproduction_failures": dict(sim.reproduction_failures),
         "action_counts": dict(sim.action_counts),

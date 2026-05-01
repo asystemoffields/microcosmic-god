@@ -30,6 +30,7 @@ class CheckpointManager:
             "brain": organism.brain.to_dict(include_state=True),
             "brain_template": organism.brain_template.to_dict(include_state=False) if organism.brain_template else None,
             "inventory": dict(organism.inventory),
+            "artifacts": [artifact.to_dict() for artifact in organism.artifacts],
             "tool_skill": {k: round(v, 6) for k, v in organism.tool_skill.items()},
             "signal_values": [round(v, 6) for v in organism.signal_values],
             "context": context,
@@ -52,4 +53,3 @@ class CheckpointManager:
             "reasons": dict(self.saved_reasons),
             "first_tool_affordances": sorted(self._saved_tool_affordances),
         }
-

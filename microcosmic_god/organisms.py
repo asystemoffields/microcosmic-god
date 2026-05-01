@@ -5,7 +5,7 @@ from random import Random
 from typing import Any
 
 from .brain import TinyBrain
-from .energy import AFFORDANCES
+from .energy import AFFORDANCES, Artifact
 from .genome import Genome
 
 OBSERVATION_SIZE = 32
@@ -17,6 +17,7 @@ ACTIONS = (
     "absorb_radiant",
     "forage",
     "pickup",
+    "craft",
     "use_tool",
     "attack",
     "signal",
@@ -43,6 +44,7 @@ class Organism:
     brain: TinyBrain | None = None
     brain_template: TinyBrain | None = None
     inventory: dict[str, int] = field(default_factory=dict)
+    artifacts: list[Artifact] = field(default_factory=list)
     tool_skill: dict[str, float] = field(default_factory=lambda: {name: 0.0 for name in AFFORDANCES})
     signal_values: list[float] = field(default_factory=lambda: [0.0 for _ in range(8)])
     place_memory: dict[int, float] = field(default_factory=dict)
@@ -70,6 +72,9 @@ class Organism:
 
     def inventory_count(self) -> int:
         return sum(max(0, qty) for qty in self.inventory.values())
+
+    def artifact_limit(self) -> int:
+        return max(0, int(1 + self.genome.manipulator * 4.0 + self.genome.developmental_complexity * 2.0))
 
     def metabolic_cost(self) -> float:
         base = 0.018
@@ -129,6 +134,7 @@ class Organism:
             "neural": self.neural,
             "offspring_count": self.offspring_count,
             "successful_tools": self.successful_tools,
+            "artifacts": [artifact.to_dict() for artifact in self.artifacts],
             "complexity": round(self.genome.complexity(), 4),
             "parents": list(self.parent_ids),
         }

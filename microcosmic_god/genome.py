@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 from random import Random
 from typing import Any
 
@@ -25,6 +25,9 @@ class Genome:
     mechanical_use: float
     electrical_use: float
     storage_capacity: float
+    aquatic_affinity: float
+    salinity_tolerance: float
+    desiccation_tolerance: float
     photosynthesis_surface: float
     digestion: float
     mobility: float
@@ -58,6 +61,9 @@ class Genome:
             mechanical_use=rng.uniform(0.00, 0.05),
             electrical_use=rng.uniform(0.00, 0.02),
             storage_capacity=rng.uniform(0.35, 0.75),
+            aquatic_affinity=rng.uniform(0.05, 0.45),
+            salinity_tolerance=rng.uniform(0.05, 0.45),
+            desiccation_tolerance=rng.uniform(0.25, 0.90),
             photosynthesis_surface=rng.uniform(0.55, 1.00),
             digestion=rng.uniform(0.00, 0.12),
             mobility=rng.uniform(0.00, 0.04),
@@ -92,6 +98,9 @@ class Genome:
             mechanical_use=rng.uniform(0.00, 0.05),
             electrical_use=rng.uniform(0.00, 0.02),
             storage_capacity=rng.uniform(0.30, 0.70),
+            aquatic_affinity=rng.uniform(0.15, 0.65),
+            salinity_tolerance=rng.uniform(0.05, 0.55),
+            desiccation_tolerance=rng.uniform(0.05, 0.65),
             photosynthesis_surface=rng.uniform(0.00, 0.15),
             digestion=rng.uniform(0.45, 0.90),
             mobility=rng.uniform(0.00, 0.06),
@@ -126,6 +135,9 @@ class Genome:
             mechanical_use=rng.uniform(0.05, 0.45),
             electrical_use=rng.uniform(0.00, 0.10),
             storage_capacity=rng.uniform(0.35, 0.80),
+            aquatic_affinity=rng.uniform(0.00, 0.55),
+            salinity_tolerance=rng.uniform(0.00, 0.50),
+            desiccation_tolerance=rng.uniform(0.20, 0.90),
             photosynthesis_surface=rng.uniform(0.00, 0.16),
             digestion=rng.uniform(0.35, 0.90),
             mobility=rng.uniform(0.35, 0.90),
@@ -156,6 +168,14 @@ class Genome:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Genome":
+        defaults = {
+            "aquatic_affinity": 0.25,
+            "salinity_tolerance": 0.20,
+            "desiccation_tolerance": 0.55,
+        }
+        for field in fields(cls):
+            if field.name not in data and field.name in defaults:
+                data[field.name] = defaults[field.name]
         return cls(**data)
 
     def copy(self) -> "Genome":
@@ -193,6 +213,7 @@ class Genome:
         return (
             self.developmental_complexity
             + self.mobility * 0.65
+            + abs(self.aquatic_affinity - 0.35) * 0.15
             + self.manipulator * 0.65
             + self.sensor_range * 0.45
             + self.neural_budget / 10.0
@@ -210,4 +231,3 @@ class Genome:
             scale = 32.0 if key in {"neural_budget", "memory_budget"} else 1.0
             total += abs(float(a[key]) - float(b[key])) / scale
         return total / len(a)
-

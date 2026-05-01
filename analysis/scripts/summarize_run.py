@@ -25,6 +25,8 @@ def main() -> None:
     print(f"deaths_by_kind_cause: {summary.get('deaths_by_kind_cause', {})}")
     print(f"tool_successes: {summary['tool_successes']}")
     print(f"marks_created: {summary.get('marks_created', {})}")
+    print(f"artifacts_created: {summary.get('artifacts_created', {})}")
+    print(f"artifacts_broken: {summary.get('artifacts_broken', {})}")
     print(f"reproduction_attempts: {summary.get('reproduction_attempts', {})}")
     print(f"reproduction_failures: {summary.get('reproduction_failures', {})}")
     print(f"action_avg_energy_delta: {summary.get('action_avg_energy_delta', {})}")

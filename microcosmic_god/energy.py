@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping
+from typing import Any, Mapping
 
 ENERGY_KINDS = (
     "radiant",
@@ -22,6 +22,37 @@ def blank_energy(value: float = 0.0) -> dict[str, float]:
 class Material:
     name: str
     properties: Mapping[str, float]
+
+
+@dataclass(slots=True)
+class Artifact:
+    name: str
+    components: dict[str, int]
+    properties: dict[str, float]
+    capabilities: dict[str, float]
+    durability: float
+    age: int = 0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "components": dict(self.components),
+            "properties": {key: round(value, 6) for key, value in self.properties.items()},
+            "capabilities": {key: round(value, 6) for key, value in self.capabilities.items()},
+            "durability": round(self.durability, 6),
+            "age": self.age,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Artifact":
+        return cls(
+            name=str(data["name"]),
+            components={str(k): int(v) for k, v in data["components"].items()},
+            properties={str(k): float(v) for k, v in data["properties"].items()},
+            capabilities={str(k): float(v) for k, v in data["capabilities"].items()},
+            durability=float(data["durability"]),
+            age=int(data.get("age", 0)),
+        )
 
 
 MATERIALS: dict[str, Material] = {
@@ -114,6 +145,18 @@ MATERIALS: dict[str, Material] = {
 }
 
 AFFORDANCES = ("crack", "cut", "bind", "contain", "concentrate_heat", "conduct", "lever")
+ARTIFACT_CAPABILITIES = (
+    "crack",
+    "cut",
+    "bind",
+    "contain",
+    "concentrate_heat",
+    "conduct",
+    "lever",
+    "traverse",
+    "insulate",
+    "energy_storage",
+)
 
 
 def inventory_properties(inventory: Mapping[str, int]) -> dict[str, float]:
@@ -130,8 +173,16 @@ def inventory_properties(inventory: Mapping[str, int]) -> dict[str, float]:
     return {key: value / count for key, value in props.items()}
 
 
+def component_properties(components: Mapping[str, int]) -> dict[str, float]:
+    return inventory_properties(components)
+
+
 def derive_affordances(inventory: Mapping[str, int]) -> dict[str, float]:
     props = inventory_properties(inventory)
+    return derive_affordances_from_properties(props)
+
+
+def derive_affordances_from_properties(props: Mapping[str, float]) -> dict[str, float]:
     if not props:
         return {name: 0.0 for name in AFFORDANCES}
     hard = props.get("hard", 0.0)
@@ -155,8 +206,69 @@ def derive_affordances(inventory: Mapping[str, int]) -> dict[str, float]:
     }
 
 
-def best_affordance(inventory: Mapping[str, int], skills: Mapping[str, float]) -> tuple[str, float]:
+def derive_artifact_capabilities(properties: Mapping[str, float]) -> dict[str, float]:
+    affordances = derive_affordances_from_properties(properties)
+    hard = properties.get("hard", 0.0)
+    heavy = properties.get("heavy", 0.0)
+    sharp = properties.get("sharp", 0.0)
+    flexible = properties.get("flexible", 0.0)
+    bindable = properties.get("bindable", 0.0)
+    container = properties.get("container", 0.0)
+    reflective = properties.get("reflective", 0.0)
+    conductive = properties.get("conductive", 0.0)
+    length = properties.get("length", 0.0)
+    thermal_mass = properties.get("thermal_mass", 0.0)
+    sticky = properties.get("sticky", 0.0)
+    capabilities = dict(affordances)
+    capabilities["traverse"] = min(1.0, length * 0.35 + hard * 0.20 + flexible * 0.15 + bindable * 0.15 + sticky * 0.15)
+    capabilities["insulate"] = min(1.0, flexible * 0.20 + container * 0.20 + thermal_mass * 0.25 + hard * 0.10 + sticky * 0.10)
+    capabilities["energy_storage"] = min(1.0, container * 0.45 + conductive * 0.20 + thermal_mass * 0.20 + hard * 0.10)
+    capabilities["concentrate_heat"] = min(1.0, capabilities["concentrate_heat"] + reflective * hard * 0.25)
+    capabilities["conduct"] = min(1.0, capabilities["conduct"] + conductive * length * 0.25)
+    capabilities["cut"] = min(1.0, capabilities["cut"] + sharp * hard * 0.15)
+    capabilities["crack"] = min(1.0, capabilities["crack"] + hard * heavy * 0.15)
+    return capabilities
+
+
+def build_artifact(components: Mapping[str, int]) -> Artifact:
+    properties = component_properties(components)
+    capabilities = derive_artifact_capabilities(properties)
+    ranked = sorted(capabilities.items(), key=lambda item: item[1], reverse=True)
+    dominant = [name for name, value in ranked[:2] if value > 0.25]
+    name = "composite_" + ("_".join(dominant) if dominant else "object")
+    durability = 35.0 + properties.get("hard", 0.0) * 70.0 + properties.get("flexible", 0.0) * 25.0 + properties.get("bindable", 0.0) * 35.0
+    return Artifact(
+        name=name,
+        components=dict(components),
+        properties=properties,
+        capabilities=capabilities,
+        durability=durability,
+    )
+
+
+def artifact_affordances(artifacts: list[Artifact]) -> dict[str, float]:
+    potentials = {name: 0.0 for name in AFFORDANCES}
+    for artifact in artifacts:
+        durability_factor = max(0.0, min(1.0, artifact.durability / 100.0))
+        for name in AFFORDANCES:
+            potentials[name] = max(potentials[name], artifact.capabilities.get(name, 0.0) * durability_factor)
+    return potentials
+
+
+def artifact_capability(artifacts: list[Artifact], capability: str) -> float:
+    best = 0.0
+    for artifact in artifacts:
+        durability_factor = max(0.0, min(1.0, artifact.durability / 100.0))
+        best = max(best, artifact.capabilities.get(capability, 0.0) * durability_factor)
+    return best
+
+
+def best_affordance(inventory: Mapping[str, int], skills: Mapping[str, float], artifacts: list[Artifact] | None = None) -> tuple[str, float]:
     potentials = derive_affordances(inventory)
+    if artifacts:
+        artifact_potentials = artifact_affordances(artifacts)
+        for name, value in artifact_potentials.items():
+            potentials[name] = max(potentials[name], value)
     best_name = "crack"
     best_score = 0.0
     for name, potential in potentials.items():
@@ -165,4 +277,3 @@ def best_affordance(inventory: Mapping[str, int], skills: Mapping[str, float]) -
             best_name = name
             best_score = score
     return best_name, best_score
-

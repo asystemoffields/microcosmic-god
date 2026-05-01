@@ -52,6 +52,8 @@ class Place:
     geothermal: float
     mineral_richness: float
     volatility: float
+    obstacles: dict[str, float]
+    habitat: dict[str, float]
     signals: list[Signal] = field(default_factory=list)
     marks: list[Mark] = field(default_factory=list)
 
@@ -67,6 +69,8 @@ class Place:
             "locked_chemical": round(self.locked_chemical, 4),
             "materials": dict(self.materials),
             "capacity": self.capacity,
+            "obstacles": {k: round(v, 4) for k, v in self.obstacles.items()},
+            "habitat": {k: round(v, 4) for k, v in self.habitat.items()},
             "marks": [mark.to_dict() for mark in self.marks[-8:]],
         }
 
@@ -124,6 +128,19 @@ class World:
                 if name in {"shell", "bone"}:
                     abundance *= water + 0.15
                 materials[name] = int(abundance * rng.randint(1, 8))
+            obstacles = {
+                "water": min(1.0, water * rng.uniform(0.15, 0.95)),
+                "thorn": min(1.0, (sun + water) * rng.uniform(0.05, 0.55)),
+                "height": min(1.0, rng.random() * rng.uniform(0.05, 0.70)),
+                "heat": min(1.0, geo * rng.uniform(0.15, 0.90)),
+            }
+            aquatic = min(1.0, max(0.0, water * rng.uniform(0.15, 1.15)))
+            habitat = {
+                "aquatic": aquatic,
+                "depth": aquatic * rng.uniform(0.05, 1.0),
+                "salinity": aquatic * rng.random(),
+                "humidity": min(1.0, water * 0.75 + sun * 0.10 + rng.random() * 0.15),
+            }
 
             places.append(
                 Place(
@@ -139,6 +156,8 @@ class World:
                     geothermal=geo,
                     mineral_richness=mineral,
                     volatility=volatility,
+                    obstacles=obstacles,
+                    habitat=habitat,
                 )
             )
 

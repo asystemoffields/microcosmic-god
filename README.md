@@ -16,6 +16,9 @@ The current implementation is Prototype 0: a runnable Python simulation designed
 - Sexual reproduction requires behavioral coordination through short-lived courtship/receptivity states.
 - Tool affordances derived from material properties.
 - Tool use requires object affordance, body compatibility, learned skill, and context.
+- Composite artifacts with derived capabilities, durability, and tiered resistance against harder materials/obstacles.
+- Diversified habitats: aquatic/terrestrial balance, depth, salinity, humidity, heat, height, water, and thorn barriers.
+- Evolving habitat tolerances, so some organisms can drown, desiccate, or specialize for aquatic/dry niches.
 - Local signals with no fixed semantics.
 - Durable-but-decaying place marks, a primitive external memory channel analogous to writing.
 - Predation and ecological collapse can happen.

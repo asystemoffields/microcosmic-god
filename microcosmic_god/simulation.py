@@ -10,7 +10,7 @@ from .brain import TinyBrain
 from .checkpoints import CheckpointManager
 from .config import RunConfig
 from .debrief import build_debrief, population_counts, world_energy_summary
-from .energy import MATERIALS, best_affordance, derive_affordances
+from .energy import MATERIALS, artifact_capability, best_affordance, build_artifact, derive_affordances
 from .genome import Genome
 from .interventions import Intervention, load_interventions
 from .organisms import ACTIONS, ACTION_INDEX, OBSERVATION_SIZE, Organism, organism_from_genome
@@ -37,6 +37,8 @@ class Simulation:
         self.deaths_by_kind_cause: Counter[str] = Counter()
         self.tool_successes: Counter[str] = Counter()
         self.marks_created: Counter[str] = Counter()
+        self.artifacts_created: Counter[str] = Counter()
+        self.artifacts_broken: Counter[str] = Counter()
         self.reproduction_attempts: Counter[str] = Counter()
         self.reproduction_failures: Counter[str] = Counter()
         self.action_counts: Counter[str] = Counter()
@@ -133,6 +135,7 @@ class Simulation:
             if not organism.alive:
                 continue
             self._metabolize(organism)
+            self._habitat_stress(organism)
             if not organism.alive:
                 continue
             observed_tokens = self._observed_tokens(organism)
@@ -224,6 +227,23 @@ class Simulation:
         if organism.health <= 0.0:
             self._kill(organism, "starvation")
 
+    def _habitat_stress(self, organism: Organism) -> None:
+        place = self.world.places[organism.location]
+        aquatic = place.habitat.get("aquatic", 0.0)
+        depth = place.habitat.get("depth", 0.0)
+        salinity = place.habitat.get("salinity", 0.0)
+        humidity = place.habitat.get("humidity", 0.5)
+        drowning = max(0.0, aquatic * depth - organism.genome.aquatic_affinity * 0.85 - organism.genome.mobility * 0.15)
+        desiccation = max(0.0, organism.genome.aquatic_affinity * (1.0 - humidity) - organism.genome.desiccation_tolerance * 0.55)
+        salinity_stress = max(0.0, abs(salinity - organism.genome.salinity_tolerance) - 0.55)
+        stress = drowning * 0.020 + desiccation * 0.015 + salinity_stress * 0.010
+        if stress <= 0.0:
+            return
+        organism.energy -= stress * 2.0
+        organism.health -= stress
+        if organism.health <= 0.0:
+            self._kill(organism, "habitat_mismatch")
+
     def _age_risk(self, organism: Organism) -> None:
         life_expectancy = 850 + organism.genome.storage_capacity * 800 + organism.genome.armor * 300
         if organism.age > life_expectancy:
@@ -259,7 +279,11 @@ class Simulation:
             best_skill,
             season,
             self.world.climate_drift,
-            *organism.signal_values[:6],
+            place.habitat.get("aquatic", 0.0),
+            place.habitat.get("depth", 0.0),
+            place.habitat.get("salinity", 0.0),
+            place.habitat.get("humidity", 0.5),
+            *organism.signal_values[:2],
         ]
         if len(features) != OBSERVATION_SIZE:
             raise AssertionError(f"observation size drifted to {len(features)}")
@@ -308,9 +332,11 @@ class Simulation:
             return False
         if action == "pickup" and organism.inventory_count() >= organism.inventory_limit():
             return False
+        if action == "craft" and (organism.inventory_count() < 2 or len(organism.artifacts) >= organism.artifact_limit()):
+            return False
         if action == "move" and organism.genome.mobility < 0.05:
             return False
-        if action == "use_tool" and organism.inventory_count() == 0:
+        if action == "use_tool" and organism.inventory_count() == 0 and not organism.artifacts:
             return False
         if action == "mark" and organism.genome.manipulator < 0.12:
             return False
@@ -337,6 +363,8 @@ class Simulation:
             self._forage(organism)
         elif action == "pickup":
             self._pickup(organism)
+        elif action == "craft":
+            self._craft(organism, feedback)
         elif action == "use_tool":
             self._use_tool(organism, feedback)
         elif action == "attack":
@@ -361,9 +389,29 @@ class Simulation:
                 memory = organism.place_memory.get(neighbor, 0.0)
                 crowd = 0.0
                 scored.append((memory - crowd + self.rng.random() * 0.08, neighbor))
-            organism.location = max(scored)[1]
+            destination_id = max(scored)[1]
         else:
-            organism.location = self.rng.choice(place.neighbors)
+            destination_id = self.rng.choice(place.neighbors)
+        destination = self.world.places[destination_id]
+        traverse = artifact_capability(organism.artifacts, "traverse")
+        insulation = artifact_capability(organism.artifacts, "insulate")
+        cut = max(organism.tool_skill.get("cut", 0.0), artifact_capability(organism.artifacts, "cut"))
+        aquatic_fit = organism.genome.aquatic_affinity
+        barrier = (
+            destination.obstacles.get("water", 0.0) * (1.0 - max(traverse, aquatic_fit))
+            + destination.obstacles.get("height", 0.0) * (1.0 - max(traverse, organism.genome.mobility))
+            + destination.obstacles.get("thorn", 0.0) * (1.0 - max(cut, organism.genome.armor))
+            + destination.obstacles.get("heat", 0.0) * (1.0 - max(insulation, organism.genome.thermal_tolerance))
+        ) / 4.0
+        success = organism.genome.mobility + traverse * 0.65 + organism.genome.sensor_range * 0.10 + self.rng.gauss(0.0, 0.04)
+        if success >= barrier:
+            organism.location = destination_id
+            organism.energy -= barrier * 0.06
+        else:
+            organism.energy -= barrier * 0.18
+            organism.health -= max(0.0, barrier - success) * 0.035
+            if organism.health <= 0.0:
+                self._kill(organism, "movement_hazard")
 
     def _eat(self, organism: Organism) -> None:
         place = self.world.places[organism.location]
@@ -410,19 +458,61 @@ class Simulation:
         organism.inventory[material] = organism.inventory.get(material, 0) + 1
         organism.energy -= 0.035
 
+    def _craft(self, organism: Organism, feedback: dict[str, float]) -> None:
+        if organism.genome.manipulator < 0.12 or organism.inventory_count() < 2 or len(organism.artifacts) >= organism.artifact_limit():
+            organism.energy -= 0.025
+            return
+        available = [name for name, qty in organism.inventory.items() if qty > 0]
+        if len(available) < 2:
+            organism.energy -= 0.020
+            return
+        components: dict[str, int] = {}
+        draws = min(3, organism.inventory_count())
+        for _ in range(draws):
+            choices = [name for name, qty in organism.inventory.items() if qty > components.get(name, 0)]
+            if not choices:
+                break
+            chosen = self.rng.choice(choices)
+            components[chosen] = components.get(chosen, 0) + 1
+        if sum(components.values()) < 2:
+            organism.energy -= 0.020
+            return
+        bind_help = derive_affordances(components).get("bind", 0.0)
+        best_skill = max(organism.tool_skill.values(), default=0.0)
+        chance = min(0.92, organism.genome.manipulator * 0.36 + bind_help * 0.30 + best_skill * 0.22 + organism.genome.prediction_weight * 0.12)
+        organism.energy -= 0.12 + 0.04 * sum(components.values())
+        if self.rng.random() > chance:
+            for name in components:
+                organism.tool_skill["bind"] = min(1.0, organism.tool_skill.get("bind", 0.0) + 0.004)
+            return
+        for name, qty in components.items():
+            organism.inventory[name] -= qty
+            if organism.inventory[name] <= 0:
+                del organism.inventory[name]
+        artifact = build_artifact(components)
+        organism.artifacts.append(artifact)
+        self.artifacts_created[artifact.name] += 1
+        feedback["social"] += 0.06
+        for capability, value in artifact.capabilities.items():
+            if capability in organism.tool_skill:
+                organism.tool_skill[capability] = min(1.0, organism.tool_skill.get(capability, 0.0) + value * 0.010)
+
     def _use_tool(self, organism: Organism, feedback: dict[str, float]) -> None:
         place = self.world.places[organism.location]
-        affordance, score = best_affordance(organism.inventory, organism.tool_skill)
+        affordance, score = best_affordance(organism.inventory, organism.tool_skill, organism.artifacts)
         if score < 0.08:
             organism.energy -= 0.05
             return
         skill = organism.tool_skill.get(affordance, 0.0)
-        chance = min(0.94, score * 0.42 + skill * 0.34 + organism.genome.manipulator * 0.20 + organism.genome.prediction_weight * 0.06)
+        resistance = self._affordance_resistance(place, affordance)
+        overmatch = score + skill * 0.25 + organism.genome.manipulator * 0.10 - resistance
+        chance = min(0.94, max(0.02, score * 0.36 + skill * 0.30 + organism.genome.manipulator * 0.18 + organism.genome.prediction_weight * 0.06 + overmatch * 0.22))
         organism.energy -= 0.12 + score * 0.10
         success = self.rng.random() < chance
         if success:
             gain = self._tool_effect(organism, place, affordance, score, skill)
             organism.energy += gain
+            self._wear_artifacts(organism, affordance, amount=0.18 + score * 0.10)
             organism.tool_skill[affordance] = min(1.0, skill + 0.055 * (1.0 - skill) + 0.005)
             organism.successful_tools += 1
             self.tool_successes[affordance] += 1
@@ -439,9 +529,26 @@ class Simulation:
             organism.tool_skill[affordance] = min(1.0, skill + 0.010 * (1.0 - skill))
             if self.rng.random() < 0.10:
                 organism.health -= 0.015 + score * 0.030
+            overmatch_penalty = max(0.0, resistance - score)
+            self._wear_artifacts(organism, affordance, amount=0.35 + score * 0.18 + overmatch_penalty * 2.2)
             self.demonstrations[place.id].append((organism.id, affordance, False))
             if organism.health <= 0.0:
                 self._kill(organism, "tool_accident")
+
+    def _affordance_resistance(self, place: Place, affordance: str) -> float:
+        if affordance in {"crack", "lever"}:
+            return min(1.0, 0.22 + place.mineral_richness * 0.45 + place.locked_chemical / 420.0)
+        if affordance == "cut":
+            return min(1.0, 0.10 + place.obstacles.get("thorn", 0.0) * 0.60)
+        if affordance == "contain":
+            return min(1.0, 0.10 + place.obstacles.get("water", 0.0) * 0.25 + place.water_flow * 0.15)
+        if affordance == "concentrate_heat":
+            return min(1.0, 0.15 + place.obstacles.get("heat", 0.0) * 0.25 + place.volatility * 0.20)
+        if affordance == "conduct":
+            return min(1.0, 0.35 + place.mineral_richness * 0.30)
+        if affordance == "bind":
+            return 0.18
+        return 0.25
 
     def _tool_effect(self, organism: Organism, place: Place, affordance: str, score: float, skill: float) -> float:
         competence = 0.45 + score * 0.35 + skill * 0.20
@@ -474,6 +581,19 @@ class Simulation:
             place.locked_chemical -= amount
             return amount * (0.15 + organism.genome.mechanical_use * 0.55 + organism.genome.chemical_metabolism * 0.25)
         return 0.0
+
+    def _wear_artifacts(self, organism: Organism, affordance: str, amount: float) -> None:
+        kept = []
+        for artifact in organism.artifacts:
+            if artifact.capabilities.get(affordance, 0.0) > 0.05:
+                artifact.durability -= amount
+                artifact.age += 1
+            if artifact.durability > 0.0:
+                kept.append(artifact)
+            else:
+                self.artifacts_broken[artifact.name] += 1
+                self.world.places[organism.location].resources["chemical"] += 0.1
+        organism.artifacts = kept
 
     def _attack(self, organism: Organism, rosters: dict[int, list[int]]) -> None:
         local = [self.organisms[oid] for oid in rosters.get(organism.location, []) if oid != organism.id and self.organisms[oid].alive]
@@ -508,7 +628,7 @@ class Simulation:
             self.reproduction_failures["courtship_not_adult"] += 1
             organism.energy -= 0.015
             return
-        if organism.energy < organism.sexual_energy_threshold() * 0.72:
+        if organism.energy < self._sexual_reserve_threshold(organism) * 0.82:
             self.reproduction_failures["courtship_low_energy"] += 1
             organism.energy -= 0.020
             return
@@ -605,7 +725,7 @@ class Simulation:
             choices: dict[int, int] = {}
             for organism in candidates:
                 self.reproduction_attempts["sexual_pairing"] += 1
-                if organism.energy < organism.sexual_energy_threshold():
+                if organism.energy < self._sexual_reserve_threshold(organism):
                     self.reproduction_failures["sexual_low_energy"] += 1
                     continue
                 viable = [
@@ -613,8 +733,8 @@ class Simulation:
                     for other in candidates
                     if other.id != organism.id
                     and other.id not in paired
-                    and organism.energy >= organism.sexual_energy_threshold()
-                    and other.energy >= other.sexual_energy_threshold()
+                    and organism.energy >= self._sexual_reserve_threshold(organism)
+                    and other.energy >= self._sexual_reserve_threshold(other)
                     and organism.genome.distance(other.genome) < 0.50
                 ]
                 if not viable:
@@ -658,18 +778,21 @@ class Simulation:
         selectivity = chooser.genome.mate_selectivity
         return visible_fitness * (0.3 + selectivity) - chooser.genome.distance(candidate.genome) * 0.25 + self.rng.random() * 0.05
 
+    def _sexual_reserve_threshold(self, organism: Organism) -> float:
+        return organism.sexual_energy_threshold() * (0.34 + organism.genome.offspring_investment * 0.10)
+
     def _sexual_reproduce(self, a: Organism, b: Organism) -> Organism | None:
         if self.living_total >= self.config.max_population:
             self.reproduction_failures["sexual_population_cap"] += 1
             return None
-        cost_a = a.sexual_energy_threshold() * (0.25 + a.genome.offspring_investment * 0.22)
-        cost_b = b.sexual_energy_threshold() * (0.25 + b.genome.offspring_investment * 0.22)
+        cost_a = a.sexual_energy_threshold() * (0.035 + a.genome.offspring_investment * 0.050)
+        cost_b = b.sexual_energy_threshold() * (0.035 + b.genome.offspring_investment * 0.050)
         if a.energy < cost_a or b.energy < cost_b:
             self.reproduction_failures["sexual_cost_energy"] += 1
             return None
         child_genome = Genome.recombine(self.rng, a.genome, b.genome)
         child_genome.developmental_complexity = min(1.0, child_genome.developmental_complexity + self.rng.uniform(0.00, 0.04))
-        child_energy = (cost_a + cost_b) * 0.34
+        child_energy = 4.0 + (cost_a + cost_b) * 0.85
         template = self._inherit_template_sexual(a, b, child_genome)
         child = self.add_organism("agent", child_genome, a.location, child_energy, max(a.generation, b.generation) + 1, (a.id, b.id), template)
         if child:
@@ -735,6 +858,7 @@ class Simulation:
         organism.brain = None
         organism.brain_template = None
         organism.inventory.clear()
+        organism.artifacts.clear()
 
     def _apply_interventions(self) -> None:
         if self.config.run_mode != "garden":
@@ -800,6 +924,8 @@ class Simulation:
             "deaths_by_kind_cause": dict(self.deaths_by_kind_cause),
             "tool_successes": dict(self.tool_successes),
             "marks_created": dict(self.marks_created),
+            "artifacts_created": dict(self.artifacts_created),
+            "artifacts_broken": dict(self.artifacts_broken),
             "reproduction_attempts": dict(self.reproduction_attempts),
             "reproduction_failures": dict(self.reproduction_failures),
             "action_counts": dict(self.action_counts),
