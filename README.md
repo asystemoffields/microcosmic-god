@@ -29,6 +29,7 @@ The current implementation is Prototype 0: a runnable Python simulation designed
 - Selective brain checkpoints are saved for notable neural agents.
 - Garden mode supports logged interventions.
 - Reproduction failure telemetry, per-action energy accounting, and deaths split by organism kind.
+- Regression tests for locality, signal observability, crafting failure costs, and reproduction capacity contracts.
 
 ## Quick Start
 
@@ -114,6 +115,8 @@ Checkpoint files include:
 - reason saved
 
 These are the transfer candidates for future experiments in other worlds or games.
+
+Prototype 0 brains are small leaky reactive policies: hidden state carries forward with fixed decay, while lifetime learning updates output/action preferences and prediction weights. Rich learned recurrence is a future brain-core upgrade.
 
 See [docs/TRANSFER_RUNWAY.md](docs/TRANSFER_RUNWAY.md) for the plan to separate reusable brain cores from world-specific adapters and test saved agents in held-out worlds, simple games, and eventually richer RL environments.
 

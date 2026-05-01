@@ -8,7 +8,7 @@ from .brain import TinyBrain
 from .energy import AFFORDANCES, Artifact
 from .genome import Genome
 
-OBSERVATION_SIZE = 36
+OBSERVATION_SIZE = 42
 
 ACTIONS = (
     "rest",

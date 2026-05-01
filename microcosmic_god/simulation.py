@@ -129,6 +129,8 @@ class Simulation:
         self._apply_interventions()
         self.demonstrations.clear()
 
+        # Perception is a tick-start snapshot; action effects below resolve sequentially
+        # against current organism locations, births, and deaths.
         rosters = self._rosters()
         contexts: dict[int, tuple[list[float], int, float, float, list[int]]] = {}
         intents: dict[int, str] = {}
@@ -156,7 +158,7 @@ class Simulation:
                 self._courtship(organism, feedback[organism_id])
                 active_mating_places.add(organism.location)
                 continue
-            self._resolve_action(organism, action, rosters, feedback[organism_id])
+            self._resolve_action(organism, action, feedback[organism_id])
 
         for organism in self.organisms.values():
             if organism.alive and organism.mate_intent_until >= self.tick:
@@ -214,6 +216,9 @@ class Simulation:
             if organism.alive:
                 rosters[organism.location].append(organism.id)
         return rosters
+
+    def _living_ids_at(self, place_id: int) -> list[int]:
+        return [organism.id for organism in self.organisms.values() if organism.alive and organism.location == place_id]
 
     def _fast_counts(self) -> dict[str, int]:
         counts = {kind: count for kind, count in self.living_by_kind.items() if count > 0}
@@ -368,7 +373,7 @@ class Simulation:
             place.habitat.get("depth", 0.0),
             place.habitat.get("salinity", 0.0),
             place.habitat.get("humidity", 0.5),
-            *organism.signal_values[:2],
+            *organism.signal_values,
         ]
         if len(features) != OBSERVATION_SIZE:
             raise AssertionError(f"observation size drifted to {len(features)}")
@@ -431,7 +436,6 @@ class Simulation:
         self,
         organism: Organism,
         action: str,
-        rosters: dict[int, list[int]],
         feedback: dict[str, float],
     ) -> None:
         organism.last_action = action
@@ -453,13 +457,13 @@ class Simulation:
         elif action == "use_tool":
             self._use_tool(organism, feedback)
         elif action == "attack":
-            self._attack(organism, rosters)
+            self._attack(organism)
         elif action == "signal":
             self._signal(organism, feedback)
         elif action == "mark":
             self._mark(organism, feedback)
         elif action == "asexual_reproduce":
-            self._asexual_reproduce(organism, feedback, rosters)
+            self._asexual_reproduce(organism, feedback)
         elif action == "observe":
             self._observe_others(organism, feedback)
 
@@ -591,8 +595,9 @@ class Simulation:
         chance = min(0.92, organism.genome.manipulator * 0.36 + bind_help * 0.30 + best_skill * 0.22 + organism.genome.prediction_weight * 0.12)
         organism.energy -= 0.12 + 0.04 * sum(components.values())
         if self.rng.random() > chance:
-            for name in components:
-                organism.tool_skill["bind"] = min(1.0, organism.tool_skill.get("bind", 0.0) + 0.004)
+            lost = self._lose_failed_craft_components(organism, components, bind_help)
+            skill_gain = 0.0015 + lost * 0.0035
+            organism.tool_skill["bind"] = min(1.0, organism.tool_skill.get("bind", 0.0) + skill_gain)
             return
         for name, qty in components.items():
             organism.inventory[name] -= qty
@@ -716,8 +721,24 @@ class Simulation:
                 self.world.places[organism.location].resources["chemical"] += 0.1
         organism.artifacts = kept
 
-    def _attack(self, organism: Organism, rosters: dict[int, list[int]]) -> None:
-        local = [self.organisms[oid] for oid in rosters.get(organism.location, []) if oid != organism.id and self.organisms[oid].alive]
+    def _lose_failed_craft_components(self, organism: Organism, components: dict[str, int], bind_help: float) -> int:
+        place = self.world.places[organism.location]
+        lost = 0
+        break_chance = max(0.18, min(0.72, 0.48 - bind_help * 0.20 + (1.0 - organism.genome.manipulator) * 0.12))
+        for name, qty in components.items():
+            for _ in range(qty):
+                if organism.inventory.get(name, 0) <= 0 or self.rng.random() >= break_chance:
+                    continue
+                organism.inventory[name] -= 1
+                if organism.inventory[name] <= 0:
+                    del organism.inventory[name]
+                lost += 1
+                if self.rng.random() < 0.35:
+                    place.materials[name] = min(99, place.materials.get(name, 0) + 1)
+        return lost
+
+    def _attack(self, organism: Organism) -> None:
+        local = [self.organisms[oid] for oid in self._living_ids_at(organism.location) if oid != organism.id]
         if not local:
             organism.energy -= 0.04
             return
@@ -776,14 +797,14 @@ class Simulation:
         self.marks_created[str(token)] += 1
         feedback["social"] += 0.08
 
-    def _asexual_reproduce(self, organism: Organism, feedback: dict[str, float], rosters: dict[int, list[int]]) -> None:
+    def _asexual_reproduce(self, organism: Organism, feedback: dict[str, float]) -> None:
         self.reproduction_attempts["asexual"] += 1
         if not organism.adult() or self.living_total >= self.config.max_population:
             self.reproduction_failures["asexual_not_adult_or_cap"] += 1
             organism.energy -= 0.02
             return
         place = self.world.places[organism.location]
-        if len(rosters.get(organism.location, [])) >= place.capacity:
+        if len(self._living_ids_at(organism.location)) >= place.capacity:
             self.reproduction_failures["asexual_local_capacity"] += 1
             organism.energy -= 0.015
             return
