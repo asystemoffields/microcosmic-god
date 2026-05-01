@@ -5,12 +5,13 @@ import tempfile
 import unittest
 from random import Random
 
-from microcosmic_god.brain import TinyBrain
+from microcosmic_god.brain import PREDICTION_HEADS, TinyBrain
 from microcosmic_god.config import RunConfig
 from microcosmic_god.energy import build_structure, structure_decay_channels
 from microcosmic_god.genome import Genome
-from microcosmic_god.organisms import OBSERVATION_SIZE
+from microcosmic_god.organisms import ACTIONS, OBSERVATION_SIZE
 from microcosmic_god.simulation import Simulation
+from microcosmic_god.world import CausalChallenge
 
 
 def make_sim(seed: int = 101, places: int = 3) -> Simulation:
@@ -88,6 +89,7 @@ class CausalContractTests(unittest.TestCase):
 
         self.assertIn("cognition", payload)
         self.assertEqual(payload["cognition"]["last_action"], "use_tool")
+        self.assertIn("prediction_errors", payload["cognition"])
         self.assertGreater(payload["cognition"]["event_memory"]["tool"], 0.0)
 
     def test_attack_uses_current_location_not_tick_start_roster(self) -> None:
@@ -104,7 +106,7 @@ class CausalContractTests(unittest.TestCase):
         self.assertEqual(target.health, before_health)
         self.assertEqual(target.location, 1)
 
-    def test_asexual_capacity_uses_current_local_population(self) -> None:
+    def test_clone_mutate_capacity_uses_current_local_population(self) -> None:
         self.sim = make_sim(places=2)
         parent_genome = Genome.plant(self.sim.rng)
         parent = self.sim.add_organism("plant", parent_genome, 0, 200.0)
@@ -114,10 +116,31 @@ class CausalContractTests(unittest.TestCase):
         parent.age = 100
         neighbor.location = 1
 
-        self.sim._asexual_reproduce(parent, {"reproduction": 0.0, "social": 0.0})
+        self.sim._clone_mutate(parent, {"reproduction": 0.0, "social": 0.0})
 
-        self.assertEqual(self.sim.births_by_mode["asexual"], 1)
+        self.assertEqual(self.sim.births_by_mode["clone_mutate"], 1)
         self.assertEqual(len(self.sim._living_ids_at(0)), 2)
+
+    def test_reproduction_actions_are_operator_labels(self) -> None:
+        self.assertIn("clone_mutate", ACTIONS)
+        self.assertIn("coordinate", ACTIONS)
+        self.assertNotIn("asexual_reproduce", ACTIONS)
+        self.assertNotIn("mate", ACTIONS)
+
+    def test_complex_neural_agents_can_clone_with_soft_strain(self) -> None:
+        self.sim = make_sim()
+        self.sim.config.clone_complexity_soft_limit = 0.0
+        parent_genome = Genome.neural(self.sim.rng)
+        parent_genome.neural_budget = 32.0
+        parent_genome.memory_budget = 16.0
+        parent = self.sim.add_organism("agent", parent_genome, 0, 1_000.0)
+        assert parent is not None
+        parent.age = 100
+
+        self.sim._clone_mutate(parent, {"reproduction": 0.0, "social": 0.0})
+
+        self.assertEqual(self.sim.births_by_mode["clone_mutate"], 1)
+        self.assertNotIn("clone_mutate_complexity_ceiling", self.sim.reproduction_failures)
 
     def test_failed_craft_risks_material_loss(self) -> None:
         self.sim = make_sim()
@@ -147,6 +170,55 @@ class CausalContractTests(unittest.TestCase):
 
         self.assertLess(agent.inventory_count(), 2)
         self.assertGreater(agent.tool_skill["bind"], 0.0)
+
+    def test_successful_craft_counts_as_tool_making(self) -> None:
+        self.sim = make_sim()
+        agent_genome = Genome.neural(self.sim.rng)
+        agent_genome.manipulator = 1.0
+        agent = self.sim.add_organism("agent", agent_genome, 0, 100.0)
+        assert agent is not None
+        agent.inventory = {"stone": 1, "fiber": 1}
+
+        class SuccessfulCraftRng:
+            def choice(self, values):  # type: ignore[no-untyped-def]
+                return tuple(values)[0]
+
+            def random(self) -> float:
+                return 0.0
+
+            def gauss(self, _mu: float, _sigma: float) -> float:
+                return 0.0
+
+        self.sim.rng = SuccessfulCraftRng()  # type: ignore[assignment]
+
+        self.sim._craft(agent, {"reproduction": 0.0, "social": 0.0, "tool": 0.0})
+
+        self.assertEqual(agent.successful_tools, 1)
+        self.assertEqual(self.sim.tool_successes["craft"], 1)
+        self.assertGreater(agent.success_profile["tool_make"], 0.0)
+
+    def test_causal_challenge_unlocks_after_affordance_sequence(self) -> None:
+        self.sim = make_sim()
+        agent = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        assert agent is not None
+        place = self.sim.world.places[0]
+        before = place.resources["chemical"]
+        place.causal_challenge = CausalChallenge(
+            sequence=("contain", "filter"),
+            payoff_energy="chemical",
+            payoff_remaining=10.0,
+            difficulty=0.0,
+        )
+        feedback = {"reproduction": 0.0, "social": 0.0, "tool": 0.0}
+
+        first_gain = self.sim._advance_causal_challenge(agent, place, "contain", competence=1.0, feedback=feedback)
+        second_gain = self.sim._advance_causal_challenge(agent, place, "filter", competence=1.0, feedback=feedback)
+
+        self.assertGreater(first_gain, 0.0)
+        self.assertGreater(second_gain, 0.0)
+        self.assertGreater(place.resources["chemical"], before)
+        self.assertEqual(self.sim.causal_unlocks["contain>filter"], 1)
+        self.assertGreater(agent.success_profile["causal_unlock"], 0.0)
 
     def test_inside_boundary_is_distinct_from_shelter(self) -> None:
         structure = build_structure({"shell": 3, "resin": 2, "fiber": 1})
@@ -264,6 +336,26 @@ class CausalContractTests(unittest.TestCase):
         self.assertNotEqual(before_in, brain.weights_in)
         self.assertEqual(len(brain.input_trace), 5)
         self.assertEqual(len(brain.hidden_trace), 4)
+
+    def test_brain_learns_multiple_prediction_heads(self) -> None:
+        brain = TinyBrain.random(Random(9), input_size=5, hidden_size=4, output_size=3)
+        brain.forward([0.5, -0.1, 0.4, 0.7, 0.2])
+        before_damage = list(brain.auxiliary_prediction_weights["damage"])
+        before_tool = list(brain.auxiliary_prediction_weights["tool"])
+
+        brain.learn(
+            action_index=2,
+            valence=0.8,
+            energy_delta=0.4,
+            learning_rate=0.18,
+            plasticity=0.90,
+            prediction_weight=0.85,
+            outcome_targets={"damage": 0.3, "reproduction": 0.0, "social": 0.2, "tool": 1.0, "hazard": 0.1},
+        )
+
+        self.assertEqual(set(brain.last_prediction_errors), set(PREDICTION_HEADS))
+        self.assertNotEqual(before_damage, brain.auxiliary_prediction_weights["damage"])
+        self.assertNotEqual(before_tool, brain.auxiliary_prediction_weights["tool"])
 
     def test_zero_plasticity_keeps_brain_weights_stable(self) -> None:
         brain = TinyBrain.random(Random(8), input_size=5, hidden_size=4, output_size=3)

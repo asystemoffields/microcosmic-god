@@ -27,6 +27,8 @@ class CheckpointManager:
             "interval_champion": max(1, min(limit, math.ceil(limit * 0.12))),
             "reproductive_champion": max(1, min(limit, math.ceil(limit * 0.25))),
             "tool_champion": max(1, min(limit, math.ceil(limit * 0.18))),
+            "causal_champion": max(1, min(limit, math.ceil(limit * 0.12))),
+            "learner_champion": max(1, min(limit, math.ceil(limit * 0.12))),
             "lineage_founder": max(1, min(limit, math.ceil(limit * 0.18))),
             "notable_death": max(1, min(limit, math.ceil(limit * 0.16))),
             "general": limit,

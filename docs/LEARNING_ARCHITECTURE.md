@@ -49,9 +49,11 @@ The current `TinyBrain` is still small, but it now has:
 - input and hidden eligibility traces
 - valence-modulated action learning
 - prediction-weight learning
+- multiple prediction heads for energy, damage, reproduction, social, tool, and movement-hazard outcomes
 - input-to-hidden representational plasticity
 - recent action-result traces exposed back into observation
 - short event-memory slots for energy, damage, reproduction, social, tool, and surprise-like consequences
+- observer-only success profiles for checkpointing learning/tool/causal standouts without creating hidden agent reward
 - evolvable neural budget, memory budget, learning rate, plasticity, prediction weight, and valence wiring
 - observation access to physical fields including temperature, pressure, current, interiority, shelter, oxygen-like exposure, acidity, biological activity, abrasion, and wet/dry cycling
 
@@ -86,7 +88,8 @@ These are cheap enough to add before a major backend rewrite:
 
 - Done: add explicit recent-action/result traces to observations so agents can connect action, context, and consequence.
 - Done: add short event memory slots for "what changed after I acted" rather than only place value.
-- Add prediction heads for damage, reproduction opportunity, tool success, and movement hazard.
+- Done: add prediction heads for damage, reproduction opportunity, tool success, and movement hazard.
+- Done: add a cheap causal-challenge substrate where short affordance sequences can unlock finite local energy payoffs.
 - Let organisms attend to a subset of local materials/structures instead of seeing only aggregate place fields.
 - Partly done: save richer checkpoint context around standouts, including recent trace, event memory, signal values, place memory, local world summaries, and reason saved.
 - Keep increasing neural capacity only behind metabolic cost and successful reproduction.

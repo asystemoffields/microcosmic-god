@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from random import Random
 from typing import Any
 
-from .brain import TinyBrain
+from .brain import PREDICTION_HEADS, TinyBrain
 from .energy import AFFORDANCES, STRUCTURE_CAPABILITIES, Artifact
 from .genome import Genome
 
@@ -29,9 +29,21 @@ EVENT_MEMORY_LABELS = (
     "tool",
     "surprise",
 )
+SUCCESS_PROFILE_LABELS = (
+    "energy_gain",
+    "prediction_fit",
+    "tool_make",
+    "tool_use",
+    "structure",
+    "causal_step",
+    "causal_unlock",
+    "social_learning",
+    "reproduction",
+)
 RECENT_TRACE_SIZE = len(RECENT_TRACE_LABELS)
+PREDICTION_ERROR_SIZE = len(PREDICTION_HEADS)
 EVENT_MEMORY_SIZE = len(EVENT_MEMORY_LABELS)
-OBSERVATION_SIZE = 42 + RECENT_TRACE_SIZE + EVENT_MEMORY_SIZE + SIGNAL_VALUE_SIZE
+OBSERVATION_SIZE = 42 + RECENT_TRACE_SIZE + PREDICTION_ERROR_SIZE + EVENT_MEMORY_SIZE + SIGNAL_VALUE_SIZE
 
 ACTIONS = (
     "rest",
@@ -46,8 +58,8 @@ ACTIONS = (
     "attack",
     "signal",
     "mark",
-    "mate",
-    "asexual_reproduce",
+    "coordinate",
+    "clone_mutate",
     "observe",
 )
 
@@ -76,6 +88,7 @@ class Organism:
     tool_skill: dict[str, float] = field(default_factory=lambda: {name: 0.0 for name in (*AFFORDANCES, *STRUCTURE_CAPABILITIES, "build")})
     signal_values: list[float] = field(default_factory=lambda: [0.0 for _ in range(SIGNAL_VALUE_SIZE)])
     place_memory: dict[int, float] = field(default_factory=dict)
+    prediction_error_profile: list[float] = field(default_factory=lambda: [0.0 for _ in PREDICTION_HEADS])
     event_memory: list[float] = field(default_factory=lambda: [0.0 for _ in range(EVENT_MEMORY_SIZE)])
     alive: bool = True
     last_action: str = "rest"
@@ -88,10 +101,11 @@ class Organism:
     recent_reproduction_feedback: float = 0.0
     recent_social_feedback: float = 0.0
     recent_tool_feedback: float = 0.0
-    mate_intent_until: int = -1
-    courtship_token: int = 0
+    recombine_intent_until: int = -1
+    coordination_token: int = 0
     successful_tools: int = 0
     offspring_count: int = 0
+    success_profile: dict[str, float] = field(default_factory=lambda: {label: 0.0 for label in SUCCESS_PROFILE_LABELS})
 
     @property
     def neural(self) -> bool:
@@ -135,11 +149,17 @@ class Organism:
     def adult(self) -> bool:
         return self.age >= 25 and self.health > 0.35
 
-    def asexual_energy_threshold(self) -> float:
+    def clone_mutate_energy_threshold(self) -> float:
         return 22.0 + self.genome.asexual_threshold * 45.0 + self.genome.complexity() * 7.0
 
-    def sexual_energy_threshold(self) -> float:
+    def recombine_energy_threshold(self) -> float:
         return 26.0 + self.genome.sexual_threshold * 55.0 + self.genome.complexity() * 8.0
+
+    def asexual_energy_threshold(self) -> float:
+        return self.clone_mutate_energy_threshold()
+
+    def sexual_energy_threshold(self) -> float:
+        return self.recombine_energy_threshold()
 
     def choose_signal_token(self) -> int:
         if self.brain and self.brain.last_outputs:
@@ -172,13 +192,16 @@ class Organism:
         reproduction_feedback: float,
         social_feedback: float,
         tool_feedback: float,
+        prediction_errors: dict[str, float] | None = None,
     ) -> None:
+        prediction_errors = prediction_errors or {"energy": prediction_error}
         self.recent_action_index = max(0, min(len(ACTIONS) - 1, int(action_index)))
         self.last_action = ACTIONS[self.recent_action_index]
         self.last_energy_delta = energy_delta
         self.recent_health_delta = health_delta
         self.recent_damage = damage
-        self.recent_prediction_error = prediction_error
+        self.recent_prediction_error = prediction_errors.get("energy", prediction_error)
+        self.prediction_error_profile = [_clip(prediction_errors.get(head, 0.0)) for head in PREDICTION_HEADS]
         self.recent_reproduction_feedback = reproduction_feedback
         self.recent_social_feedback = social_feedback
         self.recent_tool_feedback = tool_feedback
@@ -186,27 +209,33 @@ class Organism:
             energy_delta=energy_delta,
             health_delta=health_delta,
             damage=damage,
-            prediction_error=prediction_error,
             reproduction_feedback=reproduction_feedback,
             social_feedback=social_feedback,
             tool_feedback=tool_feedback,
+            prediction_errors=prediction_errors,
         )
+        if energy_delta > 0.0:
+            self.record_success("energy_gain", min(3.0, energy_delta / 8.0))
+        average_error = sum(abs(prediction_errors.get(head, 0.0)) for head in PREDICTION_HEADS) / max(1, len(PREDICTION_HEADS))
+        if average_error < 1.0 and (abs(energy_delta) + abs(health_delta) + reproduction_feedback + social_feedback + tool_feedback) > 0.0:
+            self.record_success("prediction_fit", (1.0 - average_error) * 0.04)
 
     def _write_event_memory(
         self,
         energy_delta: float,
         health_delta: float,
         damage: float,
-        prediction_error: float,
         reproduction_feedback: float,
         social_feedback: float,
         tool_feedback: float,
+        prediction_errors: dict[str, float],
     ) -> None:
         if len(self.event_memory) != EVENT_MEMORY_SIZE:
             self.event_memory = [0.0 for _ in range(EVENT_MEMORY_SIZE)]
         memory_gate = _clip(self.genome.memory_budget / 12.0, 0.0, 1.0)
         decay = 0.86 + memory_gate * 0.10
         write = (0.03 + memory_gate * 0.12) * (0.75 + min(1.0, self.genome.plasticity_rate * 2.5) * 0.25)
+        surprise = sum(abs(prediction_errors.get(head, 0.0)) for head in PREDICTION_HEADS) / max(1, len(PREDICTION_HEADS))
         event = [
             _clip(max(0.0, energy_delta) / 10.0, 0.0, 1.5),
             _clip(max(0.0, -energy_delta) / 10.0, 0.0, 1.5),
@@ -215,9 +244,16 @@ class Organism:
             _clip(reproduction_feedback, 0.0, 1.5),
             _clip(social_feedback),
             _clip(tool_feedback, 0.0, 1.5),
-            _clip(abs(prediction_error), 0.0, 1.5),
+            _clip(surprise, 0.0, 1.5),
         ]
         self.event_memory = [_clip(old * decay + value * write) for old, value in zip(self.event_memory, event)]
+
+    def record_success(self, label: str, amount: float = 1.0) -> None:
+        if not self.success_profile:
+            self.success_profile = {name: 0.0 for name in SUCCESS_PROFILE_LABELS}
+        if label not in self.success_profile:
+            self.success_profile[label] = 0.0
+        self.success_profile[label] = max(0.0, min(1_000_000.0, self.success_profile[label] + max(0.0, amount)))
 
     def repair_or_decay(self) -> None:
         if self.energy > self.storage_limit():
@@ -239,6 +275,7 @@ class Organism:
             "neural": self.neural,
             "offspring_count": self.offspring_count,
             "successful_tools": self.successful_tools,
+            "success_profile": {key: round(value, 4) for key, value in sorted(self.success_profile.items()) if value > 0.0},
             "last_action": self.last_action,
             "last_valence": round(self.last_valence, 4),
             "last_energy_delta": round(self.last_energy_delta, 4),
@@ -253,7 +290,9 @@ class Organism:
             "last_action": self.last_action,
             "last_valence": round(self.last_valence, 6),
             "recent_trace": {label: round(value, 6) for label, value in zip(RECENT_TRACE_LABELS, self.recent_trace())},
+            "prediction_errors": {label: round(value, 6) for label, value in zip(PREDICTION_HEADS, self.prediction_error_profile)},
             "event_memory": {label: round(value, 6) for label, value in zip(EVENT_MEMORY_LABELS, self.event_memory)},
+            "success_profile": {key: round(value, 6) for key, value in sorted(self.success_profile.items()) if value > 0.0},
             "signal_values": [round(value, 6) for value in self.signal_values],
             "place_memory": [{"place_id": place_id, "value": round(value, 6)} for place_id, value in place_memory],
         }

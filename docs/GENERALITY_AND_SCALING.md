@@ -62,6 +62,12 @@ Tools should be capability transformers. A composite artifact can matter because
 
 Hardness and resistance tiers matter. A weak cutting artifact can work on fiber and fail or break against diamond-like material. The same rule should handle wood, shell, stone, crystal, deep vents, ocean edges, and future exotic environments.
 
+## Causal Inference Substrate
+
+Puzzle solving should be a world-law consequence, not a separate objective. The first substrate is a finite local causal challenge: a place can contain an affordance sequence implied by its fields and materials. For example, a high-flow wet place may expose more chemical energy after `contain` then `filter`, while a mineral/geothermal place may respond to `concentrate_heat` then `conduct`.
+
+Agents are not told the sequence as a score label. They can only experience the consequences of tool attempts, remember recent effects, learn prediction heads, and maybe communicate useful traces. This gives us a cheap reasoning/inference pressure while keeping the sealed run honest: the payoff is still local energy released by consistent interaction.
+
 ## Persistent Structures
 
 Place-level structures are artifacts left in the world. They are built from material properties, have durability and scale, and affect local fields without being assigned a special purpose.
@@ -100,16 +106,23 @@ Smartness should never be paid directly as a global scalar. It should matter bec
 
 This is still an explicit selection pressure for cognition, but the pressure is mediated by physical and social interactions rather than by a hidden "intelligence reward."
 
+The payoff curve should be steep. Simple organisms can survive on surface energy, but learned sequencing, tool construction, structures, and field manipulation should open much larger reservoirs: locked chemistry, mechanical gradients, electrical gradients, and high-density energy. The human-vs-squirrel analogy belongs here: the world should not reward the abstract property "smart"; it should reward the actual behaviors that let a smart agent make fire, build channels, store energy, exploit gradients, and coordinate across time.
+
 ## Evolution Operators
 
-The current code exposes reproduction as `asexual_reproduce` and `mate`, but those should be understood as provisional evolutionary operators rather than sacred biology.
+Reproduction is now routed through an `EvolutionEngine`, which owns variation and selection operators separately from world physics. The current in-world actions are `clone_mutate` and `coordinate`; successful coordination can produce a `recombine` offspring plan.
 
-- Clone/mutate reproduction preserves useful local solutions and explores nearby variants.
-- Recombine reproduction mixes genomes and brain templates, and currently requires behavioral coordination so coordination can itself matter.
+- `clone_mutate` preserves useful local solutions and explores nearby variants.
+- `recombine` mixes genomes and brain templates, and currently requires behavioral coordination so coordination can itself matter.
+- The old asexual/sexual framing is legacy vocabulary only; it should not shape future design choices.
 - Future intelligence-farming modes may add non-biological operators such as tournament selection, novelty archives, cross-world trials, curriculum transfer, or task-adoption trials.
 - Any non-biological operator must be separated from sealed ecological runs or logged as garden/search machinery.
 
 The aim is not to mimic animal drives unless those drives are useful. The aim is to create robust selection toward agents that learn, adapt, communicate, manipulate environments, and transfer.
+
+The farm-mode north star is: these were effective operators and learners, make more like that. That means future selection should be able to sample from checkpoint archives, rank demonstrated learning/transfer behavior, and instantiate new variants without pretending the process is ordinary ecology.
+
+Observer success profiles are allowed for checkpointing and debriefs because they do not change agent reward or world physics. They should stay descriptive: energy capture, prediction fit, tool making/use, structures, causal unlocks, social learning, and reproduction. If any profile metric starts steering sealed-run survival directly, it has crossed the line into a hidden objective and should be removed or moved to logged garden/search machinery.
 
 ## Scaling Strategy
 

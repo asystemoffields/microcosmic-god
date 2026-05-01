@@ -25,6 +25,7 @@ class RunConfig:
     stop_on_neural_extinction: bool = True
     stop_on_full_extinction: bool = True
     event_detail: bool = True
+    clone_complexity_soft_limit: float = 4.8
     asexual_complexity_ceiling: float = 4.8
     neural_checkpoint_limit: int = 64
 

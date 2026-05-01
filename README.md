@@ -12,11 +12,16 @@ The current implementation is Prototype 0: a runnable Python simulation designed
 - Evolving neural agents with recurrent ANNs, eligibility traces, predictive learning, and representational plasticity.
 - Darwinian inheritance of genome/development parameters and innate brain templates.
 - Lifetime learning through evolved valence wiring and plasticity.
-- Clone/mutate and recombine reproduction pathways, currently exposed as asexual and sexual biology but treated as provisional evolutionary search operators.
-- Recombine reproduction requires behavioral coordination through short-lived courtship/receptivity states.
+- Evolution operators are split from world physics through an `EvolutionEngine`.
+- `clone_mutate` and `recombine` are the first two in-world operators; they replace biology-first action labels.
+- Recombine requires behavioral coordination through short-lived local intent states.
 - Short action-result traces and event-memory slots let agents perceive recent consequences of their own behavior.
+- Multiple prediction heads learn energy, damage, reproduction, social, tool, and movement-hazard outcomes.
+- Observer-only success profiles track energy capture, prediction fit, tool making/use, structures, causal unlocks, social learning, and reproduction for checkpointing and debriefs without becoming hidden reward.
 - Tool affordances derived from material properties.
 - Tool use requires object affordance, body compatibility, learned skill, and context.
+- Place-level causal challenges can require short affordance sequences, such as containment then filtering, to unlock finite local energy payoffs through consistent physical interaction.
+- The payoff curve is intentionally steep: learned sequencing, useful tools, and structures can open much larger energy reservoirs than surface foraging.
 - Composite artifacts with derived capabilities, durability, and tiered resistance against harder materials/obstacles.
 - Persistent material structures built from gathered components, including place-level boundaries, channels, supports, filters, and gradient harvesters.
 - Structure decay through general material-environment coupling: mechanical wear, corrosion, biological decay, thermal damage, solubility, radiation, and fatigue.
@@ -116,17 +121,20 @@ Checkpoint files include:
 - genome
 - organism state
 - tool skills
+- observer success profile
 - signal associations
 - recent action-result trace and event memory
 - place memory
 - ecological context
 - reason saved
 
-Checkpoint slots are bucketed so one dramatic failure mode cannot consume the whole archive. First tool successes, interval/final living champions, reproductive champions, tool champions, lineage founders, and notable deaths each get their own quota inside the global checkpoint limit.
+Checkpoint slots are bucketed so one dramatic failure mode cannot consume the whole archive. First tool successes, interval/final living champions, reproductive champions, tool champions, causal champions, learner champions, lineage founders, and notable deaths each get their own quota inside the global checkpoint limit.
 
 These are the transfer candidates for future experiments in other worlds or games.
 
 Prototype 0 brains are still intentionally compact, but they now carry hidden state, input/hidden eligibility traces, learned action preferences, prediction weights, and valence-modulated input-to-hidden plasticity. Genome neural budgets can mutate far beyond the local starting sizes, with metabolic cost deciding whether larger brains survive.
+
+Run summaries include an `evolution_policy` block describing the active operators. The current sealed policy is still triggered by in-world action and interaction, while the code is now shaped to support future farm-mode policies like "these were effective operators and learners, make more like that."
 
 See [docs/TRANSFER_RUNWAY.md](docs/TRANSFER_RUNWAY.md) for the plan to separate reusable brain cores from world-specific adapters and test saved agents in held-out worlds, simple games, and eventually richer RL environments.
 

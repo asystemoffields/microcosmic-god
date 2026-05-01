@@ -67,9 +67,46 @@ def world_physics_summary(world: World) -> dict[str, float]:
     return summary
 
 
+def _round_profile(profile: Counter[str]) -> dict[str, float]:
+    return {key: round(value, 6) for key, value in sorted(profile.items()) if value > 0.0}
+
+
+def success_profile_summary(organisms: dict[int, Organism]) -> dict[str, dict[str, float]]:
+    all_totals: Counter[str] = Counter()
+    living_totals: Counter[str] = Counter()
+    neural_totals: Counter[str] = Counter()
+    for organism in organisms.values():
+        for key, value in organism.success_profile.items():
+            all_totals[key] += value
+            if organism.alive:
+                living_totals[key] += value
+            if organism.neural:
+                neural_totals[key] += value
+    return {
+        "all": _round_profile(all_totals),
+        "living": _round_profile(living_totals),
+        "neural": _round_profile(neural_totals),
+    }
+
+
+def organism_success_score(organism: Organism) -> float:
+    profile = organism.success_profile
+    return (
+        organism.offspring_count * 4.0
+        + organism.successful_tools * 1.5
+        + profile.get("causal_unlock", 0.0) * 4.0
+        + profile.get("causal_step", 0.0) * 1.0
+        + profile.get("prediction_fit", 0.0) * 1.2
+        + profile.get("tool_make", 0.0)
+        + profile.get("tool_use", 0.0)
+        + profile.get("structure", 0.0)
+        + organism.energy / max(1.0, organism.storage_limit())
+    )
+
+
 def top_organisms(organisms: dict[int, Organism], limit: int = 10) -> list[dict[str, Any]]:
     living = [organism for organism in organisms.values() if organism.alive]
-    living.sort(key=lambda item: (item.offspring_count, item.successful_tools, item.energy, item.age), reverse=True)
+    living.sort(key=lambda item: (organism_success_score(item), item.offspring_count, item.successful_tools, item.energy, item.age), reverse=True)
     return [organism.to_summary() for organism in living[:limit]]
 
 
@@ -100,6 +137,9 @@ def build_debrief(sim: Any, reason: str, elapsed_seconds: float) -> dict[str, An
         "deaths_by_cause": dict(sim.deaths_by_cause),
         "deaths_by_kind_cause": dict(sim.deaths_by_kind_cause),
         "tool_successes": dict(sim.tool_successes),
+        "causal_steps": dict(getattr(sim, "causal_steps", {})),
+        "causal_unlocks": dict(getattr(sim, "causal_unlocks", {})),
+        "success_profile": success_profile_summary(sim.organisms),
         "marks_created": dict(sim.marks_created),
         "artifacts_created": dict(sim.artifacts_created),
         "artifacts_broken": dict(sim.artifacts_broken),
@@ -107,6 +147,7 @@ def build_debrief(sim: Any, reason: str, elapsed_seconds: float) -> dict[str, An
         "structures_extended": dict(getattr(sim, "structures_extended", {})),
         "reproduction_attempts": dict(sim.reproduction_attempts),
         "reproduction_failures": dict(sim.reproduction_failures),
+        "evolution_policy": sim.evolution.to_summary(),
         "action_counts": dict(sim.action_counts),
         "action_energy_delta": {key: round(value, 6) for key, value in sim.action_energy_delta.items()},
         "action_avg_energy_delta": {

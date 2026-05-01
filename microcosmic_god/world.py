@@ -44,6 +44,36 @@ class Mark:
 
 
 @dataclass(slots=True)
+class CausalChallenge:
+    sequence: tuple[str, ...]
+    payoff_energy: str
+    payoff_remaining: float
+    difficulty: float
+    progress: int = 0
+    attempts: int = 0
+    solved: int = 0
+
+    def expected_affordance(self) -> str | None:
+        if self.payoff_remaining <= 0.0 or not self.sequence:
+            return None
+        return self.sequence[self.progress % len(self.sequence)]
+
+    def signature(self) -> str:
+        return ">".join(self.sequence)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "sequence": list(self.sequence),
+            "payoff_energy": self.payoff_energy,
+            "payoff_remaining": round(self.payoff_remaining, 6),
+            "difficulty": round(self.difficulty, 6),
+            "progress": self.progress,
+            "attempts": self.attempts,
+            "solved": self.solved,
+        }
+
+
+@dataclass(slots=True)
 class Place:
     id: int
     name: str
@@ -63,6 +93,7 @@ class Place:
     structures: list[Structure] = field(default_factory=list)
     signals: list[Signal] = field(default_factory=list)
     marks: list[Mark] = field(default_factory=list)
+    causal_challenge: CausalChallenge | None = None
 
     def total_accessible_energy(self) -> float:
         return sum(self.resources.values())
@@ -81,6 +112,7 @@ class Place:
             "physics": {k: round(v, 4) for k, v in self.physics.items()},
             "structures": [structure.to_dict() for structure in self.structures[-8:]],
             "marks": [mark.to_dict() for mark in self.marks[-8:]],
+            "causal_challenge": self.causal_challenge.to_dict() if self.causal_challenge else None,
         }
 
 
@@ -235,6 +267,18 @@ class World:
                     physics=physics,
                 )
             )
+            places[-1].causal_challenge = cls._make_causal_challenge(
+                rng,
+                places[-1].resources,
+                locked_chemical=places[-1].locked_chemical,
+                water=water,
+                sun=sun,
+                geo=geo,
+                mineral=mineral,
+                volatility=volatility,
+                obstacles=obstacles,
+                physics=physics,
+            )
 
         edges: list[Edge] = []
         edge_lookup: dict[tuple[int, int], Edge] = {}
@@ -250,6 +294,48 @@ class World:
                 cls._connect(places, edges, edge_lookup, edge_adjacency, a, b, rng)
 
         return cls(places=places, season_length=config.season_length, edges=edges, edge_lookup=edge_lookup, edge_adjacency=edge_adjacency)
+
+    @staticmethod
+    def _make_causal_challenge(
+        rng: Random,
+        resources: dict[str, float],
+        *,
+        locked_chemical: float,
+        water: float,
+        sun: float,
+        geo: float,
+        mineral: float,
+        volatility: float,
+        obstacles: dict[str, float],
+        physics: dict[str, float],
+    ) -> CausalChallenge | None:
+        candidates = [
+            (water * 0.55 + physics.get("current_exposure", 0.0) * 0.45, ("contain", "filter"), "chemical"),
+            (mineral * 0.42 + locked_chemical / 180.0 + obstacles.get("height", 0.0) * 0.18, ("crack", "lever"), "chemical"),
+            (sun * 0.35 + geo * 0.38 + mineral * 0.22, ("concentrate_heat", "conduct"), "electrical"),
+            (obstacles.get("thorn", 0.0) * 0.48 + resources.get("biological_storage", 0.0) / 180.0, ("cut", "bind"), "biological_storage"),
+            (physics.get("salinity", 0.0) * 0.30 + mineral * 0.36 + geo * 0.28, ("filter", "conduct"), "high_density"),
+        ]
+        score, sequence, payoff_energy = max(candidates, key=lambda item: item[0] + rng.random() * 0.035)
+        if score < 0.16 and rng.random() > 0.30:
+            return None
+        if score > 0.58 or rng.random() < score * 0.18:
+            extra_step = {
+                "chemical": "contain",
+                "biological_storage": "cut",
+                "electrical": "contain",
+                "high_density": "concentrate_heat",
+            }.get(payoff_energy, "bind")
+            if extra_step not in sequence:
+                sequence = (*sequence, extra_step)
+        difficulty = _clamp(0.18 + score * 0.42 + volatility * 0.18)
+        payoff = 14.0 + score * 68.0 + min(locked_chemical, 120.0) * 0.16 + max(0, len(sequence) - 2) * 18.0
+        return CausalChallenge(
+            sequence=sequence,
+            payoff_energy=payoff_energy,
+            payoff_remaining=payoff,
+            difficulty=difficulty,
+        )
 
     @staticmethod
     def _connect(
