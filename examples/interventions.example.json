@@ -1,0 +1,31 @@
+[
+  {
+    "tick": 80,
+    "kind": "add_resource",
+    "reason": "garden run: chemical pulse near early collapse",
+    "payload": {
+      "place": 2,
+      "energy": "chemical",
+      "amount": 30
+    }
+  },
+  {
+    "tick": 150,
+    "kind": "climate_shift",
+    "reason": "garden run: test resilience to slow climate drift",
+    "payload": {
+      "amount": -0.08
+    }
+  },
+  {
+    "tick": 220,
+    "kind": "disaster",
+    "reason": "garden run: local disturbance",
+    "payload": {
+      "place": 4,
+      "resource_loss": 0.20,
+      "damage": 0.05
+    }
+  }
+]
+

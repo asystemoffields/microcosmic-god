@@ -1,0 +1,20 @@
+[project]
+name = "microcosmic-god"
+version = "0.1.0"
+description = "A headless artificial life sandbox for evolving ecology, intelligence, tools, and communication."
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+analysis = ["matplotlib", "numpy", "psutil"]
+
+[project.scripts]
+microcosmic-god = "microcosmic_god.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["microcosmic_god*"]
+
