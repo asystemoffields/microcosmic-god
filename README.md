@@ -112,6 +112,8 @@ Checkpoint files include:
 
 These are the transfer candidates for future experiments in other worlds or games.
 
+See [docs/TRANSFER_RUNWAY.md](docs/TRANSFER_RUNWAY.md) for the plan to separate reusable brain cores from world-specific adapters and test saved agents in held-out worlds, simple games, and eventually richer RL environments.
+
 ## SAE Inspection
 
 Train a small sparse autoencoder on brain checkpoints after a run:
@@ -146,6 +148,8 @@ See [docs/LANGUAGE_RUNWAY.md](docs/LANGUAGE_RUNWAY.md) for the longer path from 
 Every new mechanic should be governed by reusable laws rather than special-case objectives. Tool and habitat mechanics should compose through properties like hardness, resistance, containment, traversal, insulation, conductivity, and learned skill.
 
 See [docs/GENERALITY_AND_SCALING.md](docs/GENERALITY_AND_SCALING.md) for the project contract that keeps the simulator general enough for open-ended evolution and structured enough to move from local CPU runs to many-world GPU epochs.
+
+See [docs/PHYSICS_KERNEL.md](docs/PHYSICS_KERNEL.md) for the plan to add graph-field physics: thermodynamics, currents, gravity/elevation, pressure/depth, and material coupling as cheap local laws.
 
 ## Design Rule
 
