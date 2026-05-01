@@ -9,6 +9,8 @@ The current communication substrate has two channels:
 
 Neither channel has fixed semantics. A token only matters if organisms learn or evolve useful associations between that token and later consequences.
 
+Marks also carry a faint physical trace of the maker's recent action context, such as a tool affordance, rough success, and method quality. This is not a built-in word. It is a durable residue that can be attended to, ignored, misread, copied, or made useful by later agents.
+
 ## Possible Developmental Stages
 
 1. Bare signaling:
@@ -29,11 +31,13 @@ Neither channel has fixed semantics. A token only matters if organisms learn or 
    - agents leave decaying place-local marks
    - marks can outlive the author
    - marks may support route memory, resource warnings, or tool-site cues
+   - observation can extract fuzzy tool traces when the reader has enough attention and memory
 
 5. Proto-symbol systems:
    - combinations of signals and marks become useful
    - tokens may become tied to action sequences or tool affordances
    - imitation and observation make communication more valuable
+   - useful marks can theoretically be copied across places, allowing tool knowledge to move across space as well as time
 
 6. Transfer experiments:
    - checkpoint a neural agent with interesting communication behavior
@@ -54,4 +58,3 @@ Brain checkpoints should preserve:
 - observed communication/marking history when available
 
 The first transfer experiments will probably fail. That is acceptable. The goal is to build the archive format and agent interface so a later successful communicator is not trapped inside its birth world.
-

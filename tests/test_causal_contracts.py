@@ -7,7 +7,7 @@ from random import Random
 
 from microcosmic_god.brain import PREDICTION_HEADS, TinyBrain
 from microcosmic_god.config import RunConfig
-from microcosmic_god.energy import build_structure, structure_decay_channels
+from microcosmic_god.energy import build_artifact, build_structure, structure_decay_channels
 from microcosmic_god.genome import Genome
 from microcosmic_god.organisms import ACTIONS, OBSERVATION_SIZE
 from microcosmic_god.simulation import Simulation
@@ -196,6 +196,43 @@ class CausalContractTests(unittest.TestCase):
         self.assertEqual(agent.successful_tools, 1)
         self.assertEqual(self.sim.tool_successes["craft"], 1)
         self.assertGreater(agent.success_profile["tool_make"], 0.0)
+
+    def test_method_quality_amplifies_real_material_fit_without_magic(self) -> None:
+        rough_conductor = build_artifact({"crystal": 1, "stone": 1}, target_affordance="conduct")
+        worked_conductor = build_artifact({"crystal": 1, "stone": 1}, method_quality=0.85, target_affordance="conduct")
+        bad_conductor = build_artifact({"fiber": 2}, method_quality=1.0, target_affordance="conduct")
+
+        self.assertGreater(worked_conductor.capabilities["conduct"], rough_conductor.capabilities["conduct"])
+        self.assertGreater(worked_conductor.durability, rough_conductor.durability)
+        self.assertLess(bad_conductor.capabilities["conduct"], 0.08)
+
+    def test_marks_can_transmit_fuzzy_tool_traces_when_observed(self) -> None:
+        self.sim = make_sim()
+        agent_genome = Genome.neural(self.sim.rng)
+        agent_genome.sensor_range = 1.0
+        agent_genome.memory_budget = 12.0
+        reader = self.sim.add_organism("agent", agent_genome, 0, 80.0)
+        assert reader is not None
+        self.sim.world.create_mark(
+            0,
+            source_id=999,
+            token=3,
+            intensity=1.0,
+            durability=160.0,
+            trace={
+                "affordance": "filter",
+                "inscription_quality": 1.0,
+                "method_quality": 0.8,
+                "tool_feedback": 1.0,
+            },
+        )
+        before = reader.tool_skill["filter"]
+
+        self.sim._observe_others(reader, {"reproduction": 0.0, "social": 0.0, "tool": 0.0})
+
+        self.assertGreater(reader.tool_skill["filter"], before)
+        self.assertEqual(self.sim.mark_lessons["filter"], 1)
+        self.assertGreater(reader.success_profile["written_learning"], 0.0)
 
     def test_causal_challenge_unlocks_after_affordance_sequence(self) -> None:
         self.sim = make_sim()

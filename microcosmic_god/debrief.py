@@ -97,6 +97,7 @@ def organism_success_score(organism: Organism) -> float:
         + profile.get("causal_unlock", 0.0) * 4.0
         + profile.get("causal_step", 0.0) * 1.0
         + profile.get("prediction_fit", 0.0) * 1.2
+        + profile.get("written_learning", 0.0) * 1.1
         + profile.get("tool_make", 0.0)
         + profile.get("tool_use", 0.0)
         + profile.get("structure", 0.0)
@@ -141,6 +142,7 @@ def build_debrief(sim: Any, reason: str, elapsed_seconds: float) -> dict[str, An
         "causal_unlocks": dict(getattr(sim, "causal_unlocks", {})),
         "success_profile": success_profile_summary(sim.organisms),
         "marks_created": dict(sim.marks_created),
+        "mark_lessons": dict(getattr(sim, "mark_lessons", {})),
         "artifacts_created": dict(sim.artifacts_created),
         "artifacts_broken": dict(sim.artifacts_broken),
         "structures_built": dict(getattr(sim, "structures_built", {})),

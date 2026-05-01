@@ -393,13 +393,32 @@ def derive_artifact_capabilities(properties: Mapping[str, float]) -> dict[str, f
     return capabilities
 
 
-def build_artifact(components: Mapping[str, int]) -> Artifact:
+def build_artifact(
+    components: Mapping[str, int],
+    method_quality: float = 0.0,
+    target_affordance: str | None = None,
+) -> Artifact:
     properties = component_properties(components)
     capabilities = derive_artifact_capabilities(properties)
+    method_quality = _clamp01(method_quality)
+    if method_quality > 0.0:
+        properties["method_quality"] = method_quality
+        for name, value in list(capabilities.items()):
+            capabilities[name] = _clamp01(value * (1.0 + method_quality * 0.08) + method_quality * 0.006)
+        if target_affordance in capabilities:
+            target_value = capabilities[target_affordance]
+            capabilities[target_affordance] = _clamp01(target_value + target_value * (1.0 - target_value) * method_quality * 0.70)
+            properties["target_fit"] = capabilities[target_affordance]
     ranked = sorted(capabilities.items(), key=lambda item: item[1], reverse=True)
     dominant = [name for name, value in ranked[:2] if value > 0.25]
     name = "composite_" + ("_".join(dominant) if dominant else "object")
-    durability = 35.0 + properties.get("hard", 0.0) * 70.0 + properties.get("flexible", 0.0) * 25.0 + properties.get("bindable", 0.0) * 35.0
+    durability = (
+        35.0
+        + properties.get("hard", 0.0) * 70.0
+        + properties.get("flexible", 0.0) * 25.0
+        + properties.get("bindable", 0.0) * 35.0
+        + method_quality * (18.0 + properties.get("bindable", 0.0) * 20.0)
+    )
     return Artifact(
         name=name,
         components=dict(components),

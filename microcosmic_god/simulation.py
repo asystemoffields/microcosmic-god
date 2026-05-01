@@ -11,11 +11,14 @@ from .checkpoints import CheckpointManager
 from .config import RunConfig
 from .debrief import build_debrief, population_counts, success_profile_summary, world_energy_summary, world_physics_summary
 from .energy import (
+    AFFORDANCES,
     MATERIALS,
     artifact_capability,
     best_affordance,
     build_artifact,
     build_structure,
+    component_properties,
+    derive_artifact_capabilities,
     derive_affordances,
     extend_structure,
     structure_capability,
@@ -49,6 +52,7 @@ class Simulation:
         self.tool_successes: Counter[str] = Counter()
         self.causal_steps: Counter[str] = Counter()
         self.causal_unlocks: Counter[str] = Counter()
+        self.mark_lessons: Counter[str] = Counter()
         self.marks_created: Counter[str] = Counter()
         self.artifacts_created: Counter[str] = Counter()
         self.artifacts_broken: Counter[str] = Counter()
@@ -662,6 +666,55 @@ class Simulation:
         organism.inventory[material] = organism.inventory.get(material, 0) + 1
         organism.energy -= 0.035
 
+    def _craft_target_affordance(self, organism: Organism, place: Place, planning: float) -> str:
+        challenge = place.causal_challenge
+        if challenge is not None:
+            expected = challenge.expected_affordance()
+            if expected in AFFORDANCES and self.rng.random() < 0.45 + planning * 0.45:
+                return expected
+        scores = {
+            "crack": place.locked_chemical / 180.0 + place.mineral_richness * 0.25,
+            "cut": place.obstacles.get("thorn", 0.0) * 0.62 + place.resources["biological_storage"] / 220.0,
+            "bind": organism.tool_skill.get("craft", 0.0) * 0.35 + organism.inventory_count() / max(1.0, organism.inventory_limit()) * 0.16,
+            "contain": place.obstacles.get("water", 0.0) * 0.30 + place.physics.get("current_exposure", 0.0) * 0.34 + place.resources["mechanical"] / 240.0,
+            "concentrate_heat": place.resources["radiant"] / 220.0 + place.resources["thermal"] / 260.0 + place.obstacles.get("heat", 0.0) * 0.12,
+            "conduct": place.resources["electrical"] / 160.0 + place.resources["high_density"] / 90.0 + place.mineral_richness * place.geothermal * 0.55,
+            "lever": place.locked_chemical / 230.0 + place.obstacles.get("height", 0.0) * 0.40,
+            "filter": place.physics.get("current_exposure", 0.0) * 0.36 + place.physics.get("salinity", 0.0) * 0.18 + place.resources["chemical"] / 260.0,
+        }
+        if organism.last_craft_target in scores:
+            scores[organism.last_craft_target] += planning * 0.16
+        if organism.last_tool_affordance in scores:
+            scores[organism.last_tool_affordance] += planning * 0.10
+        return max(scores, key=lambda name: scores[name] + self.rng.random() * (0.18 - planning * 0.12))
+
+    def _select_craft_components(self, organism: Organism, target: str, draws: int, planning: float) -> dict[str, int]:
+        components: dict[str, int] = {}
+        for _ in range(draws):
+            choices = [name for name, qty in organism.inventory.items() if qty > components.get(name, 0)]
+            if not choices:
+                break
+            if self.rng.random() > 0.24 + planning * 0.68 + organism.tool_skill.get("craft", 0.0) * 0.18:
+                chosen = self.rng.choice(choices)
+            else:
+                chosen = max(
+                    choices,
+                    key=lambda name: self._component_craft_score(components, name, target, planning),
+                )
+            components[chosen] = components.get(chosen, 0) + 1
+        return components
+
+    def _component_craft_score(self, components: dict[str, int], candidate: str, target: str, planning: float) -> float:
+        trial = dict(components)
+        trial[candidate] = trial.get(candidate, 0) + 1
+        properties = component_properties(trial)
+        capabilities = derive_artifact_capabilities(properties)
+        target_fit = capabilities.get(target, 0.0)
+        bind_fit = capabilities.get("bind", 0.0)
+        durability_fit = properties.get("hard", 0.0) * 0.20 + properties.get("bindable", 0.0) * 0.12 + properties.get("flexible", 0.0) * 0.05
+        diversity = len(trial) / max(1.0, sum(trial.values()))
+        return target_fit * 0.60 + bind_fit * 0.16 + durability_fit + diversity * planning * 0.08 + self.rng.random() * (0.10 - planning * 0.06)
+
     def _craft(self, organism: Organism, feedback: dict[str, float]) -> None:
         if organism.genome.manipulator < 0.12 or organism.inventory_count() < 2 or len(organism.artifacts) >= organism.artifact_limit():
             organism.energy -= 0.025
@@ -670,40 +723,68 @@ class Simulation:
         if len(available) < 2:
             organism.energy -= 0.020
             return
-        components: dict[str, int] = {}
-        draws = min(3, organism.inventory_count())
-        for _ in range(draws):
-            choices = [name for name, qty in organism.inventory.items() if qty > components.get(name, 0)]
-            if not choices:
-                break
-            chosen = self.rng.choice(choices)
-            components[chosen] = components.get(chosen, 0) + 1
+        planning = self._interaction_control(organism)
+        target = self._craft_target_affordance(organism, self.world.places[organism.location], planning)
+        draws = min(3 + int((planning + organism.tool_skill.get("craft", 0.0)) > 1.15), organism.inventory_count())
+        components = self._select_craft_components(organism, target, draws, planning)
         if sum(components.values()) < 2:
             organism.energy -= 0.020
             return
-        bind_help = derive_affordances(components).get("bind", 0.0)
+        component_affordances = derive_affordances(components)
+        bind_help = component_affordances.get("bind", 0.0)
+        target_fit = derive_artifact_capabilities(component_properties(components)).get(target, 0.0)
         best_skill = max(organism.tool_skill.values(), default=0.0)
-        planning = self._interaction_control(organism)
-        chance = min(0.92, organism.genome.manipulator * 0.36 + bind_help * 0.30 + best_skill * 0.22 + planning * 0.16)
-        organism.energy -= (0.12 + 0.04 * sum(components.values())) * (1.0 - planning * 0.10)
+        craft_skill = organism.tool_skill.get("craft", 0.0)
+        target_skill = organism.tool_skill.get(target, 0.0)
+        material_gate = max(0.0, min(1.0, target_fit * 0.78 + bind_help * 0.16 + min(1.0, len(components) / max(1, sum(components.values()))) * 0.06))
+        method_quality = max(
+            0.0,
+            min(
+                1.0,
+                material_gate
+                * (
+                    planning * 0.30
+                    + craft_skill * 0.24
+                    + target_skill * 0.18
+                    + bind_help * 0.10
+                    + target_fit * 0.18
+                ),
+            ),
+        )
+        chance = min(
+            0.96,
+            organism.genome.manipulator * 0.26
+            + bind_help * 0.22
+            + best_skill * 0.08
+            + planning * 0.12
+            + method_quality * 0.20
+            + target_fit * 0.24,
+        )
+        organism.energy -= (0.12 + 0.04 * sum(components.values())) * (1.0 - method_quality * 0.18)
         if self.rng.random() > chance:
             lost = self._lose_failed_craft_components(organism, components, bind_help)
             skill_gain = 0.0015 + lost * 0.0035
             organism.tool_skill["bind"] = min(1.0, organism.tool_skill.get("bind", 0.0) + skill_gain)
+            organism.tool_skill["craft"] = min(1.0, craft_skill + skill_gain * 0.80)
             feedback["tool"] = feedback.get("tool", 0.0) + skill_gain
             return
         for name, qty in components.items():
             organism.inventory[name] -= qty
             if organism.inventory[name] <= 0:
                 del organism.inventory[name]
-        artifact = build_artifact(components)
+        artifact = build_artifact(components, method_quality=method_quality, target_affordance=target)
         organism.artifacts.append(artifact)
         self.artifacts_created[artifact.name] += 1
         organism.successful_tools += 1
-        organism.record_success("tool_make", 1.0)
+        organism.record_success("tool_make", 1.0 + method_quality)
         self.tool_successes["craft"] += 1
         feedback["social"] += 0.06
-        feedback["tool"] = feedback.get("tool", 0.0) + 0.30
+        feedback["tool"] = feedback.get("tool", 0.0) + 0.30 + method_quality * 0.30
+        organism.tool_skill["craft"] = min(1.0, craft_skill + 0.020 * (1.0 - craft_skill) + method_quality * 0.010)
+        organism.tool_skill[target] = min(1.0, organism.tool_skill.get(target, 0.0) + artifact.capabilities.get(target, 0.0) * 0.012 + method_quality * 0.010)
+        organism.last_craft_target = target
+        organism.last_tool_affordance = target
+        organism.last_artifact_method = method_quality
         for capability, value in artifact.capabilities.items():
             if capability in organism.tool_skill:
                 organism.tool_skill[capability] = min(1.0, organism.tool_skill.get(capability, 0.0) + value * 0.010)
@@ -813,6 +894,7 @@ class Simulation:
             self._wear_artifacts(organism, affordance, amount=0.18 + score * 0.10)
             organism.tool_skill[affordance] = min(1.0, skill + 0.055 * (1.0 - skill) + 0.005)
             organism.successful_tools += 1
+            organism.last_tool_affordance = affordance
             organism.record_success("tool_use", 1.0 + min(2.0, max(0.0, gain) / 8.0))
             self.tool_successes[affordance] += 1
             feedback["social"] += 0.2
@@ -827,6 +909,7 @@ class Simulation:
             self.checkpoints.save_first_tool(self.tick, organism, affordance, {"place": place.to_summary(), "gain": gain})
         else:
             organism.tool_skill[affordance] = min(1.0, skill + 0.010 * (1.0 - skill))
+            organism.last_tool_affordance = affordance
             feedback["tool"] = feedback.get("tool", 0.0) + 0.05
             if self.rng.random() < 0.10:
                 organism.health -= 0.015 + score * 0.030
@@ -1041,9 +1124,24 @@ class Simulation:
         intensity = 0.20 + organism.genome.signal_strength * 0.35 + organism.genome.memory_budget / 40.0
         durability = 45.0 + organism.genome.manipulator * 90.0 + organism.genome.memory_budget * 12.0 + inscription_help * 180.0
         organism.energy -= 0.08 + intensity * 0.12 + durability * 0.0008
-        self.world.create_mark(organism.location, organism.id, token, intensity, durability)
+        self.world.create_mark(organism.location, organism.id, token, intensity, durability, trace=self._mark_trace(organism, inscription_help))
         self.marks_created[str(token)] += 1
         feedback["social"] += 0.08
+
+    def _mark_trace(self, organism: Organism, inscription_help: float) -> dict[str, Any]:
+        affordance = organism.last_tool_affordance or organism.last_craft_target
+        trace: dict[str, Any] = {
+            "action": organism.last_action,
+            "valence": round(organism.last_valence, 6),
+            "energy_delta": round(organism.last_energy_delta, 6),
+            "inscription_quality": round(max(0.0, min(1.0, inscription_help + organism.genome.memory_budget / 20.0)), 6),
+        }
+        if affordance in organism.tool_skill:
+            trace["affordance"] = affordance
+            trace["skill"] = round(organism.tool_skill.get(affordance, 0.0), 6)
+            trace["method_quality"] = round(organism.last_artifact_method, 6)
+            trace["tool_feedback"] = round(organism.recent_tool_feedback, 6)
+        return trace
 
     def _clone_mutate(self, organism: Organism, feedback: dict[str, float]) -> None:
         self.reproduction_attempts["clone_mutate"] += 1
@@ -1186,10 +1284,58 @@ class Simulation:
             parent.offspring_count += 1
             parent.record_success("reproduction", 1.0)
 
+    def _read_mark_trace(self, organism: Organism, feedback: dict[str, float]) -> bool:
+        place = self.world.places[organism.location]
+        readable = [mark for mark in place.marks if mark.source_id != organism.id and mark.trace]
+        if not readable:
+            return False
+        planning = self._interaction_control(organism)
+        mark = max(
+            readable[-12:],
+            key=lambda item: item.intensity * min(1.0, item.durability / 140.0) + self.rng.random() * 0.03,
+        )
+        trace = mark.trace
+        affordance = str(trace.get("affordance", ""))
+        if affordance not in organism.tool_skill:
+            return False
+        inscription_quality = max(0.0, min(1.0, float(trace.get("inscription_quality", 0.0))))
+        method_quality = max(0.0, min(1.0, float(trace.get("method_quality", 0.0))))
+        tool_feedback = max(0.0, min(1.5, float(trace.get("tool_feedback", 0.0))))
+        token_bias = max(0.0, organism.signal_values[mark.token] if 0 <= mark.token < len(organism.signal_values) else 0.0)
+        fidelity = max(0.0, min(1.0, mark.intensity * min(1.0, mark.durability / 140.0) * (0.55 + inscription_quality * 0.45)))
+        attention = max(
+            0.0,
+            min(
+                1.0,
+                organism.genome.sensor_range * 0.34
+                + organism.genome.memory_budget / 22.0
+                + planning * 0.34
+                + token_bias * 0.10,
+            ),
+        )
+        gain = fidelity * attention * (0.004 + tool_feedback * 0.014 + method_quality * 0.018)
+        if gain <= 0.0005:
+            organism.energy -= 0.006
+            return True
+        organism.tool_skill[affordance] = min(1.0, organism.tool_skill.get(affordance, 0.0) + gain)
+        if method_quality > 0.0:
+            organism.tool_skill["craft"] = min(1.0, organism.tool_skill.get("craft", 0.0) + gain * 0.55)
+            organism.last_craft_target = affordance
+            organism.last_artifact_method = max(organism.last_artifact_method, method_quality * fidelity)
+        organism.last_tool_affordance = affordance
+        organism.record_success("written_learning", gain * 12.0)
+        self.mark_lessons[affordance] += 1
+        feedback["social"] += 0.05 + fidelity * 0.04
+        feedback["tool"] = feedback.get("tool", 0.0) + min(0.12, gain * 4.0)
+        organism.energy -= 0.010 + (1.0 - attention) * 0.010
+        return True
+
     def _observe_others(self, organism: Organism, feedback: dict[str, float]) -> None:
         demos = self.demonstrations.get(organism.location, [])
+        read_mark = self._read_mark_trace(organism, feedback)
         if not demos:
-            organism.energy -= 0.015
+            if not read_mark:
+                organism.energy -= 0.015
             return
         source_id, affordance, success = self.rng.choice(demos)
         if source_id == organism.id:
@@ -1197,6 +1343,7 @@ class Simulation:
         planning = self._interaction_control(organism)
         gain = (0.012 if success else 0.004) * (0.5 + organism.genome.sensor_range + planning * 1.10)
         organism.tool_skill[affordance] = min(1.0, organism.tool_skill.get(affordance, 0.0) + gain)
+        organism.last_tool_affordance = affordance
         organism.record_success("social_learning", 0.2 if success else 0.05)
         feedback["social"] += 0.2 if success else 0.05
         feedback["tool"] = feedback.get("tool", 0.0) + (0.10 if success else 0.03)
@@ -1307,6 +1454,7 @@ class Simulation:
             + math.log1p(profile.get("causal_step", 0.0)) * 1.2
             + math.log1p(profile.get("causal_unlock", 0.0)) * 2.4
             + math.log1p(profile.get("social_learning", 0.0)) * 1.0
+            + math.log1p(profile.get("written_learning", 0.0)) * 1.1
             + math.log1p(profile.get("reproduction", 0.0)) * 1.6
         )
         return (
@@ -1415,6 +1563,7 @@ class Simulation:
             "causal_unlocks": dict(self.causal_unlocks),
             "success_profile": success_profile_summary(self.organisms),
             "marks_created": dict(self.marks_created),
+            "mark_lessons": dict(self.mark_lessons),
             "artifacts_created": dict(self.artifacts_created),
             "artifacts_broken": dict(self.artifacts_broken),
             "structures_built": dict(self.structures_built),

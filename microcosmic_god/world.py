@@ -32,6 +32,7 @@ class Mark:
     intensity: float
     durability: float
     age: int = 0
+    trace: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -40,6 +41,7 @@ class Mark:
             "intensity": self.intensity,
             "durability": self.durability,
             "age": self.age,
+            "trace": dict(self.trace),
         }
 
 
@@ -643,7 +645,15 @@ class World:
         if 0 <= place_id < len(self.places):
             self.places[place_id].signals.append(Signal(source_id=source_id, token=token % 8, intensity=max(0.0, intensity)))
 
-    def create_mark(self, place_id: int, source_id: int, token: int, intensity: float, durability: float) -> None:
+    def create_mark(
+        self,
+        place_id: int,
+        source_id: int,
+        token: int,
+        intensity: float,
+        durability: float,
+        trace: dict[str, Any] | None = None,
+    ) -> None:
         if 0 <= place_id < len(self.places):
             self.places[place_id].marks.append(
                 Mark(
@@ -651,6 +661,7 @@ class World:
                     token=token % 8,
                     intensity=max(0.0, intensity),
                     durability=max(1.0, durability),
+                    trace=dict(trace or {}),
                 )
             )
 

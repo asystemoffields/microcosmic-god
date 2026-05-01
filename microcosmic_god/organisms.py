@@ -38,6 +38,7 @@ SUCCESS_PROFILE_LABELS = (
     "causal_step",
     "causal_unlock",
     "social_learning",
+    "written_learning",
     "reproduction",
 )
 RECENT_TRACE_SIZE = len(RECENT_TRACE_LABELS)
@@ -85,7 +86,7 @@ class Organism:
     brain_template: TinyBrain | None = None
     inventory: dict[str, int] = field(default_factory=dict)
     artifacts: list[Artifact] = field(default_factory=list)
-    tool_skill: dict[str, float] = field(default_factory=lambda: {name: 0.0 for name in (*AFFORDANCES, *STRUCTURE_CAPABILITIES, "build")})
+    tool_skill: dict[str, float] = field(default_factory=lambda: {name: 0.0 for name in (*AFFORDANCES, *STRUCTURE_CAPABILITIES, "build", "craft")})
     signal_values: list[float] = field(default_factory=lambda: [0.0 for _ in range(SIGNAL_VALUE_SIZE)])
     place_memory: dict[int, float] = field(default_factory=dict)
     prediction_error_profile: list[float] = field(default_factory=lambda: [0.0 for _ in PREDICTION_HEADS])
@@ -106,6 +107,9 @@ class Organism:
     successful_tools: int = 0
     offspring_count: int = 0
     success_profile: dict[str, float] = field(default_factory=lambda: {label: 0.0 for label in SUCCESS_PROFILE_LABELS})
+    last_tool_affordance: str = ""
+    last_craft_target: str = ""
+    last_artifact_method: float = 0.0
 
     @property
     def neural(self) -> bool:
@@ -277,6 +281,9 @@ class Organism:
             "successful_tools": self.successful_tools,
             "success_profile": {key: round(value, 4) for key, value in sorted(self.success_profile.items()) if value > 0.0},
             "last_action": self.last_action,
+            "last_tool_affordance": self.last_tool_affordance,
+            "last_craft_target": self.last_craft_target,
+            "last_artifact_method": round(self.last_artifact_method, 4),
             "last_valence": round(self.last_valence, 4),
             "last_energy_delta": round(self.last_energy_delta, 4),
             "artifacts": [artifact.to_dict() for artifact in self.artifacts],
@@ -293,6 +300,11 @@ class Organism:
             "prediction_errors": {label: round(value, 6) for label, value in zip(PREDICTION_HEADS, self.prediction_error_profile)},
             "event_memory": {label: round(value, 6) for label, value in zip(EVENT_MEMORY_LABELS, self.event_memory)},
             "success_profile": {key: round(value, 6) for key, value in sorted(self.success_profile.items()) if value > 0.0},
+            "tool_trace": {
+                "last_tool_affordance": self.last_tool_affordance,
+                "last_craft_target": self.last_craft_target,
+                "last_artifact_method": round(self.last_artifact_method, 6),
+            },
             "signal_values": [round(value, 6) for value in self.signal_values],
             "place_memory": [{"place_id": place_id, "value": round(value, 6)} for place_id, value in place_memory],
         }

@@ -20,6 +20,7 @@ The current implementation is Prototype 0: a runnable Python simulation designed
 - Observer-only success profiles track energy capture, prediction fit, tool making/use, structures, causal unlocks, social learning, and reproduction for checkpointing and debriefs without becoming hidden reward.
 - Tool affordances derived from material properties.
 - Tool use requires object affordance, body compatibility, learned skill, and context.
+- Crafting now has proto-reasoning: agents infer a local target affordance, choose components under noisy planning/skill constraints, and only get better artifacts when the materials actually fit the problem.
 - Place-level causal challenges can require short affordance sequences, such as containment then filtering, to unlock finite local energy payoffs through consistent physical interaction.
 - The payoff curve is intentionally steep: learned sequencing, useful tools, and structures can open much larger energy reservoirs than surface foraging.
 - Composite artifacts with derived capabilities, durability, and tiered resistance against harder materials/obstacles.
@@ -165,6 +166,8 @@ Agents have two low-level channels, neither with built-in meaning:
 
 Agents can learn associations between observed tokens and later internal valence. A token only becomes useful if ecology makes it useful.
 
+Marks can also preserve a fuzzy trace of the maker's recent tool/craft experience: action, affordance, rough success, and method quality. Observing a mark can slightly improve relevant skill only when the reader spends an observe action and has enough sensor/memory/attention to extract the trace. This is not language yet, but it gives durable writing-like behavior a physical channel to matter across time, and agents can theoretically copy useful traces elsewhere.
+
 Mark creation is summarized in aggregate/debrief counters rather than logged as one event per mark, so agents are free to mark obsessively if that behavior evolves.
 
 See [docs/LANGUAGE_RUNWAY.md](docs/LANGUAGE_RUNWAY.md) for the longer path from meaningless signals to possible future language-transfer experiments.
@@ -176,6 +179,8 @@ Every new mechanic should be governed by reusable laws rather than special-case 
 See [docs/GENERALITY_AND_SCALING.md](docs/GENERALITY_AND_SCALING.md) for the project contract that keeps the simulator general enough for open-ended evolution and structured enough to move from local CPU runs to many-world GPU epochs.
 
 See [docs/PHYSICS_KERNEL.md](docs/PHYSICS_KERNEL.md) for the plan to add graph-field physics: thermodynamics, currents, gravity/elevation, pressure/depth, and material coupling as cheap local laws.
+
+See [docs/EVENT_MONITORING.md](docs/EVENT_MONITORING.md) for the logging strategy: cheap counters for routine substrate dynamics, bounded rolling context, and durable story records only when events become important.
 
 See [side_projects/](side_projects/) for speculative branches, including Universal Genesis: an unseeded big-bang-to-life thought experiment kept separate from the practical simulator.
 
