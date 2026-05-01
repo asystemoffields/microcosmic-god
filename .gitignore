@@ -10,5 +10,6 @@ build/
 *.egg-info/
 runs/*
 !runs/.gitkeep
+analysis/sae_models/*
+!analysis/sae_models/.gitkeep
 *.log
-

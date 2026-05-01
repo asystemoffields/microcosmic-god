@@ -50,6 +50,8 @@ class Organism:
     last_action: str = "rest"
     last_valence: float = 0.0
     last_energy_delta: float = 0.0
+    mate_intent_until: int = -1
+    courtship_token: int = 0
     successful_tools: int = 0
     offspring_count: int = 0
 

@@ -13,7 +13,7 @@ The current implementation is Prototype 0: a runnable Python simulation designed
 - Darwinian inheritance of genome/development parameters and innate brain templates.
 - Lifetime learning through evolved valence wiring and plasticity.
 - Asexual and sexual reproduction.
-- Sexual reproduction requires behavioral coordination.
+- Sexual reproduction requires behavioral coordination through short-lived courtship/receptivity states.
 - Tool affordances derived from material properties.
 - Tool use requires object affordance, body compatibility, learned skill, and context.
 - Local signals with no fixed semantics.
@@ -22,6 +22,7 @@ The current implementation is Prototype 0: a runnable Python simulation designed
 - Extinction or run-limit debriefs are written automatically.
 - Selective brain checkpoints are saved for notable neural agents.
 - Garden mode supports logged interventions.
+- Reproduction failure telemetry, per-action energy accounting, and deaths split by organism kind.
 
 ## Quick Start
 
@@ -107,6 +108,22 @@ Checkpoint files include:
 - reason saved
 
 These are the transfer candidates for future experiments in other worlds or games.
+
+## SAE Inspection
+
+Train a small sparse autoencoder on brain checkpoints after a run:
+
+```powershell
+python analysis\scripts\train_checkpoint_sae.py runs\<run_dir>\checkpoints archives\brains --latent 16 --steps 1500 --out analysis\sae_models\run_sae.npz
+```
+
+Inspect a checkpoint through the trained SAE:
+
+```powershell
+python analysis\scripts\inspect_sae.py analysis\sae_models\run_sae.npz runs\<run_dir>\checkpoints\<brain_file>.json
+```
+
+This is an analysis microscope only. SAE features never feed back into agent reward, perception, reproduction, or world physics.
 
 ## Knowledge Transmission
 

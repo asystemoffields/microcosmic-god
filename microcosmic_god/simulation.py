@@ -34,8 +34,13 @@ class Simulation:
         self.living_neural = 0
         self.births_by_mode: Counter[str] = Counter()
         self.deaths_by_cause: Counter[str] = Counter()
+        self.deaths_by_kind_cause: Counter[str] = Counter()
         self.tool_successes: Counter[str] = Counter()
         self.marks_created: Counter[str] = Counter()
+        self.reproduction_attempts: Counter[str] = Counter()
+        self.reproduction_failures: Counter[str] = Counter()
+        self.action_counts: Counter[str] = Counter()
+        self.action_energy_delta: Counter[str] = Counter()
         self.aggregate_history: list[dict[str, Any]] = []
         self.interventions_applied: list[dict[str, Any]] = []
         self.demonstrations: dict[int, list[tuple[int, str, bool]]] = defaultdict(list)
@@ -136,24 +141,33 @@ class Simulation:
             intents[organism.id] = action
             contexts[organism.id] = (observation, ACTION_INDEX[action], organism.energy, organism.health, observed_tokens)
 
-        mate_requests: dict[int, list[int]] = defaultdict(list)
+        active_mating_places: set[int] = set()
         for organism_id, action in list(intents.items()):
             organism = self.organisms.get(organism_id)
             if organism is None or not organism.alive:
                 continue
             if action == "mate":
-                mate_requests[organism.location].append(organism_id)
+                self._courtship(organism, feedback[organism_id])
+                active_mating_places.add(organism.location)
                 continue
             self._resolve_action(organism, action, rosters, feedback[organism_id])
 
-        self._resolve_mating(mate_requests, feedback)
+        for organism in self.organisms.values():
+            if organism.alive and organism.mate_intent_until >= self.tick:
+                active_mating_places.add(organism.location)
+        self._resolve_mating(active_mating_places, feedback)
 
         for organism_id, context in contexts.items():
             organism = self.organisms.get(organism_id)
-            if organism is None or not organism.alive or organism.brain is None:
+            if organism is None:
                 continue
             observation, action_index, before_energy, before_health, observed_tokens = context
+            action_name = ACTIONS[action_index]
             energy_delta = organism.energy - before_energy
+            self.action_counts[action_name] += 1
+            self.action_energy_delta[action_name] += energy_delta
+            if not organism.alive or organism.brain is None:
+                continue
             health_delta = organism.health - before_health
             damage = max(0.0, -health_delta)
             extra = feedback[organism_id]
@@ -277,6 +291,11 @@ class Simulation:
         exploration = 0.025 + organism.genome.plasticity_rate * 0.055 + organism.genome.mutation_rate * 0.25
         if self.rng.random() < exploration:
             return self.rng.choice(ACTIONS)
+        energy_ratio = organism.energy / max(1.0, organism.storage_limit())
+        if organism.adult() and energy_ratio > 0.62:
+            reproductive_drive = organism.genome.valence_reproduction * (energy_ratio - 0.62)
+            outputs[ACTION_INDEX["mate"]] += reproductive_drive * (0.9 + organism.genome.mate_selectivity)
+            outputs[ACTION_INDEX["asexual_reproduce"]] += reproductive_drive * (0.7 + (1.0 - organism.genome.mate_selectivity) * 0.4)
         ranked = sorted(range(len(outputs)), key=lambda i: outputs[i], reverse=True)
         for index in ranked:
             action = ACTIONS[index]
@@ -483,6 +502,25 @@ class Simulation:
         self.world.emit_signal(organism.location, organism.id, token, intensity)
         feedback["social"] += intensity * 0.1
 
+    def _courtship(self, organism: Organism, feedback: dict[str, float]) -> None:
+        self.reproduction_attempts["courtship"] += 1
+        if not organism.adult():
+            self.reproduction_failures["courtship_not_adult"] += 1
+            organism.energy -= 0.015
+            return
+        if organism.energy < organism.sexual_energy_threshold() * 0.72:
+            self.reproduction_failures["courtship_low_energy"] += 1
+            organism.energy -= 0.020
+            return
+        window = 6 + int(organism.genome.signal_strength * 8.0 + organism.genome.mate_selectivity * 5.0)
+        token = organism.choose_signal_token()
+        intensity = 0.10 + organism.genome.signal_strength * 0.45 + organism.genome.mate_selectivity * 0.10
+        organism.mate_intent_until = max(organism.mate_intent_until, self.tick + window)
+        organism.courtship_token = token
+        organism.energy -= 0.035 + intensity * 0.040
+        self.world.emit_signal(organism.location, organism.id, token, intensity)
+        feedback["social"] += intensity * 0.12
+
     def _mark(self, organism: Organism, feedback: dict[str, float]) -> None:
         if organism.genome.manipulator < 0.12:
             organism.energy -= 0.02
@@ -498,18 +536,23 @@ class Simulation:
         feedback["social"] += 0.08
 
     def _asexual_reproduce(self, organism: Organism, feedback: dict[str, float], rosters: dict[int, list[int]]) -> None:
+        self.reproduction_attempts["asexual"] += 1
         if not organism.adult() or self.living_total >= self.config.max_population:
+            self.reproduction_failures["asexual_not_adult_or_cap"] += 1
             organism.energy -= 0.02
             return
         place = self.world.places[organism.location]
         if len(rosters.get(organism.location, [])) >= place.capacity:
+            self.reproduction_failures["asexual_local_capacity"] += 1
             organism.energy -= 0.015
             return
         threshold = organism.asexual_energy_threshold()
         if organism.energy < threshold:
+            self.reproduction_failures["asexual_low_energy"] += 1
             organism.energy -= 0.03
             return
         if organism.genome.complexity() > self.config.asexual_complexity_ceiling and organism.neural:
+            self.reproduction_failures["asexual_complexity_ceiling"] += 1
             organism.energy -= 0.08 + organism.genome.complexity() * 0.04
             return
         cost = threshold * (0.32 + organism.genome.offspring_investment * 0.28)
@@ -533,6 +576,8 @@ class Simulation:
             feedback["reproduction"] += 1.0
             if self.config.event_detail:
                 self.logger.event(self.tick, "birth", {"mode": "asexual", "child_id": child.id, "parent_ids": [organism.id], "kind": child.kind})
+        else:
+            self.reproduction_failures["asexual_add_failed"] += 1
 
     def _inherit_template_asexual(self, parent: Organism, child_genome: Genome) -> TinyBrain | None:
         if parent.brain_template is None or child_genome.neural_budget < 2.0:
@@ -541,13 +586,28 @@ class Simulation:
             return None
         return parent.brain_template.clone_for_offspring(self.rng, mutation_scale=0.025 + child_genome.mutation_rate * 0.25)
 
-    def _resolve_mating(self, mate_requests: dict[int, list[int]], feedback: dict[int, dict[str, float]]) -> None:
-        for place_id, ids in mate_requests.items():
-            candidates = [self.organisms[oid] for oid in ids if self.organisms[oid].alive and self.organisms[oid].adult()]
+    def _resolve_mating(self, place_ids: set[int], feedback: dict[int, dict[str, float]]) -> None:
+        for place_id in place_ids:
+            candidates = [
+                organism
+                for organism in self.organisms.values()
+                if organism.alive
+                and organism.location == place_id
+                and organism.adult()
+                and organism.mate_intent_until >= self.tick
+            ]
+            if len(candidates) < 2:
+                if candidates:
+                    self.reproduction_failures["sexual_no_partner"] += len(candidates)
+                continue
             self.rng.shuffle(candidates)
             paired: set[int] = set()
             choices: dict[int, int] = {}
             for organism in candidates:
+                self.reproduction_attempts["sexual_pairing"] += 1
+                if organism.energy < organism.sexual_energy_threshold():
+                    self.reproduction_failures["sexual_low_energy"] += 1
+                    continue
                 viable = [
                     other
                     for other in candidates
@@ -555,9 +615,10 @@ class Simulation:
                     and other.id not in paired
                     and organism.energy >= organism.sexual_energy_threshold()
                     and other.energy >= other.sexual_energy_threshold()
-                    and organism.genome.distance(other.genome) < 0.42
+                    and organism.genome.distance(other.genome) < 0.50
                 ]
                 if not viable:
+                    self.reproduction_failures["sexual_no_compatible_partner"] += 1
                     continue
                 choices[organism.id] = max(viable, key=lambda other: self._mate_score(organism, other)).id
             for organism in candidates:
@@ -568,11 +629,14 @@ class Simulation:
                 if partner is None or not partner.alive or partner.id in paired:
                     continue
                 if choices.get(partner.id) != organism.id and self.rng.random() > 0.35:
+                    self.reproduction_failures["sexual_unreciprocated_choice"] += 1
                     continue
                 child = self._sexual_reproduce(organism, partner)
                 if child:
                     paired.add(organism.id)
                     paired.add(partner.id)
+                    organism.mate_intent_until = -1
+                    partner.mate_intent_until = -1
                     feedback[organism.id]["reproduction"] += 1.0
                     feedback[partner.id]["reproduction"] += 1.0
                     if self.config.event_detail:
@@ -596,10 +660,12 @@ class Simulation:
 
     def _sexual_reproduce(self, a: Organism, b: Organism) -> Organism | None:
         if self.living_total >= self.config.max_population:
+            self.reproduction_failures["sexual_population_cap"] += 1
             return None
         cost_a = a.sexual_energy_threshold() * (0.25 + a.genome.offspring_investment * 0.22)
         cost_b = b.sexual_energy_threshold() * (0.25 + b.genome.offspring_investment * 0.22)
         if a.energy < cost_a or b.energy < cost_b:
+            self.reproduction_failures["sexual_cost_energy"] += 1
             return None
         child_genome = Genome.recombine(self.rng, a.genome, b.genome)
         child_genome.developmental_complexity = min(1.0, child_genome.developmental_complexity + self.rng.uniform(0.00, 0.04))
@@ -612,6 +678,8 @@ class Simulation:
             a.offspring_count += 1
             b.offspring_count += 1
             self.births_by_mode["sexual"] += 1
+        else:
+            self.reproduction_failures["sexual_add_failed"] += 1
         return child
 
     def _inherit_template_sexual(self, a: Organism, b: Organism, child_genome: Genome) -> TinyBrain | None:
@@ -655,6 +723,7 @@ class Simulation:
         if organism.neural:
             self.living_neural = max(0, self.living_neural - 1)
         self.deaths_by_cause[cause] += 1
+        self.deaths_by_kind_cause[f"{organism.kind}:{cause}"] += 1
         place = self.world.places[organism.location]
         place.resources["biological_storage"] = min(180.0, place.resources["biological_storage"] + max(0.0, organism.energy) * 0.35 + 2.0)
         if cause in {"predation", "senescence", "starvation"}:
@@ -728,8 +797,17 @@ class Simulation:
             "neural_avg_energy": round(sum(o.energy for o in neural) / max(1, len(neural)), 5),
             "births": dict(self.births_by_mode),
             "deaths": dict(self.deaths_by_cause),
+            "deaths_by_kind_cause": dict(self.deaths_by_kind_cause),
             "tool_successes": dict(self.tool_successes),
             "marks_created": dict(self.marks_created),
+            "reproduction_attempts": dict(self.reproduction_attempts),
+            "reproduction_failures": dict(self.reproduction_failures),
+            "action_counts": dict(self.action_counts),
+            "action_energy_delta": {key: round(value, 5) for key, value in self.action_energy_delta.items()},
+            "action_avg_energy_delta": {
+                key: round(self.action_energy_delta[key] / max(1, self.action_counts[key]), 5)
+                for key in self.action_counts
+            },
             "world_energy": world_energy_summary(self.world),
         }
         self.aggregate_history.append(aggregate)

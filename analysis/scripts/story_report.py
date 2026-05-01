@@ -92,8 +92,12 @@ def print_notes(summary: dict[str, Any], aggregates: list[dict[str, Any]]) -> No
     print(f"  final_population: {summary['population']}")
     print(f"  births_by_mode: {summary['births_by_mode']}")
     print(f"  deaths_by_cause: {summary['deaths_by_cause']}")
+    print(f"  deaths_by_kind_cause: {summary.get('deaths_by_kind_cause', {})}")
     print(f"  tool_successes: {summary['tool_successes']}")
     print(f"  marks_created: {summary.get('marks_created', {})}")
+    print(f"  reproduction_attempts: {summary.get('reproduction_attempts', {})}")
+    print(f"  reproduction_failures: {summary.get('reproduction_failures', {})}")
+    print(f"  action_avg_energy_delta: {summary.get('action_avg_energy_delta', {})}")
     if "sexual" not in summary.get("births_by_mode", {}):
         print("  observation: no sexual reproduction occurred in this run.")
     if summary["reason"] == "neural_extinction":
@@ -135,4 +139,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

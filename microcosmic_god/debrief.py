@@ -61,8 +61,17 @@ def build_debrief(sim: Any, reason: str, elapsed_seconds: float) -> dict[str, An
         "population": counts,
         "births_by_mode": dict(sim.births_by_mode),
         "deaths_by_cause": dict(sim.deaths_by_cause),
+        "deaths_by_kind_cause": dict(sim.deaths_by_kind_cause),
         "tool_successes": dict(sim.tool_successes),
         "marks_created": dict(sim.marks_created),
+        "reproduction_attempts": dict(sim.reproduction_attempts),
+        "reproduction_failures": dict(sim.reproduction_failures),
+        "action_counts": dict(sim.action_counts),
+        "action_energy_delta": {key: round(value, 6) for key, value in sim.action_energy_delta.items()},
+        "action_avg_energy_delta": {
+            key: round(sim.action_energy_delta[key] / max(1, sim.action_counts[key]), 6)
+            for key in sim.action_counts
+        },
         "checkpointing": sim.checkpoints.to_summary(),
         "world_energy": energy,
         "climate_drift": round(sim.world.climate_drift, 6),
