@@ -32,7 +32,18 @@ def world_energy_summary(world: World) -> dict[str, float]:
 
 
 def world_physics_summary(world: World) -> dict[str, float]:
-    keys = ("temperature", "fluid_level", "pressure", "humidity", "salinity", "elevation", "current_exposure")
+    keys = (
+        "temperature",
+        "fluid_level",
+        "pressure",
+        "humidity",
+        "salinity",
+        "elevation",
+        "current_exposure",
+        "interiority",
+        "boundary_permeability",
+        "shelter",
+    )
     summary: dict[str, float] = {}
     for key in keys:
         values = [place.physics.get(key, 0.0) for place in world.places]
@@ -44,6 +55,10 @@ def world_physics_summary(world: World) -> dict[str, float]:
     summary["max_edge_current"] = round(max(edge_currents, default=0.0), 5)
     summary["avg_edge_slope"] = round(sum(edge_slopes) / max(1, len(edge_slopes)), 5)
     summary["max_edge_slope"] = round(max(edge_slopes, default=0.0), 5)
+    structures = [structure for place in world.places for structure in place.structures]
+    summary["structure_count"] = float(len(structures))
+    summary["avg_structure_scale"] = round(sum(structure.scale for structure in structures) / max(1, len(structures)), 5)
+    summary["max_structure_scale"] = round(max((structure.scale for structure in structures), default=0.0), 5)
     return summary
 
 
@@ -83,6 +98,8 @@ def build_debrief(sim: Any, reason: str, elapsed_seconds: float) -> dict[str, An
         "marks_created": dict(sim.marks_created),
         "artifacts_created": dict(sim.artifacts_created),
         "artifacts_broken": dict(sim.artifacts_broken),
+        "structures_built": dict(getattr(sim, "structures_built", {})),
+        "structures_extended": dict(getattr(sim, "structures_extended", {})),
         "reproduction_attempts": dict(sim.reproduction_attempts),
         "reproduction_failures": dict(sim.reproduction_failures),
         "action_counts": dict(sim.action_counts),

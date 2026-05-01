@@ -99,6 +99,8 @@ def print_notes(summary: dict[str, Any], aggregates: list[dict[str, Any]]) -> No
     print(f"  marks_created: {summary.get('marks_created', {})}")
     print(f"  artifacts_created: {summary.get('artifacts_created', {})}")
     print(f"  artifacts_broken: {summary.get('artifacts_broken', {})}")
+    print(f"  structures_built: {summary.get('structures_built', {})}")
+    print(f"  structures_extended: {summary.get('structures_extended', {})}")
     print(f"  physics_events: {summary.get('physics_events', {})}")
     print(f"  world_physics: {summary.get('world_physics', {})}")
     print(f"  reproduction_attempts: {summary.get('reproduction_attempts', {})}")

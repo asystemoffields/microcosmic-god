@@ -5,10 +5,10 @@ from random import Random
 from typing import Any
 
 from .brain import TinyBrain
-from .energy import AFFORDANCES, Artifact
+from .energy import AFFORDANCES, STRUCTURE_CAPABILITIES, Artifact
 from .genome import Genome
 
-OBSERVATION_SIZE = 42
+OBSERVATION_SIZE = 45
 
 ACTIONS = (
     "rest",
@@ -18,6 +18,7 @@ ACTIONS = (
     "forage",
     "pickup",
     "craft",
+    "build",
     "use_tool",
     "attack",
     "signal",
@@ -45,7 +46,7 @@ class Organism:
     brain_template: TinyBrain | None = None
     inventory: dict[str, int] = field(default_factory=dict)
     artifacts: list[Artifact] = field(default_factory=list)
-    tool_skill: dict[str, float] = field(default_factory=lambda: {name: 0.0 for name in AFFORDANCES})
+    tool_skill: dict[str, float] = field(default_factory=lambda: {name: 0.0 for name in (*AFFORDANCES, *STRUCTURE_CAPABILITIES, "build")})
     signal_values: list[float] = field(default_factory=lambda: [0.0 for _ in range(8)])
     place_memory: dict[int, float] = field(default_factory=dict)
     alive: bool = True

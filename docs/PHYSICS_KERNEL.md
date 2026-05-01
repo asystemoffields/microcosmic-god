@@ -109,6 +109,7 @@ Thermal fields should matter because they interact with life, materials, and too
 - radiant concentration
 - thermal gradients as exploitable energy
 - conductive and insulating artifacts
+- boundary effects where interiors retain, exclude, or exchange heat and humidity differently from their surroundings
 
 The same heat rule should make sunlight, vents, desert basins, ocean depth, fire-like reactions, and heat tools intelligible.
 
@@ -144,6 +145,7 @@ The physics kernel should create opportunities for:
 - using gravity for transport or mechanical work
 - opening locked resources through pressure, heat, chemistry, or force
 - making habitats accessible through tools or evolved body traits
+- creating inside/outside boundaries that may shelter, trap, filter, incubate reactions, or make movement harder
 
 None of these should be directly rewarded. They matter only if they change survival, reproduction, prediction, or energy capture.
 
@@ -168,7 +170,8 @@ This keeps the layer compatible with CPU runs now and vectorized/GPU backends la
 3. Add a deterministic physics update before organism actions.
 4. Let movement, marks, signals, and loose resources be affected by currents and slope.
 5. Let artifacts interact with field gradients through `contain`, `traverse`, `insulate`, `conduct`, `concentrate_heat`, `filter`, `anchor`, and `float` capabilities.
-6. Log field-driven ecological stories compactly: washouts, heat bottlenecks, current-assisted spread, depth specialization, and barrier crossings.
+6. Add persistent structures whose material-derived capabilities can enclose, channel, support, filter, and harvest gradients.
+7. Log field-driven ecological stories compactly: washouts, heat bottlenecks, current-assisted spread, depth specialization, and barrier crossings.
 
 The goal is not photorealistic physics. The goal is a consistent universe where causal structure is rich enough for evolution to exploit.
 
@@ -183,6 +186,9 @@ The current implementation now includes:
 - organism stress from heat/cold, pressure, drowning, desiccation, salinity mismatch, and current exposure
 - current-assisted movement, current washout, and gravity/fall hazards
 - material-derived artifact capabilities for `filter`, `float`, and `anchor`, alongside the existing tool capabilities
+- persistent material structures with `enclose`, `permeable`, `shelter`, `support`, `channel`, `gradient_harvest`, and `reaction_surface` capabilities
+- place-level boundary fields for interiority, boundary permeability, and shelter, visible to agents and summaries
+- structure-driven conversions from flow/current/slope gradients into mechanical and sometimes electrical energy
 - aggregate physics telemetry in run summaries and story reports
 
 This is intentionally still approximate. The important property is that many relationships now share the same fields and material laws.

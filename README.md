@@ -17,9 +17,11 @@ The current implementation is Prototype 0: a runnable Python simulation designed
 - Tool affordances derived from material properties.
 - Tool use requires object affordance, body compatibility, learned skill, and context.
 - Composite artifacts with derived capabilities, durability, and tiered resistance against harder materials/obstacles.
+- Persistent material structures built from gathered components, including place-level boundaries, channels, supports, filters, and gradient harvesters.
 - Graph-field physics for temperature, fluid level, pressure/depth, humidity, salinity, elevation, current exposure, edge slope, edge current, permeability, and conductance.
 - Physics-driven effects such as heat/pressure/current stress, chemical advection, signal advection, mark erosion, current-assisted movement, and gravity falls.
 - Material-coupled artifact capabilities including filtering, floating, anchoring, traversal, insulation, conductivity, containment, cracking, cutting, levering, and heat concentration.
+- Inside/outside is modeled as boundary physics: `enclose`, `permeable`, and `shelter` are separate capabilities, so not every inside is protective.
 - Diversified habitats: aquatic/terrestrial balance, depth, salinity, humidity, heat, height, water, and thorn barriers.
 - Evolving habitat tolerances, so some organisms can drown, desiccate, or specialize for aquatic/dry niches.
 - Local signals with no fixed semantics.

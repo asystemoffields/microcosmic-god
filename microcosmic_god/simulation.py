@@ -10,7 +10,16 @@ from .brain import TinyBrain
 from .checkpoints import CheckpointManager
 from .config import RunConfig
 from .debrief import build_debrief, population_counts, world_energy_summary, world_physics_summary
-from .energy import MATERIALS, artifact_capability, best_affordance, build_artifact, derive_affordances
+from .energy import (
+    MATERIALS,
+    artifact_capability,
+    best_affordance,
+    build_artifact,
+    build_structure,
+    derive_affordances,
+    extend_structure,
+    structure_capability,
+)
 from .genome import Genome
 from .interventions import Intervention, load_interventions
 from .organisms import ACTIONS, ACTION_INDEX, OBSERVATION_SIZE, Organism, organism_from_genome
@@ -39,6 +48,8 @@ class Simulation:
         self.marks_created: Counter[str] = Counter()
         self.artifacts_created: Counter[str] = Counter()
         self.artifacts_broken: Counter[str] = Counter()
+        self.structures_built: Counter[str] = Counter()
+        self.structures_extended: Counter[str] = Counter()
         self.physics_events: Counter[str] = Counter()
         self.reproduction_attempts: Counter[str] = Counter()
         self.reproduction_failures: Counter[str] = Counter()
@@ -239,12 +250,18 @@ class Simulation:
                 float_cap = artifact_capability(organism.artifacts, "float")
                 anchor = artifact_capability(organism.artifacts, "anchor")
                 traverse = artifact_capability(organism.artifacts, "traverse")
+                structure_anchor = structure_capability(place.structures, "anchor")
+                structure_support = structure_capability(place.structures, "support")
+                structure_shelter = structure_capability(place.structures, "shelter")
                 resistance = max(
                     organism.genome.aquatic_affinity * 0.65 + organism.genome.buoyancy * 0.35,
                     organism.genome.mobility * 0.30,
                     float_cap * 0.75,
                     anchor * 0.80,
                     traverse * 0.55,
+                    structure_anchor * 0.45,
+                    structure_support * 0.30,
+                    structure_shelter * 0.55,
                 )
                 drift_chance = max(0.0, downstream[1] * fluid * (1.0 - resistance)) * 0.020
                 if self.rng.random() < drift_chance:
@@ -266,7 +283,9 @@ class Simulation:
                 edge = min(steep_edges, key=lambda item: item.slope_from(place.id))
                 traverse = artifact_capability(organism.artifacts, "traverse")
                 anchor = artifact_capability(organism.artifacts, "anchor")
-                footing = max(organism.genome.mobility, traverse * 0.65, anchor * 0.75)
+                structure_support = structure_capability(place.structures, "support")
+                structure_anchor = structure_capability(place.structures, "anchor")
+                footing = max(organism.genome.mobility, traverse * 0.65, anchor * 0.75, structure_support * 0.35, structure_anchor * 0.40)
                 fall_chance = max(0.0, abs(edge.slope_from(place.id)) * edge.danger * (1.0 - footing)) * 0.004
                 if self.rng.random() < fall_chance:
                     organism.location = edge.other(place.id)
@@ -290,31 +309,37 @@ class Simulation:
         place = self.world.places[organism.location]
         aquatic = place.habitat.get("aquatic", 0.0)
         depth = place.habitat.get("depth", 0.0)
-        salinity = place.habitat.get("salinity", 0.0)
-        humidity = place.habitat.get("humidity", 0.5)
         physics = place.physics
+        salinity = physics.get("salinity", place.habitat.get("salinity", 0.0))
+        humidity = physics.get("humidity", place.habitat.get("humidity", 0.5))
         temperature = physics.get("temperature", 0.5)
         pressure = physics.get("pressure", depth)
         current = physics.get("current_exposure", 0.0)
-        insulation = artifact_capability(organism.artifacts, "insulate")
+        shelter = max(physics.get("shelter", 0.0), structure_capability(place.structures, "shelter"))
+        interiority = max(physics.get("interiority", 0.0), structure_capability(place.structures, "enclose"))
+        permeability = max(physics.get("boundary_permeability", 0.0), structure_capability(place.structures, "permeable"))
+        insulation = max(artifact_capability(organism.artifacts, "insulate"), shelter * 0.55)
         float_cap = artifact_capability(organism.artifacts, "float")
-        anchor = artifact_capability(organism.artifacts, "anchor")
-        traverse = artifact_capability(organism.artifacts, "traverse")
-        drowning = max(0.0, aquatic * depth - organism.genome.aquatic_affinity * 0.85 - organism.genome.mobility * 0.15 - float_cap * 0.20)
-        desiccation = max(0.0, organism.genome.aquatic_affinity * (1.0 - humidity) - organism.genome.desiccation_tolerance * 0.55)
+        anchor = max(artifact_capability(organism.artifacts, "anchor"), structure_capability(place.structures, "anchor") * 0.35)
+        traverse = max(artifact_capability(organism.artifacts, "traverse"), structure_capability(place.structures, "support") * 0.25)
+        exposure_damping = 1.0 - shelter * 0.35
+        drowning = max(0.0, aquatic * depth - organism.genome.aquatic_affinity * 0.85 - organism.genome.mobility * 0.15 - float_cap * 0.20 - shelter * 0.08)
+        desiccation = max(0.0, organism.genome.aquatic_affinity * (1.0 - humidity) - organism.genome.desiccation_tolerance * 0.55 - shelter * 0.14)
         salinity_stress = max(0.0, abs(salinity - organism.genome.salinity_tolerance) - 0.55)
         heat_stress = max(0.0, temperature - (0.58 + organism.genome.thermal_tolerance * 0.42 + insulation * 0.25))
         cold_stress = max(0.0, 0.18 - temperature - organism.genome.thermal_tolerance * 0.12 - insulation * 0.18)
         pressure_stress = max(0.0, pressure - (organism.genome.pressure_tolerance * 1.05 + organism.genome.aquatic_affinity * 0.20 + organism.genome.armor * 0.12))
         current_stress = max(0.0, current * aquatic - max(organism.genome.buoyancy, float_cap, anchor * 0.80, traverse * 0.55, organism.genome.mobility * 0.25))
+        stagnant_interior = max(0.0, interiority - shelter) * max(0.0, 1.0 - permeability) * max(0.0, pressure + temperature - 0.80)
         stress = (
-            drowning * 0.020
-            + desiccation * 0.015
+            drowning * 0.020 * exposure_damping
+            + desiccation * 0.015 * exposure_damping
             + salinity_stress * 0.010
             + heat_stress * 0.018
             + cold_stress * 0.012
             + pressure_stress * 0.012
-            + current_stress * 0.009
+            + current_stress * 0.009 * exposure_damping
+            + stagnant_interior * 0.006
         )
         if stress <= 0.0:
             return
@@ -368,6 +393,9 @@ class Simulation:
             place.physics.get("temperature", 0.5),
             place.physics.get("pressure", 0.0),
             place.physics.get("current_exposure", 0.0),
+            place.physics.get("interiority", 0.0),
+            place.physics.get("boundary_permeability", 0.0),
+            place.physics.get("shelter", 0.0),
             place.physics.get("elevation", 0.5),
             place.habitat.get("aquatic", 0.0),
             place.habitat.get("depth", 0.0),
@@ -424,6 +452,8 @@ class Simulation:
             return False
         if action == "craft" and (organism.inventory_count() < 2 or len(organism.artifacts) >= organism.artifact_limit()):
             return False
+        if action == "build" and (organism.inventory_count() < 3 or organism.genome.manipulator < 0.18):
+            return False
         if action == "move" and organism.genome.mobility < 0.05:
             return False
         if action == "use_tool" and organism.inventory_count() == 0 and not organism.artifacts:
@@ -454,6 +484,8 @@ class Simulation:
             self._pickup(organism)
         elif action == "craft":
             self._craft(organism, feedback)
+        elif action == "build":
+            self._build_structure(organism, feedback)
         elif action == "use_tool":
             self._use_tool(organism, feedback)
         elif action == "attack":
@@ -483,10 +515,16 @@ class Simulation:
             destination_id = self.rng.choice(place.neighbors)
         destination = self.world.places[destination_id]
         edge = self.world.edge_between(place.id, destination_id)
-        traverse = artifact_capability(organism.artifacts, "traverse")
-        insulation = artifact_capability(organism.artifacts, "insulate")
+        structure_traverse = max(
+            structure_capability(place.structures, "support") * 0.25,
+            structure_capability(destination.structures, "support") * 0.18,
+            structure_capability(place.structures, "channel") * 0.20,
+            structure_capability(destination.structures, "channel") * 0.12,
+        )
+        traverse = max(artifact_capability(organism.artifacts, "traverse"), structure_traverse)
+        insulation = max(artifact_capability(organism.artifacts, "insulate"), structure_capability(destination.structures, "shelter") * 0.35)
         float_cap = artifact_capability(organism.artifacts, "float")
-        anchor = artifact_capability(organism.artifacts, "anchor")
+        anchor = max(artifact_capability(organism.artifacts, "anchor"), structure_capability(place.structures, "anchor") * 0.25)
         cut = max(organism.tool_skill.get("cut", 0.0), artifact_capability(organism.artifacts, "cut"))
         aquatic_fit = organism.genome.aquatic_affinity
         slope = edge.slope_from(place.id) if edge else 0.0
@@ -497,6 +535,7 @@ class Simulation:
         downhill = max(0.0, -slope)
         against_current = max(0.0, -current)
         with_current = max(0.0, current)
+        boundary = max(0.0, destination.physics.get("interiority", 0.0) - destination.physics.get("boundary_permeability", 0.0))
         barrier = (
             destination.obstacles.get("water", 0.0) * (1.0 - max(traverse, aquatic_fit))
             + destination.obstacles.get("height", 0.0) * (1.0 - max(traverse, organism.genome.mobility))
@@ -506,7 +545,8 @@ class Simulation:
             + uphill * (1.0 - max(traverse, organism.genome.mobility))
             + against_current * (1.0 - max(traverse, float_cap, aquatic_fit, anchor * 0.55))
             + downhill * (1.0 - max(traverse, anchor, organism.genome.mobility)) * 0.35
-        ) / 7.35
+            + boundary * (1.0 - max(traverse, organism.genome.manipulator * 0.35, cut * 0.25))
+        ) / 8.35
         success = (
             organism.genome.mobility
             + traverse * 0.65
@@ -610,6 +650,85 @@ class Simulation:
         for capability, value in artifact.capabilities.items():
             if capability in organism.tool_skill:
                 organism.tool_skill[capability] = min(1.0, organism.tool_skill.get(capability, 0.0) + value * 0.010)
+
+    def _build_structure(self, organism: Organism, feedback: dict[str, float]) -> None:
+        if organism.genome.manipulator < 0.18 or organism.inventory_count() < 3:
+            organism.energy -= 0.035
+            return
+        available = [name for name, qty in organism.inventory.items() if qty > 0]
+        if len(available) < 2:
+            organism.energy -= 0.025
+            return
+
+        components: dict[str, int] = {}
+        draws = min(8, organism.inventory_count())
+        for _ in range(draws):
+            choices = [name for name, qty in organism.inventory.items() if qty > components.get(name, 0)]
+            if not choices:
+                break
+            chosen = self.rng.choice(choices)
+            components[chosen] = components.get(chosen, 0) + 1
+        material_count = sum(components.values())
+        if material_count < 3:
+            organism.energy -= 0.025
+            return
+
+        affordances = derive_affordances(components)
+        bind_help = affordances.get("bind", 0.0)
+        build_skill = organism.tool_skill.get("build", 0.0)
+        general_skill = max(organism.tool_skill.values(), default=0.0)
+        mass_bonus = min(1.0, material_count / 8.0) * 0.12
+        chance = min(
+            0.90,
+            organism.genome.manipulator * 0.30
+            + bind_help * 0.26
+            + build_skill * 0.22
+            + general_skill * 0.08
+            + organism.genome.prediction_weight * 0.08
+            + mass_bonus,
+        )
+        organism.energy -= 0.16 + 0.035 * material_count
+        if self.rng.random() > chance:
+            lost = self._lose_failed_craft_components(organism, components, bind_help)
+            organism.tool_skill["build"] = min(1.0, build_skill + 0.003 + lost * 0.003)
+            organism.tool_skill["bind"] = min(1.0, organism.tool_skill.get("bind", 0.0) + 0.0015 + lost * 0.002)
+            self.demonstrations[organism.location].append((organism.id, "build", False))
+            return
+
+        for name, qty in components.items():
+            organism.inventory[name] -= qty
+            if organism.inventory[name] <= 0:
+                del organism.inventory[name]
+
+        place = self.world.places[organism.location]
+        if place.structures and (len(place.structures) >= 16 or self.rng.random() < 0.62):
+            target = max(place.structures, key=lambda structure: (structure.durability, structure.scale))
+            extend_structure(target, components)
+            built_name = target.name
+            self.structures_extended[built_name] += 1
+            structure_summary = target.to_dict()
+        else:
+            structure = build_structure(components, builder_id=organism.id)
+            place.structures.append(structure)
+            built_name = structure.name
+            self.structures_built[built_name] += 1
+            structure_summary = structure.to_dict()
+
+        organism.successful_tools += 1
+        organism.tool_skill["build"] = min(1.0, build_skill + 0.035 * (1.0 - build_skill) + 0.004)
+        for capability, value in structure_summary["capabilities"].items():
+            if capability in organism.tool_skill:
+                organism.tool_skill[capability] = min(1.0, organism.tool_skill.get(capability, 0.0) + float(value) * 0.006)
+        self.tool_successes["build"] += 1
+        feedback["social"] += 0.10
+        self.demonstrations[place.id].append((organism.id, "build", True))
+        if self.config.event_detail:
+            self.logger.event(
+                self.tick,
+                "structure_built",
+                {"organism_id": organism.id, "structure": built_name, "place": place.id, "scale": structure_summary["scale"]},
+            )
+        self.checkpoints.save_first_tool(self.tick, organism, "build", {"place": place.to_summary(), "structure": structure_summary})
 
     def _use_tool(self, organism: Organism, feedback: dict[str, float]) -> None:
         place = self.world.places[organism.location]
@@ -971,7 +1090,12 @@ class Simulation:
         if organism.genome.memory_budget <= 0.0:
             return
         place = self.world.places[organism.location]
-        value = place.total_accessible_energy() / 420.0 + place.locked_chemical / 500.0
+        value = (
+            place.total_accessible_energy() / 420.0
+            + place.locked_chemical / 500.0
+            + place.physics.get("shelter", 0.0) * 0.08
+            + place.physics.get("interiority", 0.0) * place.physics.get("boundary_permeability", 0.0) * 0.04
+        )
         old = organism.place_memory.get(place.id, 0.0)
         organism.place_memory[place.id] = old * 0.90 + value * 0.10
         limit = max(2, int(organism.genome.memory_budget * 3))
@@ -1068,6 +1192,8 @@ class Simulation:
             "marks_created": dict(self.marks_created),
             "artifacts_created": dict(self.artifacts_created),
             "artifacts_broken": dict(self.artifacts_broken),
+            "structures_built": dict(self.structures_built),
+            "structures_extended": dict(self.structures_extended),
             "physics_events": dict(self.physics_events),
             "reproduction_attempts": dict(self.reproduction_attempts),
             "reproduction_failures": dict(self.reproduction_failures),

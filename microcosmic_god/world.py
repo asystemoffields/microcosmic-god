@@ -7,7 +7,7 @@ from random import Random
 from typing import Any
 
 from .config import RunConfig
-from .energy import ENERGY_KINDS, MATERIALS, blank_energy
+from .energy import ENERGY_KINDS, MATERIALS, Structure, blank_energy
 
 
 def _clamp(value: float, low: float = 0.0, high: float = 1.0) -> float:
@@ -60,6 +60,7 @@ class Place:
     obstacles: dict[str, float]
     habitat: dict[str, float]
     physics: dict[str, float]
+    structures: list[Structure] = field(default_factory=list)
     signals: list[Signal] = field(default_factory=list)
     marks: list[Mark] = field(default_factory=list)
 
@@ -78,6 +79,7 @@ class Place:
             "obstacles": {k: round(v, 4) for k, v in self.obstacles.items()},
             "habitat": {k: round(v, 4) for k, v in self.habitat.items()},
             "physics": {k: round(v, 4) for k, v in self.physics.items()},
+            "structures": [structure.to_dict() for structure in self.structures[-8:]],
             "marks": [mark.to_dict() for mark in self.marks[-8:]],
         }
 
@@ -302,6 +304,81 @@ class World:
                 best = (edge.other(place_id), outward)
         return best
 
+    def _apply_structures(self, place: Place, events: Counter[str]) -> None:
+        if not place.structures:
+            place.physics["interiority"] = max(0.0, place.physics.get("interiority", 0.0) * 0.98)
+            place.physics["boundary_permeability"] = max(0.0, place.physics.get("boundary_permeability", 0.0) * 0.98)
+            place.physics["shelter"] = max(0.0, place.physics.get("shelter", 0.0) * 0.98)
+            return
+        physics = place.physics
+        edges = self.edges_from(place.id)
+        edge_current = max((abs(edge.current_from(place.id)) for edge in edges), default=0.0)
+        edge_slope = max((abs(edge.slope_from(place.id)) for edge in edges), default=0.0)
+        flow_gradient = _clamp(physics.get("fluid_level", 0.0) * physics.get("current_exposure", 0.0) + edge_current * 0.35 + edge_slope * physics.get("fluid_level", 0.0) * 0.08)
+        interiority = 0.0
+        boundary_permeability = 0.0
+        shelter = 0.0
+        kept: list[Structure] = []
+        for structure in place.structures:
+            structure.age += 1
+            scale = min(1.0, math.log1p(max(1, structure.scale)) / math.log(14.0))
+            enclose = structure.capabilities.get("enclose", 0.0)
+            permeable = structure.capabilities.get("permeable", 0.0)
+            channel = structure.capabilities.get("channel", 0.0)
+            gradient_harvest = structure.capabilities.get("gradient_harvest", 0.0)
+            conduct = structure.capabilities.get("conduct", 0.0)
+            storage = structure.capabilities.get("energy_storage", 0.0)
+            filter_cap = structure.capabilities.get("filter", 0.0)
+            reaction_surface = structure.capabilities.get("reaction_surface", 0.0)
+            support = structure.capabilities.get("support", 0.0)
+            anchor = structure.capabilities.get("anchor", 0.0)
+            interiority = max(interiority, enclose * (0.55 + scale * 0.45))
+            boundary_permeability = max(boundary_permeability, permeable)
+            shelter = max(shelter, structure.capabilities.get("shelter", 0.0))
+
+            if gradient_harvest > 0.08 and flow_gradient > 0.03:
+                mechanical = gradient_harvest * flow_gradient * (0.06 + scale * 0.10)
+                place.resources["mechanical"] = min(180.0, place.resources["mechanical"] + mechanical)
+                events["structure_gradient_harvest"] += 1
+                if conduct > 0.08:
+                    electrical = mechanical * conduct * (0.10 + storage * 0.10)
+                    place.resources["electrical"] = min(180.0, place.resources["electrical"] + electrical)
+                    events["structure_gradient_conversion"] += 1
+
+            if filter_cap > 0.08 and (flow_gradient > 0.02 or permeable > 0.25):
+                captured = filter_cap * (flow_gradient + permeable * 0.15) * (0.03 + scale * 0.04)
+                place.resources["chemical"] = min(180.0, place.resources["chemical"] + captured)
+                place.resources["biological_storage"] = min(180.0, place.resources["biological_storage"] + captured * 0.35)
+                events["structure_filtration"] += 1
+
+            if reaction_surface > 0.08:
+                heat_gradient = abs(physics.get("temperature", 0.5) - 0.48) + place.geothermal * 0.10
+                reaction = reaction_surface * heat_gradient * (0.01 + scale * 0.025)
+                place.resources["chemical"] = min(180.0, place.resources["chemical"] + reaction)
+                events["structure_reaction_surface"] += 1
+
+            if channel > 0.05:
+                place.resources["mechanical"] = min(180.0, place.resources["mechanical"] + channel * flow_gradient * 0.025)
+
+            if enclose > 0.05:
+                exchange_block = enclose * max(0.0, 1.0 - permeable * 0.70)
+                physics["humidity"] = _clamp(physics.get("humidity", 0.5) + exchange_block * 0.002 - max(0.0, physics.get("temperature", 0.5) - 0.65) * permeable * 0.001)
+                physics["current_exposure"] = _clamp(physics.get("current_exposure", 0.0) * (1.0 - min(0.12, exchange_block * anchor * 0.035)))
+
+            wear = 0.012 + physics.get("current_exposure", 0.0) * 0.018 + physics.get("pressure", 0.0) * 0.010 + max(0.0, physics.get("temperature", 0.5) - 0.75) * 0.030
+            structure.durability -= max(0.002, wear * (1.0 - min(0.65, support * 0.40 + anchor * 0.25)))
+            if structure.durability > 0.0:
+                kept.append(structure)
+            else:
+                for name, qty in structure.components.items():
+                    if qty > 0:
+                        place.materials[name] = min(99, place.materials.get(name, 0) + max(1, qty // 3))
+                events["structure_decay"] += 1
+        place.structures = kept[-16:]
+        physics["interiority"] = _clamp(interiority)
+        physics["boundary_permeability"] = _clamp(boundary_permeability)
+        physics["shelter"] = _clamp(shelter)
+
     def update_environment(self, rng: Random) -> dict[str, int]:
         events: Counter[str] = Counter()
         self.tick += 1
@@ -398,6 +475,9 @@ class World:
             place.obstacles["heat"] = _clamp(max(0.0, physics["temperature"] - 0.55) * 1.4 + place.geothermal * 0.12)
             place.resources["thermal"] = max(0.0, min(180.0, place.resources["thermal"]))
             place.resources["mechanical"] = max(0.0, min(180.0, place.resources["mechanical"]))
+
+        for place in self.places:
+            self._apply_structures(place, events)
 
         signal_transfers: list[tuple[int, Signal]] = []
         for place in self.places:

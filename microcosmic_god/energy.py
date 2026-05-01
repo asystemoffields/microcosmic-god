@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Any, Mapping
 
@@ -51,6 +52,43 @@ class Artifact:
             properties={str(k): float(v) for k, v in data["properties"].items()},
             capabilities={str(k): float(v) for k, v in data["capabilities"].items()},
             durability=float(data["durability"]),
+            age=int(data.get("age", 0)),
+        )
+
+
+@dataclass(slots=True)
+class Structure:
+    name: str
+    components: dict[str, int]
+    properties: dict[str, float]
+    capabilities: dict[str, float]
+    durability: float
+    scale: int
+    builder_id: int | None = None
+    age: int = 0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "components": dict(self.components),
+            "properties": {key: round(value, 6) for key, value in self.properties.items()},
+            "capabilities": {key: round(value, 6) for key, value in self.capabilities.items()},
+            "durability": round(self.durability, 6),
+            "scale": self.scale,
+            "builder_id": self.builder_id,
+            "age": self.age,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Structure":
+        return cls(
+            name=str(data["name"]),
+            components={str(k): int(v) for k, v in data["components"].items()},
+            properties={str(k): float(v) for k, v in data["properties"].items()},
+            capabilities={str(k): float(v) for k, v in data["capabilities"].items()},
+            durability=float(data["durability"]),
+            scale=int(data.get("scale", sum(int(v) for v in data["components"].values()))),
+            builder_id=None if data.get("builder_id") is None else int(data["builder_id"]),
             age=int(data.get("age", 0)),
         )
 
@@ -183,6 +221,16 @@ ARTIFACT_CAPABILITIES = (
     "float",
     "anchor",
 )
+STRUCTURE_CAPABILITIES = (
+    *ARTIFACT_CAPABILITIES,
+    "channel",
+    "enclose",
+    "permeable",
+    "shelter",
+    "support",
+    "gradient_harvest",
+    "reaction_surface",
+)
 
 
 def inventory_properties(inventory: Mapping[str, int]) -> dict[str, float]:
@@ -287,6 +335,90 @@ def build_artifact(components: Mapping[str, int]) -> Artifact:
     )
 
 
+def _scale_factor(scale: int) -> float:
+    return max(0.0, min(1.0, math.log1p(max(1, scale)) / math.log(14.0)))
+
+
+def derive_structure_capabilities(properties: Mapping[str, float], scale: int) -> dict[str, float]:
+    base = derive_artifact_capabilities(properties)
+    hard = properties.get("hard", 0.0)
+    heavy = properties.get("heavy", 0.0)
+    flexible = properties.get("flexible", 0.0)
+    bindable = properties.get("bindable", 0.0)
+    container = properties.get("container", 0.0)
+    conductive = properties.get("conductive", 0.0)
+    porous = properties.get("porous", 0.0)
+    absorbent = properties.get("absorbent", 0.0)
+    buoyant = properties.get("buoyant", 0.0)
+    density = properties.get("density", heavy)
+    sealant = properties.get("sealant", 0.0)
+    insulating = properties.get("insulating", 0.0)
+    sticky = properties.get("sticky", 0.0)
+    length = properties.get("length", 0.0)
+    thermal_capacity = max(properties.get("thermal_mass", 0.0), properties.get("thermal_capacity", 0.0))
+    scale_gain = _scale_factor(scale)
+    capabilities = {name: base.get(name, 0.0) for name in STRUCTURE_CAPABILITIES}
+    capabilities["support"] = min(1.0, hard * 0.30 + density * 0.25 + bindable * 0.15 + length * 0.12 + sticky * 0.08 + scale_gain * 0.20)
+    capabilities["channel"] = min(1.0, container * 0.28 + hard * 0.16 + length * 0.18 + bindable * 0.10 + sealant * 0.16 + scale_gain * 0.18)
+    capabilities["enclose"] = min(1.0, container * 0.25 + sealant * 0.25 + hard * 0.16 + bindable * 0.14 + scale_gain * 0.20)
+    capabilities["permeable"] = min(1.0, porous * 0.45 + absorbent * 0.16 + capabilities["filter"] * 0.24 + flexible * 0.08)
+    capabilities["shelter"] = min(1.0, capabilities["enclose"] * 0.30 + capabilities["support"] * 0.20 + capabilities["insulate"] * 0.25 + capabilities["anchor"] * 0.15 + scale_gain * 0.10)
+    capabilities["gradient_harvest"] = min(
+        1.0,
+        capabilities["anchor"] * 0.22
+        + capabilities["channel"] * 0.25
+        + capabilities["float"] * 0.10
+        + capabilities["conduct"] * 0.15
+        + capabilities["energy_storage"] * 0.10
+        + length * 0.08
+        + scale_gain * 0.18,
+    )
+    capabilities["reaction_surface"] = min(1.0, porous * 0.26 + conductive * 0.16 + thermal_capacity * 0.18 + container * 0.14 + absorbent * 0.10 + scale_gain * 0.16)
+    capabilities["anchor"] = min(1.0, capabilities["anchor"] + capabilities["support"] * 0.15 + scale_gain * 0.08)
+    capabilities["float"] = max(0.0, min(1.0, capabilities["float"] + buoyant * scale_gain * 0.06 - heavy * 0.04))
+    for name in STRUCTURE_CAPABILITIES:
+        capabilities[name] = min(1.0, max(0.0, capabilities.get(name, 0.0) * (0.72 + scale_gain * 0.38)))
+    return capabilities
+
+
+def build_structure(components: Mapping[str, int], builder_id: int | None = None) -> Structure:
+    scale = sum(max(0, qty) for qty in components.values())
+    properties = component_properties(components)
+    capabilities = derive_structure_capabilities(properties, scale)
+    ranked = sorted(capabilities.items(), key=lambda item: item[1], reverse=True)
+    dominant = [name for name, value in ranked[:3] if value > 0.30 and name != "permeable"]
+    name = "structure_" + ("_".join(dominant) if dominant else "assembly")
+    durability = (
+        70.0
+        + properties.get("hard", 0.0) * 120.0
+        + properties.get("bindable", 0.0) * 70.0
+        + properties.get("sealant", 0.0) * 45.0
+        + _scale_factor(scale) * 120.0
+    )
+    return Structure(
+        name=name,
+        components=dict(components),
+        properties=properties,
+        capabilities=capabilities,
+        durability=durability,
+        scale=scale,
+        builder_id=builder_id,
+    )
+
+
+def extend_structure(structure: Structure, components: Mapping[str, int]) -> None:
+    merged = dict(structure.components)
+    for name, qty in components.items():
+        merged[name] = merged.get(name, 0) + max(0, qty)
+    updated = build_structure(merged, builder_id=structure.builder_id)
+    structure.name = updated.name
+    structure.components = updated.components
+    structure.properties = updated.properties
+    structure.capabilities = updated.capabilities
+    structure.scale = updated.scale
+    structure.durability = max(structure.durability * 0.82, updated.durability)
+
+
 def artifact_affordances(artifacts: list[Artifact]) -> dict[str, float]:
     potentials = {name: 0.0 for name in AFFORDANCES}
     for artifact in artifacts:
@@ -301,6 +433,15 @@ def artifact_capability(artifacts: list[Artifact], capability: str) -> float:
     for artifact in artifacts:
         durability_factor = max(0.0, min(1.0, artifact.durability / 100.0))
         best = max(best, artifact.capabilities.get(capability, 0.0) * durability_factor)
+    return best
+
+
+def structure_capability(structures: list[Structure], capability: str) -> float:
+    best = 0.0
+    for structure in structures:
+        durability_factor = max(0.0, min(1.0, structure.durability / 180.0))
+        scale_factor = _scale_factor(structure.scale)
+        best = max(best, structure.capabilities.get(capability, 0.0) * (0.75 + scale_factor * 0.25) * durability_factor)
     return best
 
 

@@ -39,6 +39,7 @@ Examples:
 - A current can transport organisms, nutrients, toxins, offspring, signals, marks, heat, tools, and debris.
 - A durable mark can be memory, warning, territory, lure, courtship trace, path marker, or useless scratch depending on later consequences.
 - A tool can be useful as weapon, lever, filter, float, anchor, insulator, heat store, conductor, container, bridge, or component because its materials allow those interactions.
+- An inside/outside relation can be shelter, trap, nest, kiln, pipe, dam, filter, storage pocket, or useless enclosure depending on exchange with surrounding fields.
 - A repeated association can become navigation, habit, social preference, avoidance, proto-teaching, or proto-trade without a dedicated "relationship type" being assigned first.
 
 When possible, add fields and material laws that multiple behaviors can use. Avoid creating one-purpose relationship slots unless the physics and memory layers cannot express the relationship at all.
@@ -60,6 +61,20 @@ Tools should be capability transformers. A composite artifact can matter because
 - `concentrate_heat`: converts radiant or thermal gradients into higher local intensity.
 
 Hardness and resistance tiers matter. A weak cutting artifact can work on fiber and fail or break against diamond-like material. The same rule should handle wood, shell, stone, crystal, deep vents, ocean edges, and future exotic environments.
+
+## Persistent Structures
+
+Place-level structures are artifacts left in the world. They are built from material properties, have durability and scale, and affect local fields without being assigned a special purpose.
+
+- `enclose`: creates an inside/outside boundary that limits exchange.
+- `permeable`: lets selected flows through the boundary.
+- `shelter`: buffers stress only when enclosure combines with support, insulation, anchoring, and scale.
+- `channel`: redirects flows and can make gradients more exploitable.
+- `support`: changes footing, traversal, and resistance to collapse or washout.
+- `gradient_harvest`: converts flow/slope/current gradients into mechanical or electrical energy when materials support it.
+- `reaction_surface`: makes chemical/thermal reactions easier by exposing area, porosity, or conductivity.
+
+This is the groundwork for dams, bridges, dens, rafts, traps, kilns, hydro-like structures, aquaculture filters, or future machinery without hardcoding any of those as recipes.
 
 ## Scaling Strategy
 

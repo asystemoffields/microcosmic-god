@@ -136,6 +136,8 @@ def main(argv: list[str] | None = None) -> None:
         print(f"  births: {debrief['births_by_mode']}")
         print(f"  deaths: {debrief['deaths_by_cause']}")
         print(f"  tool successes: {debrief['tool_successes']}")
+        print(f"  structures built: {debrief.get('structures_built', {})}")
+        print(f"  structures extended: {debrief.get('structures_extended', {})}")
         print(f"  likely causes: {', '.join(debrief['likely_causes'])}")
         print(f"  run directory: {sim.logger.run_dir}")
         return
@@ -145,4 +147,3 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
-
