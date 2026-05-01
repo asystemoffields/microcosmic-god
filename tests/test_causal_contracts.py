@@ -241,6 +241,35 @@ class CausalContractTests(unittest.TestCase):
 
         self.assertEqual(before, brain.to_dict(include_state=False))
 
+    def test_death_checkpoints_do_not_crowd_out_living_champions(self) -> None:
+        self.sim = make_sim()
+        death_candidate = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        tool_champion = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        reproductive_champion = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        lineage_founder = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        assert death_candidate is not None and tool_champion is not None and reproductive_champion is not None and lineage_founder is not None
+        tool_champion.successful_tools = 80
+        reproductive_champion.offspring_count = 18
+        reproductive_champion.generation = 3
+        lineage_founder.generation = 9
+        lineage_founder.offspring_count = 4
+
+        for index in range(30):
+            self.sim.checkpoints.save_brain(index, death_candidate, f"death_predation_{index}", {}, bucket="notable_death")
+
+        death_bucket = self.sim.checkpoints.to_summary()["buckets"]["notable_death"]
+        self.assertEqual(death_bucket, self.sim.checkpoints.bucket_limits["notable_death"])
+
+        self.sim.tick = 123
+        self.sim._checkpoint_champions("final")
+        summary = self.sim.checkpoints.to_summary()
+
+        self.assertIn("final_overall_champion", summary["reasons"])
+        self.assertIn("final_reproductive_champion", summary["reasons"])
+        self.assertIn("final_lineage_founder", summary["reasons"])
+        self.assertGreater(summary["buckets"].get("reproductive_champion", 0), 0)
+        self.assertGreater(summary["buckets"].get("lineage_founder", 0), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

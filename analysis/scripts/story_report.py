@@ -37,6 +37,10 @@ def checkpoint_rows(run_dir: Path) -> list[dict[str, Any]]:
             + organism["generation"] * 0.5
             + (3.0 if reason.startswith("first_") else 0.0)
             + (2.0 if reason == "interval_champion" else 0.0)
+            + (4.0 if "reproductive_champion" in reason else 0.0)
+            + (3.0 if "lineage_founder" in reason else 0.0)
+            + (2.5 if "tool_champion" in reason else 0.0)
+            + (2.0 if "overall_champion" in reason else 0.0)
             + (1.5 if reason.startswith("death_") else 0.0)
         )
         rows.append(

@@ -126,6 +126,7 @@ class Simulation:
                 self.step()
         finally:
             elapsed = time.monotonic() - started
+            self._checkpoint_champions("final")
             debrief = build_debrief(self, reason, elapsed)
             self.logger.write_json("summary.json", debrief)
             self.logger.write_json("world_final.json", self.world.to_summary())
@@ -219,7 +220,7 @@ class Simulation:
         if self.tick % self.config.log_every == 0:
             self._log_aggregate()
         if self.tick % self.config.checkpoint_every == 0:
-            self._checkpoint_champion()
+            self._checkpoint_champions("interval")
 
     def _rosters(self) -> dict[int, list[int]]:
         rosters: dict[int, list[int]] = {place.id: [] for place in self.world.places}
@@ -1123,7 +1124,14 @@ class Simulation:
         if cause in {"predation", "senescence", "starvation"}:
             place.materials["bone"] = min(99, place.materials.get("bone", 0) + 1)
         if organism.brain is not None and (organism.offspring_count >= 3 or organism.successful_tools >= 2):
-            self.checkpoints.save_brain(self.tick, organism, f"death_{cause}", {"place": place.to_summary()})
+            self.checkpoints.save_brain(
+                self.tick,
+                organism,
+                f"death_{cause}",
+                {"place": place.to_summary()},
+                bucket="notable_death",
+                score=self._checkpoint_score(organism),
+            )
         if self.config.event_detail:
             self.logger.event(self.tick, "death", {"organism_id": organism.id, "cause": cause, "kind": organism.kind})
         organism.brain = None
@@ -1172,12 +1180,65 @@ class Simulation:
         self.interventions_applied.append(record)
         self.logger.event(self.tick, "intervention", record)
 
-    def _checkpoint_champion(self) -> None:
+    def _checkpoint_score(self, organism: Organism) -> float:
+        energy_ratio = organism.energy / max(1.0, organism.storage_limit())
+        return (
+            organism.offspring_count * 6.0
+            + organism.successful_tools * 2.0
+            + organism.generation * 0.75
+            + organism.age / 450.0
+            + energy_ratio * 2.0
+            + organism.genome.complexity() * 0.5
+        )
+
+    def _checkpoint_context(self, label: str, criterion: str) -> dict[str, Any]:
+        return {
+            "label": label,
+            "criterion": criterion,
+            "population": population_counts(self.organisms),
+            "world_energy": world_energy_summary(self.world),
+            "world_physics": world_physics_summary(self.world),
+        }
+
+    def _save_checkpoint_candidate(self, organism: Organism, label: str, criterion: str, bucket: str) -> None:
+        self.checkpoints.save_brain(
+            self.tick,
+            organism,
+            f"{label}_{criterion}",
+            self._checkpoint_context(label, criterion),
+            bucket=bucket,
+            score=self._checkpoint_score(organism),
+        )
+
+    def _best_checkpoint_candidate(self, candidates: list[Organism], excluded_ids: set[int], key: Any) -> Organism | None:
+        available = [organism for organism in candidates if organism.id not in excluded_ids]
+        if not available:
+            return None
+        return max(available, key=key)
+
+    def _checkpoint_champions(self, label: str) -> None:
         candidates = [organism for organism in self.organisms.values() if organism.alive and organism.brain is not None]
         if not candidates:
             return
-        champion = max(candidates, key=lambda organism: (organism.offspring_count, organism.successful_tools, organism.energy, organism.age))
-        self.checkpoints.save_brain(self.tick, champion, "interval_champion", {"population": population_counts(self.organisms)})
+        saved_ids: set[int] = set()
+
+        overall = max(candidates, key=self._checkpoint_score)
+        self._save_checkpoint_candidate(overall, label, "overall_champion", "interval_champion")
+        saved_ids.add(overall.id)
+
+        reproductive = self._best_checkpoint_candidate(candidates, saved_ids, lambda organism: (organism.offspring_count, organism.generation, organism.energy, organism.age))
+        if reproductive is not None and reproductive.offspring_count > 0:
+            self._save_checkpoint_candidate(reproductive, label, "reproductive_champion", "reproductive_champion")
+            saved_ids.add(reproductive.id)
+
+        tool_user = self._best_checkpoint_candidate(candidates, saved_ids, lambda organism: (organism.successful_tools, organism.offspring_count, organism.energy, organism.age))
+        if tool_user is not None and tool_user.successful_tools > 0:
+            self._save_checkpoint_candidate(tool_user, label, "tool_champion", "tool_champion")
+            saved_ids.add(tool_user.id)
+
+        lineage = self._best_checkpoint_candidate(candidates, saved_ids, lambda organism: (organism.generation, organism.offspring_count, organism.energy, organism.age))
+        if lineage is not None and (lineage.generation > 0 or lineage.offspring_count > 0):
+            self._save_checkpoint_candidate(lineage, label, "lineage_founder", "lineage_founder")
 
     def _log_aggregate(self) -> None:
         living = [organism for organism in self.organisms.values() if organism.alive]

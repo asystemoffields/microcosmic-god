@@ -65,6 +65,32 @@ This is enough for early evolution and inspection, not enough for strong transfe
 6. Add held-out world evaluation where saved cores are tested against random cores and shuffled controls.
 7. Keep every checkpoint schema explicit so we can train new encoders/action heads around old cores.
 
+## Simple Near-Term Mind Upgrades
+
+These are cheap enough to add before a major backend rewrite:
+
+- Add explicit recent-action/result traces to observations so agents can connect action, context, and consequence.
+- Add short event memory slots for "what changed after I acted" rather than only place value.
+- Add prediction heads for damage, reproduction opportunity, tool success, and movement hazard.
+- Let organisms attend to a subset of local materials/structures instead of seeing only aggregate place fields.
+- Save richer checkpoint context around standouts: recent actions, local structures, marks/signals, and lineage summary.
+- Keep increasing neural capacity only behind metabolic cost and successful reproduction.
+
+## More Sophisticated Mind Upgrades
+
+These are the deeper architecture path:
+
+- Modular recurrent core with separate sensory encoder, world-model state, policy heads, and value/valence heads.
+- Differentiable external memory with evolved write/read gates.
+- Learned attention over local objects, structures, agents, signals, and marks.
+- Predictive coding loops where surprise changes exploration and memory allocation.
+- Meta-learning genes that control plasticity schedules, not just one learning rate.
+- Social-model heads that predict whether another agent's signal/action will be useful, harmful, or irrelevant.
+- Developmental growth: juvenile brains start smaller and add capacity if energy, age, and ecology support it.
+- Distillation/export tools that package a reusable core with replaceable observation and action adapters.
+
+The high-end aim is "possible minds": systems with memory, causal expectation, adaptive attention, and self-modifying learning dynamics. The sandbox should make these capacities useful without declaring them as objectives.
+
 ## Transfer Test Ladder
 
 Start near the sandbox and move outward:
@@ -84,4 +110,3 @@ The claim only matters if saved evolved cores adapt faster, more robustly, or wi
 - Do not confuse a good policy with a good learner.
 - Do not treat language-like behavior as real language until it transfers or supports counterfactual use.
 - Keep compute cheap locally, but keep data structures compatible with batched GPU evolution.
-

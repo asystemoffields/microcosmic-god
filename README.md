@@ -118,6 +118,8 @@ Checkpoint files include:
 - ecological context
 - reason saved
 
+Checkpoint slots are bucketed so one dramatic failure mode cannot consume the whole archive. First tool successes, interval/final living champions, reproductive champions, tool champions, lineage founders, and notable deaths each get their own quota inside the global checkpoint limit.
+
 These are the transfer candidates for future experiments in other worlds or games.
 
 Prototype 0 brains are still intentionally compact, but they now carry hidden state, input/hidden eligibility traces, learned action preferences, prediction weights, and valence-modulated input-to-hidden plasticity. Genome neural budgets can mutate far beyond the local starting sizes, with metabolic cost deciding whether larger brains survive.
