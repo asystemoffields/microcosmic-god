@@ -151,6 +151,8 @@ See [docs/GENERALITY_AND_SCALING.md](docs/GENERALITY_AND_SCALING.md) for the pro
 
 See [docs/PHYSICS_KERNEL.md](docs/PHYSICS_KERNEL.md) for the plan to add graph-field physics: thermodynamics, currents, gravity/elevation, pressure/depth, and material coupling as cheap local laws.
 
+See [side_projects/](side_projects/) for speculative branches, including Universal Genesis: an unseeded big-bang-to-life thought experiment kept separate from the practical simulator.
+
 ## Design Rule
 
 Do not directly reward intelligence, tool use, communication, curiosity, family, teaching, trade, or culture.
