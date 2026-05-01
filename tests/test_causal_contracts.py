@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from random import Random
@@ -43,12 +44,51 @@ class CausalContractTests(unittest.TestCase):
         self.sim = make_sim()
         agent = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 50.0)
         assert agent is not None
+        agent.event_memory = [index / 20.0 for index in range(8)]
         agent.signal_values = [index / 10.0 for index in range(8)]
 
         observation = self.sim._observe(agent, self.sim._rosters())
 
         self.assertEqual(len(observation), OBSERVATION_SIZE)
+        self.assertEqual(observation[-16:-8], agent.event_memory)
         self.assertEqual(observation[-8:], agent.signal_values)
+
+    def test_action_results_feed_short_event_memory(self) -> None:
+        self.sim = make_sim()
+        agent = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 50.0)
+        assert agent is not None
+
+        agent.record_action_result(
+            action_index=6,
+            energy_delta=4.0,
+            health_delta=-0.05,
+            damage=0.05,
+            prediction_error=0.7,
+            reproduction_feedback=0.0,
+            social_feedback=0.2,
+            tool_feedback=1.0,
+        )
+
+        self.assertEqual(agent.last_action, "craft")
+        self.assertGreater(agent.event_memory[0], 0.0)
+        self.assertGreater(agent.event_memory[3], 0.0)
+        self.assertGreater(agent.event_memory[6], 0.0)
+        self.assertGreater(agent.event_memory[7], 0.0)
+
+    def test_checkpoints_capture_cognitive_context(self) -> None:
+        self.sim = make_sim()
+        agent = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 50.0)
+        assert agent is not None
+        agent.record_action_result(8, 3.0, 0.0, 0.0, 0.25, 0.0, 0.1, 1.0)
+        saved = self.sim.checkpoints.save_brain(42, agent, "test_cognition", {}, bucket="general")
+        self.assertTrue(saved)
+
+        checkpoint = next(self.sim.logger.checkpoint_dir.glob("brain_t00000042_*.json"))
+        payload = json.loads(checkpoint.read_text(encoding="utf-8"))
+
+        self.assertIn("cognition", payload)
+        self.assertEqual(payload["cognition"]["last_action"], "use_tool")
+        self.assertGreater(payload["cognition"]["event_memory"]["tool"], 0.0)
 
     def test_attack_uses_current_location_not_tick_start_roster(self) -> None:
         self.sim = make_sim(places=2)

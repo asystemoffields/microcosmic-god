@@ -20,7 +20,7 @@ from .energy import (
     extend_structure,
     structure_capability,
 )
-from .genome import Genome
+from .genome import MEMORY_BUDGET_MAX, NEURAL_BUDGET_MAX, Genome
 from .interventions import Intervention, load_interventions
 from .organisms import ACTIONS, ACTION_INDEX, OBSERVATION_SIZE, Organism, organism_from_genome
 from .runlog import RunLogger
@@ -146,7 +146,7 @@ class Simulation:
         rosters = self._rosters()
         contexts: dict[int, tuple[list[float], int, float, float, list[int]]] = {}
         intents: dict[int, str] = {}
-        feedback: dict[int, dict[str, float]] = defaultdict(lambda: {"reproduction": 0.0, "social": 0.0})
+        feedback: dict[int, dict[str, float]] = defaultdict(lambda: {"reproduction": 0.0, "social": 0.0, "tool": 0.0})
 
         for organism in list(self.organisms.values()):
             if not organism.alive:
@@ -207,7 +207,16 @@ class Simulation:
                 prediction_weight=organism.genome.prediction_weight,
             )
             organism.last_valence = valence
-            organism.last_energy_delta = energy_delta
+            organism.record_action_result(
+                action_index=action_index,
+                energy_delta=energy_delta,
+                health_delta=health_delta,
+                damage=damage,
+                prediction_error=prediction_error,
+                reproduction_feedback=extra.get("reproduction", 0.0),
+                social_feedback=extra.get("social", 0.0),
+                tool_feedback=extra.get("tool", 0.0),
+            )
             for token in observed_tokens:
                 organism.learn_signal_value(token, valence + prediction_error * 0.05)
             self._remember_place(organism)
@@ -237,6 +246,20 @@ class Simulation:
         counts["neural"] = self.living_neural
         counts["total"] = self.living_total
         return counts
+
+    def _interaction_control(self, organism: Organism) -> float:
+        if organism.brain is None:
+            return 0.0
+        has_history = (
+            abs(organism.last_energy_delta)
+            + abs(organism.recent_health_delta)
+            + sum(abs(value) for value in organism.event_memory)
+        ) > 0.0001
+        prediction_fit = max(0.0, 1.0 - abs(organism.recent_prediction_error) / 1.5) if has_history else 0.0
+        memory_signal = min(1.0, sum(abs(value) for value in organism.event_memory) / max(1.0, len(organism.event_memory) * 0.35))
+        learned_skill = max(organism.tool_skill.values(), default=0.0)
+        place_knowledge = min(1.0, len(organism.place_memory) / max(1.0, organism.genome.memory_budget * 2.0))
+        return max(0.0, min(1.0, prediction_fit * 0.38 + memory_signal * 0.24 + learned_skill * 0.24 + place_knowledge * 0.14))
 
     def _apply_physics_transport(self) -> None:
         for organism in list(self.organisms.values()):
@@ -383,8 +406,8 @@ class Simulation:
             organism.genome.manipulator,
             organism.genome.armor,
             organism.genome.sensor_range,
-            organism.genome.neural_budget / 32.0,
-            organism.genome.memory_budget / 16.0,
+            organism.genome.neural_budget / NEURAL_BUDGET_MAX,
+            organism.genome.memory_budget / MEMORY_BUDGET_MAX,
             organism.genome.prediction_weight,
             organism.genome.plasticity_rate,
             max(-1.0, min(1.0, organism.last_valence)),
@@ -407,6 +430,8 @@ class Simulation:
             place.habitat.get("depth", 0.0),
             place.habitat.get("salinity", 0.0),
             place.habitat.get("humidity", 0.5),
+            *organism.recent_trace(),
+            *organism.event_memory,
             *organism.signal_values,
         ]
         if len(features) != OBSERVATION_SIZE:
@@ -509,13 +534,16 @@ class Simulation:
         place = self.world.places[organism.location]
         if not place.neighbors:
             return
-        organism.energy -= 0.05 + organism.genome.mobility * 0.08
+        planning = self._interaction_control(organism)
+        efficiency = 1.0 - planning * 0.14
+        organism.energy -= (0.05 + organism.genome.mobility * 0.08) * efficiency
         if organism.brain and organism.place_memory:
             scored = []
             for neighbor in place.neighbors:
                 memory = organism.place_memory.get(neighbor, 0.0)
-                crowd = 0.0
-                scored.append((memory - crowd + self.rng.random() * 0.08, neighbor))
+                neighbor_place = self.world.places[neighbor]
+                crowd = len(self._living_ids_at(neighbor)) / max(1.0, neighbor_place.capacity)
+                scored.append((memory - crowd * (0.20 + planning * 0.80) + self.rng.random() * 0.08, neighbor))
             destination_id = max(scored)[1]
         else:
             destination_id = self.rng.choice(place.neighbors)
@@ -557,18 +585,19 @@ class Simulation:
             organism.genome.mobility
             + traverse * 0.65
             + organism.genome.sensor_range * 0.10
+            + planning * 0.10
             + with_current * max(float_cap, aquatic_fit) * 0.10
             + anchor * 0.04
             + self.rng.gauss(0.0, 0.04)
         )
         if success >= barrier:
             organism.location = destination_id
-            organism.energy -= barrier * 0.06 + distance * 0.012 + uphill * 0.020
+            organism.energy -= (barrier * 0.06 + distance * 0.012 + uphill * 0.020) * efficiency
             if with_current > 0.1 and destination.obstacles.get("water", 0.0) > 0.3:
                 self.physics_events["current_assisted_move"] += 1
         else:
-            organism.energy -= barrier * 0.18 + distance * 0.016
-            organism.health -= max(0.0, barrier - success) * (0.035 + downhill * 0.015)
+            organism.energy -= (barrier * 0.18 + distance * 0.016) * efficiency
+            organism.health -= max(0.0, barrier - success) * (0.035 + downhill * 0.015) * (1.0 - planning * 0.18)
             if organism.health <= 0.0:
                 self._kill(organism, "movement_hazard")
 
@@ -594,12 +623,13 @@ class Simulation:
 
     def _forage(self, organism: Organism) -> None:
         place = self.world.places[organism.location]
-        organism.energy -= 0.025 + organism.genome.sensor_range * 0.020
-        if self.rng.random() < 0.18 + organism.genome.sensor_range * 0.45:
+        planning = self._interaction_control(organism)
+        organism.energy -= (0.025 + organism.genome.sensor_range * 0.020) * (1.0 - planning * 0.10)
+        if self.rng.random() < 0.18 + organism.genome.sensor_range * 0.45 + planning * 0.09:
             found = self.rng.choice(("chemical", "biological_storage", "mechanical"))
-            amount = self.rng.uniform(0.2, 1.6) * (0.5 + organism.genome.sensor_range)
+            amount = self.rng.uniform(0.2, 1.6) * (0.5 + organism.genome.sensor_range) * (1.0 + planning * 0.25)
             place.resources[found] = min(180.0, place.resources[found] + amount)
-        if self.rng.random() < 0.08 + organism.genome.sensor_range * 0.12:
+        if self.rng.random() < 0.08 + organism.genome.sensor_range * 0.12 + planning * 0.04:
             material = self.rng.choice(tuple(MATERIALS.keys()))
             place.materials[material] = min(99, place.materials.get(material, 0) + 1)
 
@@ -638,12 +668,14 @@ class Simulation:
             return
         bind_help = derive_affordances(components).get("bind", 0.0)
         best_skill = max(organism.tool_skill.values(), default=0.0)
-        chance = min(0.92, organism.genome.manipulator * 0.36 + bind_help * 0.30 + best_skill * 0.22 + organism.genome.prediction_weight * 0.12)
-        organism.energy -= 0.12 + 0.04 * sum(components.values())
+        planning = self._interaction_control(organism)
+        chance = min(0.92, organism.genome.manipulator * 0.36 + bind_help * 0.30 + best_skill * 0.22 + planning * 0.16)
+        organism.energy -= (0.12 + 0.04 * sum(components.values())) * (1.0 - planning * 0.10)
         if self.rng.random() > chance:
             lost = self._lose_failed_craft_components(organism, components, bind_help)
             skill_gain = 0.0015 + lost * 0.0035
             organism.tool_skill["bind"] = min(1.0, organism.tool_skill.get("bind", 0.0) + skill_gain)
+            feedback["tool"] = feedback.get("tool", 0.0) + skill_gain
             return
         for name, qty in components.items():
             organism.inventory[name] -= qty
@@ -653,6 +685,7 @@ class Simulation:
         organism.artifacts.append(artifact)
         self.artifacts_created[artifact.name] += 1
         feedback["social"] += 0.06
+        feedback["tool"] = feedback.get("tool", 0.0) + 0.30
         for capability, value in artifact.capabilities.items():
             if capability in organism.tool_skill:
                 organism.tool_skill[capability] = min(1.0, organism.tool_skill.get(capability, 0.0) + value * 0.010)
@@ -684,20 +717,22 @@ class Simulation:
         build_skill = organism.tool_skill.get("build", 0.0)
         general_skill = max(organism.tool_skill.values(), default=0.0)
         mass_bonus = min(1.0, material_count / 8.0) * 0.12
+        planning = self._interaction_control(organism)
         chance = min(
             0.90,
             organism.genome.manipulator * 0.30
             + bind_help * 0.26
             + build_skill * 0.22
             + general_skill * 0.08
-            + organism.genome.prediction_weight * 0.08
+            + planning * 0.16
             + mass_bonus,
         )
-        organism.energy -= 0.16 + 0.035 * material_count
+        organism.energy -= (0.16 + 0.035 * material_count) * (1.0 - planning * 0.10)
         if self.rng.random() > chance:
             lost = self._lose_failed_craft_components(organism, components, bind_help)
             organism.tool_skill["build"] = min(1.0, build_skill + 0.003 + lost * 0.003)
             organism.tool_skill["bind"] = min(1.0, organism.tool_skill.get("bind", 0.0) + 0.0015 + lost * 0.002)
+            feedback["tool"] = feedback.get("tool", 0.0) + 0.04 + lost * 0.01
             self.demonstrations[organism.location].append((organism.id, "build", False))
             return
 
@@ -727,6 +762,7 @@ class Simulation:
                 organism.tool_skill[capability] = min(1.0, organism.tool_skill.get(capability, 0.0) + float(value) * 0.006)
         self.tool_successes["build"] += 1
         feedback["social"] += 0.10
+        feedback["tool"] = feedback.get("tool", 0.0) + 0.75
         self.demonstrations[place.id].append((organism.id, "build", True))
         if self.config.event_detail:
             self.logger.event(
@@ -744,9 +780,10 @@ class Simulation:
             return
         skill = organism.tool_skill.get(affordance, 0.0)
         resistance = self._affordance_resistance(place, affordance)
-        overmatch = score + skill * 0.25 + organism.genome.manipulator * 0.10 - resistance
-        chance = min(0.94, max(0.02, score * 0.36 + skill * 0.30 + organism.genome.manipulator * 0.18 + organism.genome.prediction_weight * 0.06 + overmatch * 0.22))
-        organism.energy -= 0.12 + score * 0.10
+        planning = self._interaction_control(organism)
+        overmatch = score + skill * 0.25 + organism.genome.manipulator * 0.10 + planning * 0.10 - resistance
+        chance = min(0.94, max(0.02, score * 0.36 + skill * 0.30 + organism.genome.manipulator * 0.18 + planning * 0.16 + overmatch * 0.22))
+        organism.energy -= (0.12 + score * 0.10) * (1.0 - planning * 0.10)
         success = self.rng.random() < chance
         if success:
             gain = self._tool_effect(organism, place, affordance, score, skill)
@@ -756,6 +793,7 @@ class Simulation:
             organism.successful_tools += 1
             self.tool_successes[affordance] += 1
             feedback["social"] += 0.2
+            feedback["tool"] = feedback.get("tool", 0.0) + 1.0
             self.demonstrations[place.id].append((organism.id, affordance, True))
             if self.config.event_detail:
                 self.logger.event(
@@ -766,6 +804,7 @@ class Simulation:
             self.checkpoints.save_first_tool(self.tick, organism, affordance, {"place": place.to_summary(), "gain": gain})
         else:
             organism.tool_skill[affordance] = min(1.0, skill + 0.010 * (1.0 - skill))
+            feedback["tool"] = feedback.get("tool", 0.0) + 0.05
             if self.rng.random() < 0.10:
                 organism.health -= 0.015 + score * 0.030
             overmatch_penalty = max(0.0, resistance - score)
@@ -1087,9 +1126,11 @@ class Simulation:
         source_id, affordance, success = self.rng.choice(demos)
         if source_id == organism.id:
             return
-        gain = (0.012 if success else 0.004) * (0.5 + organism.genome.sensor_range + organism.genome.memory_budget / 16.0)
+        planning = self._interaction_control(organism)
+        gain = (0.012 if success else 0.004) * (0.5 + organism.genome.sensor_range + planning * 1.10)
         organism.tool_skill[affordance] = min(1.0, organism.tool_skill.get(affordance, 0.0) + gain)
         feedback["social"] += 0.2 if success else 0.05
+        feedback["tool"] = feedback.get("tool", 0.0) + (0.10 if success else 0.03)
         organism.energy -= 0.018
 
     def _remember_place(self, organism: Organism) -> None:

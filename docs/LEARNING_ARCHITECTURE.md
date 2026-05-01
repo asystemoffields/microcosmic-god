@@ -50,10 +50,25 @@ The current `TinyBrain` is still small, but it now has:
 - valence-modulated action learning
 - prediction-weight learning
 - input-to-hidden representational plasticity
+- recent action-result traces exposed back into observation
+- short event-memory slots for energy, damage, reproduction, social, tool, and surprise-like consequences
 - evolvable neural budget, memory budget, learning rate, plasticity, prediction weight, and valence wiring
 - observation access to physical fields including temperature, pressure, current, interiority, shelter, oxygen-like exposure, acidity, biological activity, abrasion, and wet/dry cycling
 
 This is enough for early evolution and inspection, not enough for strong transfer claims.
+
+## Intelligence Pressure
+
+There should be advantages to being smart, but they should appear through action-interaction rather than a free reward for having a large brain.
+
+Implemented pressure should look like this:
+
+- Better prediction and memory make movement, foraging, tool use, construction, and social learning slightly more reliable or less wasteful.
+- Learned skill changes the outcome of future actions in the same physical channel.
+- Larger neural machinery costs metabolism, so unused capacity is a liability.
+- Selection can favor cognition through survival, energy control, tool success, and reproduction, not through a hidden intelligence score.
+
+This keeps the project pointed at possible minds while preserving the rule that ecology, not hand-authored achievement labels, decides what survives.
 
 ## Required Next Brain Upgrades
 
@@ -69,11 +84,11 @@ This is enough for early evolution and inspection, not enough for strong transfe
 
 These are cheap enough to add before a major backend rewrite:
 
-- Add explicit recent-action/result traces to observations so agents can connect action, context, and consequence.
-- Add short event memory slots for "what changed after I acted" rather than only place value.
+- Done: add explicit recent-action/result traces to observations so agents can connect action, context, and consequence.
+- Done: add short event memory slots for "what changed after I acted" rather than only place value.
 - Add prediction heads for damage, reproduction opportunity, tool success, and movement hazard.
 - Let organisms attend to a subset of local materials/structures instead of seeing only aggregate place fields.
-- Save richer checkpoint context around standouts: recent actions, local structures, marks/signals, and lineage summary.
+- Partly done: save richer checkpoint context around standouts, including recent trace, event memory, signal values, place memory, local world summaries, and reason saved.
 - Keep increasing neural capacity only behind metabolic cost and successful reproduction.
 
 ## More Sophisticated Mind Upgrades

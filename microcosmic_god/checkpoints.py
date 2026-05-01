@@ -63,6 +63,7 @@ class CheckpointManager:
             "inventory": dict(organism.inventory),
             "artifacts": [artifact.to_dict() for artifact in organism.artifacts],
             "tool_skill": {k: round(v, 6) for k, v in organism.tool_skill.items()},
+            "cognition": organism.cognitive_snapshot(),
             "signal_values": [round(v, 6) for v in organism.signal_values],
             "context": context,
         }

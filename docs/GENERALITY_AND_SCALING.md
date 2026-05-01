@@ -90,6 +90,27 @@ Agents need enough learning capacity to connect environmental causes with later 
 
 The goal is not to preinstall intelligence. The goal is to make enough adaptive machinery available that evolution can discover richer cognition when the world rewards it.
 
+Smartness should never be paid directly as a global scalar. It should matter because action-interaction is easier for agents that have built useful internal structure:
+
+- remembered places improve later route choices
+- lower prediction error reduces wasted/risky movement and manipulation
+- learned tool skill changes future tool outcomes
+- event memory gives the next action access to recent causal consequences
+- social observation only helps if a demonstrated action had useful downstream consequences
+
+This is still an explicit selection pressure for cognition, but the pressure is mediated by physical and social interactions rather than by a hidden "intelligence reward."
+
+## Evolution Operators
+
+The current code exposes reproduction as `asexual_reproduce` and `mate`, but those should be understood as provisional evolutionary operators rather than sacred biology.
+
+- Clone/mutate reproduction preserves useful local solutions and explores nearby variants.
+- Recombine reproduction mixes genomes and brain templates, and currently requires behavioral coordination so coordination can itself matter.
+- Future intelligence-farming modes may add non-biological operators such as tournament selection, novelty archives, cross-world trials, curriculum transfer, or task-adoption trials.
+- Any non-biological operator must be separated from sealed ecological runs or logged as garden/search machinery.
+
+The aim is not to mimic animal drives unless those drives are useful. The aim is to create robust selection toward agents that learn, adapt, communicate, manipulate environments, and transfer.
+
 ## Scaling Strategy
 
 The conceptual model should remain stable while the implementation backend changes.

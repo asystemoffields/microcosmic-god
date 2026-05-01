@@ -12,8 +12,9 @@ The current implementation is Prototype 0: a runnable Python simulation designed
 - Evolving neural agents with recurrent ANNs, eligibility traces, predictive learning, and representational plasticity.
 - Darwinian inheritance of genome/development parameters and innate brain templates.
 - Lifetime learning through evolved valence wiring and plasticity.
-- Asexual and sexual reproduction.
-- Sexual reproduction requires behavioral coordination through short-lived courtship/receptivity states.
+- Clone/mutate and recombine reproduction pathways, currently exposed as asexual and sexual biology but treated as provisional evolutionary search operators.
+- Recombine reproduction requires behavioral coordination through short-lived courtship/receptivity states.
+- Short action-result traces and event-memory slots let agents perceive recent consequences of their own behavior.
 - Tool affordances derived from material properties.
 - Tool use requires object affordance, body compatibility, learned skill, and context.
 - Composite artifacts with derived capabilities, durability, and tiered resistance against harder materials/obstacles.
@@ -31,6 +32,7 @@ The current implementation is Prototype 0: a runnable Python simulation designed
 - Predation and ecological collapse can happen.
 - Extinction or run-limit debriefs are written automatically.
 - Selective brain checkpoints are saved for notable neural agents.
+- Brain checkpoints include cognitive context: recent trace, event memory, signal associations, and place memory.
 - Garden mode supports logged interventions.
 - Reproduction failure telemetry, per-action energy accounting, and deaths split by organism kind.
 - Regression tests for locality, signal observability, crafting failure costs, and reproduction capacity contracts.
@@ -115,6 +117,8 @@ Checkpoint files include:
 - organism state
 - tool skills
 - signal associations
+- recent action-result trace and event memory
+- place memory
 - ecological context
 - reason saved
 

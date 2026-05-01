@@ -8,7 +8,30 @@ from .brain import TinyBrain
 from .energy import AFFORDANCES, STRUCTURE_CAPABILITIES, Artifact
 from .genome import Genome
 
-OBSERVATION_SIZE = 50
+SIGNAL_VALUE_SIZE = 8
+RECENT_TRACE_LABELS = (
+    "action",
+    "energy_delta",
+    "health_delta",
+    "damage",
+    "prediction_error",
+    "reproduction",
+    "social",
+    "tool",
+)
+EVENT_MEMORY_LABELS = (
+    "energy_gain",
+    "energy_loss",
+    "health_gain",
+    "damage",
+    "reproduction",
+    "social",
+    "tool",
+    "surprise",
+)
+RECENT_TRACE_SIZE = len(RECENT_TRACE_LABELS)
+EVENT_MEMORY_SIZE = len(EVENT_MEMORY_LABELS)
+OBSERVATION_SIZE = 42 + RECENT_TRACE_SIZE + EVENT_MEMORY_SIZE + SIGNAL_VALUE_SIZE
 
 ACTIONS = (
     "rest",
@@ -31,6 +54,10 @@ ACTIONS = (
 ACTION_INDEX = {name: i for i, name in enumerate(ACTIONS)}
 
 
+def _clip(value: float, low: float = -1.0, high: float = 1.5) -> float:
+    return max(low, min(high, float(value)))
+
+
 @dataclass(slots=True)
 class Organism:
     id: int
@@ -47,12 +74,20 @@ class Organism:
     inventory: dict[str, int] = field(default_factory=dict)
     artifacts: list[Artifact] = field(default_factory=list)
     tool_skill: dict[str, float] = field(default_factory=lambda: {name: 0.0 for name in (*AFFORDANCES, *STRUCTURE_CAPABILITIES, "build")})
-    signal_values: list[float] = field(default_factory=lambda: [0.0 for _ in range(8)])
+    signal_values: list[float] = field(default_factory=lambda: [0.0 for _ in range(SIGNAL_VALUE_SIZE)])
     place_memory: dict[int, float] = field(default_factory=dict)
+    event_memory: list[float] = field(default_factory=lambda: [0.0 for _ in range(EVENT_MEMORY_SIZE)])
     alive: bool = True
     last_action: str = "rest"
     last_valence: float = 0.0
     last_energy_delta: float = 0.0
+    recent_action_index: int = 0
+    recent_health_delta: float = 0.0
+    recent_damage: float = 0.0
+    recent_prediction_error: float = 0.0
+    recent_reproduction_feedback: float = 0.0
+    recent_social_feedback: float = 0.0
+    recent_tool_feedback: float = 0.0
     mate_intent_until: int = -1
     courtship_token: int = 0
     successful_tools: int = 0
@@ -115,6 +150,75 @@ class Organism:
         if 0 <= token < len(self.signal_values):
             self.signal_values[token] = self.signal_values[token] * 0.96 + valence * 0.04
 
+    def recent_trace(self) -> list[float]:
+        return [
+            self.recent_action_index / max(1.0, float(len(ACTIONS) - 1)),
+            _clip(self.last_energy_delta / 10.0),
+            _clip(self.recent_health_delta * 4.0),
+            _clip(self.recent_damage * 4.0, 0.0, 1.5),
+            _clip(self.recent_prediction_error),
+            _clip(self.recent_reproduction_feedback, 0.0, 1.5),
+            _clip(self.recent_social_feedback),
+            _clip(self.recent_tool_feedback, 0.0, 1.5),
+        ]
+
+    def record_action_result(
+        self,
+        action_index: int,
+        energy_delta: float,
+        health_delta: float,
+        damage: float,
+        prediction_error: float,
+        reproduction_feedback: float,
+        social_feedback: float,
+        tool_feedback: float,
+    ) -> None:
+        self.recent_action_index = max(0, min(len(ACTIONS) - 1, int(action_index)))
+        self.last_action = ACTIONS[self.recent_action_index]
+        self.last_energy_delta = energy_delta
+        self.recent_health_delta = health_delta
+        self.recent_damage = damage
+        self.recent_prediction_error = prediction_error
+        self.recent_reproduction_feedback = reproduction_feedback
+        self.recent_social_feedback = social_feedback
+        self.recent_tool_feedback = tool_feedback
+        self._write_event_memory(
+            energy_delta=energy_delta,
+            health_delta=health_delta,
+            damage=damage,
+            prediction_error=prediction_error,
+            reproduction_feedback=reproduction_feedback,
+            social_feedback=social_feedback,
+            tool_feedback=tool_feedback,
+        )
+
+    def _write_event_memory(
+        self,
+        energy_delta: float,
+        health_delta: float,
+        damage: float,
+        prediction_error: float,
+        reproduction_feedback: float,
+        social_feedback: float,
+        tool_feedback: float,
+    ) -> None:
+        if len(self.event_memory) != EVENT_MEMORY_SIZE:
+            self.event_memory = [0.0 for _ in range(EVENT_MEMORY_SIZE)]
+        memory_gate = _clip(self.genome.memory_budget / 12.0, 0.0, 1.0)
+        decay = 0.86 + memory_gate * 0.10
+        write = (0.03 + memory_gate * 0.12) * (0.75 + min(1.0, self.genome.plasticity_rate * 2.5) * 0.25)
+        event = [
+            _clip(max(0.0, energy_delta) / 10.0, 0.0, 1.5),
+            _clip(max(0.0, -energy_delta) / 10.0, 0.0, 1.5),
+            _clip(max(0.0, health_delta) * 4.0, 0.0, 1.5),
+            _clip(damage * 4.0, 0.0, 1.5),
+            _clip(reproduction_feedback, 0.0, 1.5),
+            _clip(social_feedback),
+            _clip(tool_feedback, 0.0, 1.5),
+            _clip(abs(prediction_error), 0.0, 1.5),
+        ]
+        self.event_memory = [_clip(old * decay + value * write) for old, value in zip(self.event_memory, event)]
+
     def repair_or_decay(self) -> None:
         if self.energy > self.storage_limit():
             self.energy = self.storage_limit()
@@ -135,9 +239,23 @@ class Organism:
             "neural": self.neural,
             "offspring_count": self.offspring_count,
             "successful_tools": self.successful_tools,
+            "last_action": self.last_action,
+            "last_valence": round(self.last_valence, 4),
+            "last_energy_delta": round(self.last_energy_delta, 4),
             "artifacts": [artifact.to_dict() for artifact in self.artifacts],
             "complexity": round(self.genome.complexity(), 4),
             "parents": list(self.parent_ids),
+        }
+
+    def cognitive_snapshot(self) -> dict[str, Any]:
+        place_memory = sorted(self.place_memory.items(), key=lambda item: item[1], reverse=True)[:8]
+        return {
+            "last_action": self.last_action,
+            "last_valence": round(self.last_valence, 6),
+            "recent_trace": {label: round(value, 6) for label, value in zip(RECENT_TRACE_LABELS, self.recent_trace())},
+            "event_memory": {label: round(value, 6) for label, value in zip(EVENT_MEMORY_LABELS, self.event_memory)},
+            "signal_values": [round(value, 6) for value in self.signal_values],
+            "place_memory": [{"place_id": place_id, "value": round(value, 6)} for place_id, value in place_memory],
         }
 
 
