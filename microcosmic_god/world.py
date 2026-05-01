@@ -7,7 +7,7 @@ from random import Random
 from typing import Any
 
 from .config import RunConfig
-from .energy import ENERGY_KINDS, MATERIALS, Structure, blank_energy
+from .energy import ENERGY_KINDS, MATERIALS, Structure, blank_energy, structure_decay_channels
 
 
 def _clamp(value: float, low: float = 0.0, high: float = 1.0) -> float:
@@ -209,6 +209,11 @@ class World:
                 "current_exposure": water * volatility,
                 "thermal_mass": _clamp(0.18 + mineral * 0.35 + water * 0.18 + rng.random() * 0.22),
                 "light": sun,
+                "oxygen": _clamp(0.18 + sun * 0.32 + (1.0 - depth) * 0.18 + water * volatility * 0.10),
+                "acidity": _clamp(0.04 + geo * 0.20 + volatility * 0.10 + rng.random() * 0.08),
+                "biological_activity": _clamp(water * 0.28 + sun * 0.16 + resources["biological_storage"] / 220.0),
+                "abrasion": _clamp(volatility * 0.34 + water * 0.14 + abs(elevation - 0.5) * 0.10),
+                "wet_dry_cycle": _clamp(water * (1.0 - water) * 0.70 + volatility * 0.22),
             }
 
             places.append(
@@ -365,8 +370,28 @@ class World:
                 physics["humidity"] = _clamp(physics.get("humidity", 0.5) + exchange_block * 0.002 - max(0.0, physics.get("temperature", 0.5) - 0.65) * permeable * 0.001)
                 physics["current_exposure"] = _clamp(physics.get("current_exposure", 0.0) * (1.0 - min(0.12, exchange_block * anchor * 0.035)))
 
-            wear = 0.012 + physics.get("current_exposure", 0.0) * 0.018 + physics.get("pressure", 0.0) * 0.010 + max(0.0, physics.get("temperature", 0.5) - 0.75) * 0.030
-            structure.durability -= max(0.002, wear * (1.0 - min(0.65, support * 0.40 + anchor * 0.25)))
+            decay_environment = {
+                "temperature": physics.get("temperature", 0.5),
+                "fluid_level": physics.get("fluid_level", 0.0),
+                "humidity": physics.get("humidity", 0.5),
+                "salinity": physics.get("salinity", 0.0),
+                "oxygen": physics.get("oxygen", 0.35),
+                "acidity": physics.get("acidity", 0.10),
+                "biological_activity": physics.get("biological_activity", 0.0),
+                "abrasion": physics.get("abrasion", 0.0),
+                "wet_dry_cycle": physics.get("wet_dry_cycle", 0.0),
+                "current_exposure": physics.get("current_exposure", 0.0),
+                "pressure": physics.get("pressure", 0.0),
+                "light": physics.get("light", 0.0),
+                "flow_gradient": flow_gradient,
+            }
+            decay_channels = structure_decay_channels(structure, decay_environment)
+            structure.last_decay = decay_channels
+            dominant_channel = max(decay_channels, key=decay_channels.get)
+            total_wear = sum(decay_channels.values())
+            structure.durability -= total_wear
+            if total_wear > 0.006:
+                events[f"structure_wear_{dominant_channel}"] += 1
             if structure.durability > 0.0:
                 kept.append(structure)
             else:
@@ -374,6 +399,7 @@ class World:
                     if qty > 0:
                         place.materials[name] = min(99, place.materials.get(name, 0) + max(1, qty // 3))
                 events["structure_decay"] += 1
+                events[f"structure_decay_{dominant_channel}"] += 1
         place.structures = kept[-16:]
         physics["interiority"] = _clamp(interiority)
         physics["boundary_permeability"] = _clamp(boundary_permeability)
@@ -414,6 +440,17 @@ class World:
             fluid_target = _clamp(place.water_flow * (0.45 + season * 0.30) + rng.gauss(0.0, place.volatility * 0.004))
             physics["fluid_level"] += (fluid_target - physics.get("fluid_level", 0.0)) * 0.006 - evaporation
             physics["humidity"] += (physics["fluid_level"] * 0.70 + evaporation * 10.0 - physics.get("humidity", 0.5)) * 0.020
+            biology_window = max(0.0, 1.0 - abs(physics["temperature"] - 0.52) * 1.65)
+            oxygen_target = _clamp(0.16 + place.sun_exposure * 0.32 + physics["fluid_level"] * physics.get("current_exposure", 0.0) * 0.35 + (1.0 - physics.get("pressure", 0.0)) * 0.12)
+            acidity_target = _clamp(0.04 + place.geothermal * 0.22 + place.volatility * 0.08 + place.resources["chemical"] / 2100.0 + physics.get("salinity", 0.0) * 0.06)
+            biological_target = _clamp(physics["humidity"] * 0.26 + physics["fluid_level"] * 0.24 + place.resources["biological_storage"] / 240.0 + biology_window * place.sun_exposure * 0.12)
+            abrasion_target = _clamp(physics.get("current_exposure", 0.0) * 0.48 + place.volatility * 0.20 + physics["fluid_level"] * 0.12 + abs(physics["temperature"] - 0.5) * 0.06)
+            wet_dry_target = _clamp(place.volatility * 0.22 + physics["fluid_level"] * (1.0 - physics["fluid_level"]) * 0.56 + evaporation * 14.0)
+            physics["oxygen"] += (oxygen_target - physics.get("oxygen", 0.35)) * 0.018
+            physics["acidity"] += (acidity_target - physics.get("acidity", 0.10)) * 0.012
+            physics["biological_activity"] += (biological_target - physics.get("biological_activity", 0.0)) * 0.016
+            physics["abrasion"] += (abrasion_target - physics.get("abrasion", 0.0)) * 0.018
+            physics["wet_dry_cycle"] += (wet_dry_target - physics.get("wet_dry_cycle", 0.0)) * 0.014
             place.resources["thermal"] += ((physics["temperature"] * 150.0 + place.geothermal * 30.0) - place.resources["thermal"]) * 0.012
             place.resources["mechanical"] += ((place.water_flow * 25.0 + physics.get("current_exposure", 0.0) * 75.0 + place.volatility * 18.0) - place.resources["mechanical"]) * 0.010
             place.resources["electrical"] += place.mineral_richness * place.volatility * 0.006
@@ -466,6 +503,11 @@ class World:
             current_values = [abs(edge.current_from(place.id)) * edge.fluid_conductance * edge.permeability for edge in self.edges_from(place.id)]
             physics["current_exposure"] = _clamp(sum(current_values) / max(1, len(current_values)) + physics["fluid_level"] * 0.12, 0.0, 1.3)
             physics["light"] = _clamp(place.sun_exposure * (0.35 + season * 0.85), 0.0, 1.25)
+            physics["oxygen"] = _clamp(physics.get("oxygen", 0.35))
+            physics["acidity"] = _clamp(physics.get("acidity", 0.10))
+            physics["biological_activity"] = _clamp(physics.get("biological_activity", 0.0))
+            physics["abrasion"] = _clamp(physics.get("abrasion", 0.0))
+            physics["wet_dry_cycle"] = _clamp(physics.get("wet_dry_cycle", 0.0))
             place.habitat["aquatic"] = _clamp(physics["fluid_level"])
             place.habitat["depth"] = _clamp(physics["pressure"] * 0.78)
             place.habitat["salinity"] = _clamp(physics["salinity"])

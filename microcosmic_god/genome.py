@@ -17,6 +17,10 @@ def mut_float(rng: Random, value: float, rate: float, scale: float, low: float =
     return clamp(value, low, high)
 
 
+NEURAL_BUDGET_MAX = 128.0
+MEMORY_BUDGET_MAX = 48.0
+
+
 @dataclass(slots=True)
 class Genome:
     radiant_metabolism: float
@@ -195,8 +199,10 @@ class Genome:
         data = self.to_dict()
         rate = clamp(self.mutation_rate, 0.001, 0.30)
         for key, value in list(data.items()):
-            if key in {"neural_budget", "memory_budget"}:
-                data[key] = mut_float(rng, value / 32.0, rate, strength, 0.0, 1.0) * 32.0
+            if key == "neural_budget":
+                data[key] = mut_float(rng, value / NEURAL_BUDGET_MAX, rate, strength, 0.0, 1.0) * NEURAL_BUDGET_MAX
+            elif key == "memory_budget":
+                data[key] = mut_float(rng, value / MEMORY_BUDGET_MAX, rate, strength, 0.0, 1.0) * MEMORY_BUDGET_MAX
             else:
                 data[key] = mut_float(rng, float(value), rate, strength)
         data["mutation_rate"] = mut_float(rng, data["mutation_rate"], rate, strength * 0.4, 0.001, 0.20)
@@ -228,8 +234,8 @@ class Genome:
             + self.buoyancy * 0.08
             + self.manipulator * 0.65
             + self.sensor_range * 0.45
-            + self.neural_budget / 10.0
-            + self.memory_budget / 14.0
+            + self.neural_budget / 18.0
+            + self.memory_budget / 20.0
             + self.prediction_weight * 0.55
             + self.plasticity_rate * 0.35
             + self.electrical_use * 0.25
@@ -240,6 +246,11 @@ class Genome:
         b = other.to_dict()
         total = 0.0
         for key in a:
-            scale = 32.0 if key in {"neural_budget", "memory_budget"} else 1.0
+            if key == "neural_budget":
+                scale = NEURAL_BUDGET_MAX
+            elif key == "memory_budget":
+                scale = MEMORY_BUDGET_MAX
+            else:
+                scale = 1.0
             total += abs(float(a[key]) - float(b[key])) / scale
         return total / len(a)

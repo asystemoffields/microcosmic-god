@@ -9,7 +9,7 @@ The current implementation is Prototype 0: a runnable Python simulation designed
 - Sparse ecological graph world, not a grid.
 - Multiple energy gradients from day one: radiant, chemical, biological storage, thermal, mechanical, electrical, and high-density latent energy.
 - Evolving non-neural organisms: plant and fungus analogs.
-- Evolving neural agents with small recurrent ANNs.
+- Evolving neural agents with recurrent ANNs, eligibility traces, predictive learning, and representational plasticity.
 - Darwinian inheritance of genome/development parameters and innate brain templates.
 - Lifetime learning through evolved valence wiring and plasticity.
 - Asexual and sexual reproduction.
@@ -18,7 +18,9 @@ The current implementation is Prototype 0: a runnable Python simulation designed
 - Tool use requires object affordance, body compatibility, learned skill, and context.
 - Composite artifacts with derived capabilities, durability, and tiered resistance against harder materials/obstacles.
 - Persistent material structures built from gathered components, including place-level boundaries, channels, supports, filters, and gradient harvesters.
+- Structure decay through general material-environment coupling: mechanical wear, corrosion, biological decay, thermal damage, solubility, radiation, and fatigue.
 - Graph-field physics for temperature, fluid level, pressure/depth, humidity, salinity, elevation, current exposure, edge slope, edge current, permeability, and conductance.
+- Environmental degradation fields such as oxygen-like exposure, acidity, biological activity, abrasion, and wet/dry cycling are visible to agents.
 - Physics-driven effects such as heat/pressure/current stress, chemical advection, signal advection, mark erosion, current-assisted movement, and gravity falls.
 - Material-coupled artifact capabilities including filtering, floating, anchoring, traversal, insulation, conductivity, containment, cracking, cutting, levering, and heat concentration.
 - Inside/outside is modeled as boundary physics: `enclose`, `permeable`, and `shelter` are separate capabilities, so not every inside is protective.
@@ -118,9 +120,11 @@ Checkpoint files include:
 
 These are the transfer candidates for future experiments in other worlds or games.
 
-Prototype 0 brains are small leaky reactive policies: hidden state carries forward with fixed decay, while lifetime learning updates output/action preferences and prediction weights. Rich learned recurrence is a future brain-core upgrade.
+Prototype 0 brains are still intentionally compact, but they now carry hidden state, input/hidden eligibility traces, learned action preferences, prediction weights, and valence-modulated input-to-hidden plasticity. Genome neural budgets can mutate far beyond the local starting sizes, with metabolic cost deciding whether larger brains survive.
 
 See [docs/TRANSFER_RUNWAY.md](docs/TRANSFER_RUNWAY.md) for the plan to separate reusable brain cores from world-specific adapters and test saved agents in held-out worlds, simple games, and eventually richer RL environments.
+
+See [docs/LEARNING_ARCHITECTURE.md](docs/LEARNING_ARCHITECTURE.md) for the north-star contract: evolve compact causal learners that may transfer through new encoders/action heads, not just policies that memorize this sandbox.
 
 ## SAE Inspection
 

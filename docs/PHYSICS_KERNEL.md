@@ -110,6 +110,7 @@ Thermal fields should matter because they interact with life, materials, and too
 - thermal gradients as exploitable energy
 - conductive and insulating artifacts
 - boundary effects where interiors retain, exclude, or exchange heat and humidity differently from their surroundings
+- material degradation from heat, wet/dry cycling, chemistry, biological activity, radiation, pressure, and abrasion
 
 The same heat rule should make sunlight, vents, desert basins, ocean depth, fire-like reactions, and heat tools intelligible.
 
@@ -131,8 +132,27 @@ Materials should expose properties that physics can use:
 - toxicity
 - absorbency
 - containment quality
+- oxidizability and corrosion resistance
+- biodegradability
+- thermal stability
+- abrasion and fatigue resistance
+- UV/radiation sensitivity
 
 Artifacts should gain capabilities from these properties rather than from named recipes.
+
+## Material Decay
+
+Structures lose durability through reusable wear channels:
+
+- `mechanical`: current, pressure, abrasion, and flow gradients.
+- `chemical`: salinity, humidity, oxygen-like exposure, acidity, and oxidizable materials.
+- `biological`: warm wet biological activity acting on biodegradable materials.
+- `thermal`: heat, cold, radiation, and thermal instability.
+- `solubility`: fluid, acidity, salinity, and soluble materials.
+- `radiation`: light exposure and UV-sensitive materials.
+- `fatigue`: repeated use of channels, gradient harvesters, filters, and reaction surfaces.
+
+This is how sea-side rust, rotting wood, sun-cracked resin, long-lived stone, and short-lived filters emerge from shared fields rather than special-case rules.
 
 ## Agent-Relevant Consequences
 
@@ -189,6 +209,8 @@ The current implementation now includes:
 - persistent material structures with `enclose`, `permeable`, `shelter`, `support`, `channel`, `gradient_harvest`, and `reaction_surface` capabilities
 - place-level boundary fields for interiority, boundary permeability, and shelter, visible to agents and summaries
 - structure-driven conversions from flow/current/slope gradients into mechanical and sometimes electrical energy
+- material-environment structure decay channels plus compact wear telemetry
+- agent observations include oxygen-like exposure, acidity, biological activity, abrasion, and wet/dry cycling
 - aggregate physics telemetry in run summaries and story reports
 
 This is intentionally still approximate. The important property is that many relationships now share the same fields and material laws.

@@ -22,10 +22,13 @@ class TinyBrain:
     prediction_weights: list[float]
     hidden: list[float] = field(default_factory=list)
     last_outputs: list[float] = field(default_factory=list)
+    last_inputs: list[float] = field(default_factory=list)
+    input_trace: list[float] = field(default_factory=list)
+    hidden_trace: list[float] = field(default_factory=list)
 
     @classmethod
     def random(cls, rng: Random, input_size: int, hidden_size: int, output_size: int) -> "TinyBrain":
-        hidden_size = max(1, min(64, hidden_size))
+        hidden_size = max(1, min(128, hidden_size))
         brain = cls(
             input_size=input_size,
             hidden_size=hidden_size,
@@ -37,12 +40,21 @@ class TinyBrain:
             prediction_weights=[_rand_weight(rng) for _ in range(hidden_size)],
             hidden=[0.0 for _ in range(hidden_size)],
             last_outputs=[0.0 for _ in range(output_size)],
+            last_inputs=[0.0 for _ in range(input_size)],
+            input_trace=[0.0 for _ in range(input_size)],
+            hidden_trace=[0.0 for _ in range(hidden_size)],
         )
         return brain
 
     def forward(self, inputs: list[float]) -> list[float]:
         if len(inputs) != self.input_size:
             raise ValueError(f"expected {self.input_size} inputs, got {len(inputs)}")
+        if not self.input_trace or len(self.input_trace) != self.input_size:
+            self.input_trace = [0.0 for _ in range(self.input_size)]
+        if not self.hidden_trace or len(self.hidden_trace) != self.hidden_size:
+            self.hidden_trace = [0.0 for _ in range(self.hidden_size)]
+        self.last_inputs = list(inputs)
+        self.input_trace = [old * 0.92 + float(value) * 0.08 for old, value in zip(self.input_trace, inputs)]
         inv = 1.0 / math.sqrt(max(1, self.input_size))
         new_hidden: list[float] = []
         for h in range(self.hidden_size):
@@ -53,6 +65,7 @@ class TinyBrain:
                 total += self.weights_in[offset + i] * value * inv
             new_hidden.append(math.tanh(total))
         self.hidden = new_hidden
+        self.hidden_trace = [old * 0.90 + value * 0.10 for old, value in zip(self.hidden_trace, self.hidden)]
 
         inv_h = 1.0 / math.sqrt(max(1, self.hidden_size))
         outputs: list[float] = []
@@ -83,15 +96,31 @@ class TinyBrain:
         valence = max(-2.0, min(2.0, valence))
         lr = max(0.0, min(0.25, learning_rate)) * max(0.0, min(1.0, plasticity))
         offset = action_index * self.hidden_size
-        for h, value in enumerate(self.hidden):
-            self.weights_out[offset + h] += lr * valence * value * 0.035
-        self.bias_o[action_index] += lr * valence * 0.015
-
         predicted = self.predict_next_energy()
         error = max(-2.0, min(2.0, energy_delta - predicted))
+        for h, value in enumerate(self.hidden_trace or self.hidden):
+            updated = self.weights_out[offset + h] + lr * valence * value * 0.035
+            self.weights_out[offset + h] = max(-4.0, min(4.0, updated))
+        self.bias_o[action_index] = max(-4.0, min(4.0, self.bias_o[action_index] + lr * valence * 0.015))
+
         pred_lr = lr * max(0.0, min(1.0, prediction_weight)) * 0.025
         for h, value in enumerate(self.hidden):
-            self.prediction_weights[h] += pred_lr * error * value
+            updated = self.prediction_weights[h] + pred_lr * error * value
+            self.prediction_weights[h] = max(-4.0, min(4.0, updated))
+        representation_lr = lr * (0.15 + max(0.0, min(1.0, prediction_weight)) * 0.35) * 0.010
+        if representation_lr > 0.0 and self.last_inputs:
+            modulation = max(-2.0, min(2.0, valence * 0.55 + error * prediction_weight * 0.45))
+            for h, hidden_value in enumerate(self.hidden_trace or self.hidden):
+                if abs(hidden_value) < 0.015:
+                    continue
+                offset_in = h * self.input_size
+                hidden_gate = max(-1.0, min(1.0, hidden_value))
+                for i, input_value in enumerate(self.input_trace or self.last_inputs):
+                    if abs(input_value) < 0.010:
+                        continue
+                    index = offset_in + i
+                    updated = self.weights_in[index] + representation_lr * modulation * hidden_gate * input_value
+                    self.weights_in[index] = max(-4.0, min(4.0, updated))
         return error
 
     def clone_for_offspring(self, rng: Random, mutation_scale: float = 0.03) -> "TinyBrain":
@@ -121,6 +150,9 @@ class TinyBrain:
         if include_state:
             data["hidden"] = [round(v, 7) for v in self.hidden]
             data["last_outputs"] = [round(v, 7) for v in self.last_outputs]
+            data["last_inputs"] = [round(v, 7) for v in self.last_inputs]
+            data["input_trace"] = [round(v, 7) for v in self.input_trace]
+            data["hidden_trace"] = [round(v, 7) for v in self.hidden_trace]
         return data
 
     @classmethod
@@ -136,10 +168,18 @@ class TinyBrain:
             prediction_weights=[float(v) for v in data["prediction_weights"]],
             hidden=[0.0 for _ in range(int(data["hidden_size"]))],
             last_outputs=[0.0 for _ in range(int(data["output_size"]))],
+            last_inputs=[0.0 for _ in range(int(data["input_size"]))],
+            input_trace=[0.0 for _ in range(int(data["input_size"]))],
+            hidden_trace=[0.0 for _ in range(int(data["hidden_size"]))],
         )
         if "hidden" in data:
             brain.hidden = [float(v) for v in data["hidden"]]
         if "last_outputs" in data:
             brain.last_outputs = [float(v) for v in data["last_outputs"]]
+        if "last_inputs" in data:
+            brain.last_inputs = [float(v) for v in data["last_inputs"]]
+        if "input_trace" in data:
+            brain.input_trace = [float(v) for v in data["input_trace"]]
+        if "hidden_trace" in data:
+            brain.hidden_trace = [float(v) for v in data["hidden_trace"]]
         return brain
-

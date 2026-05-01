@@ -28,13 +28,14 @@ The adapter changes when moving from Microcosmic God to another task. The core i
 Prototype 0 uses `TinyBrain`:
 
 ```text
-inputs -> recurrent hidden state -> action logits
-                         -> energy prediction head
+inputs -> recurrent hidden state + eligibility traces -> action logits
+                                                   -> energy prediction head
 ```
 
 Checkpoint files already save:
 
 - brain weights and live hidden state
+- input and hidden eligibility traces
 - innate brain template
 - genome
 - body and organism state
@@ -42,6 +43,8 @@ Checkpoint files already save:
 - signal associations
 - ecological context
 - checkpoint reason
+
+Lifetime learning can now update output preferences, prediction weights, and input-to-hidden representations. It is still intentionally cheap, but it gives agents a path toward learning which environmental factors predict later consequences rather than only learning which action was recently rewarding.
 
 This is enough for archival and early inspection. It is not yet enough for clean cross-environment transfer because input and output matrices are tied to the Microcosmic observation/action schema.
 
@@ -74,7 +77,7 @@ The package should say which weights are expected to transfer and which are sand
 Microcosmic observations should avoid becoming arbitrary feature soup. They should be organized around reusable physical concepts:
 
 - self state: energy, damage, age, motion, internal memory
-- local fields: heat, water, salinity, light, current, slope, pressure
+- local fields: heat, water, salinity, light, current, slope, pressure, oxygen-like exposure, acidity, biological activity, abrasion, and wet/dry cycling
 - objects: material properties, affordances, relative availability
 - agents: motion, proximity, emitted signals, observed action traces
 - consequences: recent action result, energy delta, prediction error

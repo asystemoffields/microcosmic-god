@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Mapping
 
 ENERGY_KINDS = (
@@ -14,9 +14,24 @@ ENERGY_KINDS = (
     "high_density",
 )
 
+STRUCTURE_DECAY_CHANNELS = (
+    "baseline",
+    "mechanical",
+    "chemical",
+    "biological",
+    "thermal",
+    "solubility",
+    "radiation",
+    "fatigue",
+)
+
 
 def blank_energy(value: float = 0.0) -> dict[str, float]:
     return {kind: float(value) for kind in ENERGY_KINDS}
+
+
+def _clamp01(value: float) -> float:
+    return max(0.0, min(1.0, value))
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +81,7 @@ class Structure:
     scale: int
     builder_id: int | None = None
     age: int = 0
+    last_decay: dict[str, float] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -77,6 +93,7 @@ class Structure:
             "scale": self.scale,
             "builder_id": self.builder_id,
             "age": self.age,
+            "last_decay": {key: round(value, 6) for key, value in self.last_decay.items()},
         }
 
     @classmethod
@@ -90,6 +107,7 @@ class Structure:
             scale=int(data.get("scale", sum(int(v) for v in data["components"].values()))),
             builder_id=None if data.get("builder_id") is None else int(data["builder_id"]),
             age=int(data.get("age", 0)),
+            last_decay={str(k): float(v) for k, v in data.get("last_decay", {}).items()},
         )
 
 
@@ -109,6 +127,14 @@ MATERIALS: dict[str, Material] = {
             "porous": 0.25,
             "density": 0.22,
             "thermal_capacity": 0.28,
+            "oxidizable": 0.24,
+            "corrosion_resistance": 0.10,
+            "biodegradable": 0.78,
+            "water_soluble": 0.08,
+            "thermal_stability": 0.34,
+            "fatigue_resistance": 0.36,
+            "abrasion_resistance": 0.30,
+            "uv_sensitivity": 0.44,
         },
     ),
     "stone": Material(
@@ -124,6 +150,14 @@ MATERIALS: dict[str, Material] = {
             "thermal_mass": 0.70,
             "density": 0.92,
             "conductive": 0.18,
+            "oxidizable": 0.02,
+            "corrosion_resistance": 0.88,
+            "biodegradable": 0.01,
+            "water_soluble": 0.02,
+            "thermal_stability": 0.82,
+            "fatigue_resistance": 0.80,
+            "abrasion_resistance": 0.86,
+            "uv_sensitivity": 0.01,
         },
     ),
     "fiber": Material(
@@ -142,6 +176,14 @@ MATERIALS: dict[str, Material] = {
             "absorbent": 0.72,
             "insulating": 0.48,
             "density": 0.06,
+            "oxidizable": 0.22,
+            "corrosion_resistance": 0.08,
+            "biodegradable": 0.72,
+            "water_soluble": 0.12,
+            "thermal_stability": 0.24,
+            "fatigue_resistance": 0.28,
+            "abrasion_resistance": 0.18,
+            "uv_sensitivity": 0.56,
         },
     ),
     "shell": Material(
@@ -157,6 +199,14 @@ MATERIALS: dict[str, Material] = {
             "buoyant": 0.36,
             "density": 0.32,
             "thermal_capacity": 0.36,
+            "oxidizable": 0.05,
+            "corrosion_resistance": 0.54,
+            "biodegradable": 0.12,
+            "water_soluble": 0.10,
+            "thermal_stability": 0.52,
+            "fatigue_resistance": 0.46,
+            "abrasion_resistance": 0.54,
+            "uv_sensitivity": 0.08,
         },
     ),
     "crystal": Material(
@@ -171,6 +221,14 @@ MATERIALS: dict[str, Material] = {
             "brittle": 0.75,
             "density": 0.58,
             "thermal_capacity": 0.22,
+            "oxidizable": 0.46,
+            "corrosion_resistance": 0.34,
+            "biodegradable": 0.00,
+            "water_soluble": 0.02,
+            "thermal_stability": 0.44,
+            "fatigue_resistance": 0.34,
+            "abrasion_resistance": 0.64,
+            "uv_sensitivity": 0.02,
         },
     ),
     "resin": Material(
@@ -187,6 +245,14 @@ MATERIALS: dict[str, Material] = {
             "insulating": 0.34,
             "buoyant": 0.28,
             "density": 0.18,
+            "oxidizable": 0.34,
+            "corrosion_resistance": 0.70,
+            "biodegradable": 0.24,
+            "water_soluble": 0.03,
+            "thermal_stability": 0.20,
+            "fatigue_resistance": 0.30,
+            "abrasion_resistance": 0.16,
+            "uv_sensitivity": 0.66,
         },
     ),
     "bone": Material(
@@ -201,6 +267,14 @@ MATERIALS: dict[str, Material] = {
             "porous": 0.22,
             "density": 0.46,
             "thermal_capacity": 0.18,
+            "oxidizable": 0.18,
+            "corrosion_resistance": 0.24,
+            "biodegradable": 0.34,
+            "water_soluble": 0.13,
+            "thermal_stability": 0.36,
+            "fatigue_resistance": 0.44,
+            "abrasion_resistance": 0.46,
+            "uv_sensitivity": 0.22,
         },
     ),
 }
@@ -443,6 +517,83 @@ def structure_capability(structures: list[Structure], capability: str) -> float:
         scale_factor = _scale_factor(structure.scale)
         best = max(best, structure.capabilities.get(capability, 0.0) * (0.75 + scale_factor * 0.25) * durability_factor)
     return best
+
+
+def structure_decay_channels(structure: Structure, environment: Mapping[str, float]) -> dict[str, float]:
+    props = structure.properties
+    caps = structure.capabilities
+    scale = _scale_factor(structure.scale)
+    hard = props.get("hard", 0.0)
+    flexible = props.get("flexible", 0.0)
+    brittle = props.get("brittle", 0.0)
+    porous = props.get("porous", 0.0)
+    absorbent = props.get("absorbent", 0.0)
+    conductive = props.get("conductive", 0.0)
+    combustible = props.get("combustible", 0.0)
+    sealant = props.get("sealant", 0.0)
+    density = props.get("density", props.get("heavy", 0.0))
+    oxidizable = props.get("oxidizable", conductive * 0.45 + combustible * 0.18)
+    corrosion_resistance = props.get("corrosion_resistance", sealant * 0.45 + hard * 0.22 + density * 0.14)
+    biodegradable = props.get("biodegradable", combustible * 0.65 + porous * 0.12)
+    water_soluble = props.get("water_soluble", max(0.0, absorbent * 0.12 - sealant * 0.08))
+    thermal_stability = props.get("thermal_stability", props.get("thermal_capacity", 0.0) * 0.50 + hard * 0.22 + sealant * 0.10)
+    fatigue_resistance = props.get("fatigue_resistance", hard * 0.35 + flexible * 0.22 + density * 0.18 - brittle * 0.18)
+    abrasion_resistance = props.get("abrasion_resistance", hard * 0.48 + density * 0.24 + flexible * 0.08 - brittle * 0.14)
+    uv_sensitivity = props.get("uv_sensitivity", combustible * 0.45 + flexible * 0.16 - hard * 0.12)
+
+    temperature = _clamp01(environment.get("temperature", 0.5) / 1.35)
+    heat_excess = max(0.0, environment.get("temperature", 0.5) - 0.68)
+    cold_excess = max(0.0, 0.14 - environment.get("temperature", 0.5))
+    fluid = _clamp01(environment.get("fluid_level", 0.0))
+    humidity = _clamp01(environment.get("humidity", 0.5))
+    salinity = _clamp01(environment.get("salinity", 0.0))
+    oxygen = _clamp01(environment.get("oxygen", 0.35))
+    acidity = _clamp01(environment.get("acidity", 0.10))
+    biological_activity = _clamp01(environment.get("biological_activity", 0.0))
+    abrasion = _clamp01(environment.get("abrasion", 0.0))
+    wet_dry_cycle = _clamp01(environment.get("wet_dry_cycle", 0.0))
+    current = _clamp01(environment.get("current_exposure", 0.0))
+    pressure = _clamp01(environment.get("pressure", 0.0))
+    light = _clamp01(environment.get("light", 0.0))
+    flow_gradient = _clamp01(environment.get("flow_gradient", 0.0))
+
+    enclose = caps.get("enclose", 0.0)
+    permeable = caps.get("permeable", 0.0)
+    shelter = caps.get("shelter", 0.0)
+    support = caps.get("support", 0.0)
+    anchor = caps.get("anchor", 0.0)
+    channel = caps.get("channel", 0.0)
+    gradient_harvest = caps.get("gradient_harvest", 0.0)
+    reaction_surface = caps.get("reaction_surface", 0.0)
+    filter_cap = caps.get("filter", 0.0)
+
+    coating = _clamp01(sealant * 0.48 + enclose * 0.12 + shelter * 0.10)
+    exposed_surface = _clamp01(0.42 + permeable * 0.22 + porous * 0.24 + absorbent * 0.12 - coating * 0.32)
+    mechanical_resistance = _clamp01(abrasion_resistance * 0.55 + support * 0.22 + anchor * 0.16 + flexible * 0.10)
+    chemical_resistance = _clamp01(corrosion_resistance * 0.62 + coating * 0.28 + density * 0.08)
+    biological_resistance = _clamp01(coating * 0.40 + corrosion_resistance * 0.16 + hard * 0.16 + max(0.0, 1.0 - porous) * 0.10)
+    thermal_resistance = _clamp01(thermal_stability * 0.62 + caps.get("insulate", 0.0) * 0.14 + density * 0.10)
+    fatigue_resistance = _clamp01(fatigue_resistance * 0.58 + support * 0.18 + flexible * 0.10 + anchor * 0.08)
+
+    wet_contact = _clamp01(fluid * 0.48 + humidity * 0.32 + wet_dry_cycle * 0.20)
+    corrosion_env = _clamp01(salinity * 0.42 + acidity * 0.38 + oxygen * humidity * 0.25 + wet_dry_cycle * 0.12)
+    biological_window = _clamp01(1.0 - abs(temperature - 0.46) * 1.65)
+    thermal_env = _clamp01(heat_excess * 1.20 + cold_excess * 1.50 + wet_dry_cycle * 0.18 + light * 0.08)
+    movement_env = _clamp01(current * 0.42 + pressure * 0.18 + abrasion * 0.34 + flow_gradient * 0.22)
+    use_env = _clamp01(flow_gradient * (channel * 0.35 + gradient_harvest * 0.45) + reaction_surface * acidity * 0.20 + filter_cap * wet_contact * 0.10)
+    size_load = 0.72 + scale * 0.42
+
+    channels = {
+        "baseline": 0.0010 + exposed_surface * 0.0009,
+        "mechanical": movement_env * size_load * max(0.04, 1.0 - mechanical_resistance * 0.82) * 0.026,
+        "chemical": corrosion_env * wet_contact * oxidizable * exposed_surface * max(0.03, 1.0 - chemical_resistance * 0.86) * 0.040,
+        "biological": biological_activity * wet_contact * biodegradable * biological_window * max(0.04, 1.0 - biological_resistance * 0.78) * 0.030,
+        "thermal": thermal_env * (combustible * 0.22 + brittle * 0.14 + 0.16) * max(0.04, 1.0 - thermal_resistance * 0.80) * 0.025,
+        "solubility": fluid * (acidity * 0.42 + salinity * 0.22 + current * 0.18 + wet_dry_cycle * 0.18) * water_soluble * exposed_surface * max(0.05, 1.0 - coating * 0.72) * 0.034,
+        "radiation": light * uv_sensitivity * max(0.04, 1.0 - shelter * 0.55 - enclose * 0.18) * 0.010,
+        "fatigue": use_env * max(0.04, 1.0 - fatigue_resistance * 0.76) * 0.018,
+    }
+    return {name: max(0.0, value) for name, value in channels.items()}
 
 
 def best_affordance(inventory: Mapping[str, int], skills: Mapping[str, float], artifacts: list[Artifact] | None = None) -> tuple[str, float]:

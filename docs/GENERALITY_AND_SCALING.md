@@ -76,6 +76,20 @@ Place-level structures are artifacts left in the world. They are built from mate
 
 This is the groundwork for dams, bridges, dens, rafts, traps, kilns, hydro-like structures, aquaculture filters, or future machinery without hardcoding any of those as recipes.
 
+Structures also decay through general wear channels. The same material-environment law should explain corrosion near salty water, biological rot in warm wet habitats, abrasion in high-current places, thermal cracking, soluble materials leaching away, and durable materials lasting longer.
+
+## Neural Growth And Plasticity
+
+Agents need enough learning capacity to connect environmental causes with later consequences. Keep this governed by evolvable costs:
+
+- Neural budget and memory budget can grow through mutation and recombination.
+- Larger brains cost more metabolism, so size only persists if ecology pays for it.
+- Plasticity, learning rate, prediction weight, and valence wiring are inherited traits.
+- Lifetime learning updates action preferences, prediction weights, and internal representations through eligibility traces.
+- Observation features should expose reusable causal fields, not hidden score labels.
+
+The goal is not to preinstall intelligence. The goal is to make enough adaptive machinery available that evolution can discover richer cognition when the world rewards it.
+
 ## Scaling Strategy
 
 The conceptual model should remain stable while the implementation backend changes.
