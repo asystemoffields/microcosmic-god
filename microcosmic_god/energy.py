@@ -67,6 +67,10 @@ MATERIALS: dict[str, Material] = {
             "grippable": 0.85,
             "length": 0.90,
             "combustible": 0.65,
+            "buoyant": 0.65,
+            "porous": 0.25,
+            "density": 0.22,
+            "thermal_capacity": 0.28,
         },
     ),
     "stone": Material(
@@ -80,6 +84,8 @@ MATERIALS: dict[str, Material] = {
             "grippable": 0.30,
             "length": 0.12,
             "thermal_mass": 0.70,
+            "density": 0.92,
+            "conductive": 0.18,
         },
     ),
     "fiber": Material(
@@ -93,6 +99,11 @@ MATERIALS: dict[str, Material] = {
             "grippable": 0.35,
             "length": 0.70,
             "combustible": 0.45,
+            "buoyant": 0.42,
+            "porous": 0.90,
+            "absorbent": 0.72,
+            "insulating": 0.48,
+            "density": 0.06,
         },
     ),
     "shell": Material(
@@ -105,6 +116,9 @@ MATERIALS: dict[str, Material] = {
             "bindable": 0.15,
             "container": 0.80,
             "grippable": 0.45,
+            "buoyant": 0.36,
+            "density": 0.32,
+            "thermal_capacity": 0.36,
         },
     ),
     "crystal": Material(
@@ -117,6 +131,8 @@ MATERIALS: dict[str, Material] = {
             "conductive": 0.55,
             "grippable": 0.25,
             "brittle": 0.75,
+            "density": 0.58,
+            "thermal_capacity": 0.22,
         },
     ),
     "resin": Material(
@@ -129,6 +145,10 @@ MATERIALS: dict[str, Material] = {
             "sticky": 0.95,
             "combustible": 0.82,
             "grippable": 0.10,
+            "sealant": 0.82,
+            "insulating": 0.34,
+            "buoyant": 0.28,
+            "density": 0.18,
         },
     ),
     "bone": Material(
@@ -140,11 +160,14 @@ MATERIALS: dict[str, Material] = {
             "length": 0.50,
             "grippable": 0.55,
             "brittle": 0.25,
+            "porous": 0.22,
+            "density": 0.46,
+            "thermal_capacity": 0.18,
         },
     ),
 }
 
-AFFORDANCES = ("crack", "cut", "bind", "contain", "concentrate_heat", "conduct", "lever")
+AFFORDANCES = ("crack", "cut", "bind", "contain", "concentrate_heat", "conduct", "lever", "filter")
 ARTIFACT_CAPABILITIES = (
     "crack",
     "cut",
@@ -156,6 +179,9 @@ ARTIFACT_CAPABILITIES = (
     "traverse",
     "insulate",
     "energy_storage",
+    "filter",
+    "float",
+    "anchor",
 )
 
 
@@ -193,6 +219,8 @@ def derive_affordances_from_properties(props: Mapping[str, float]) -> dict[str, 
     container = props.get("container", 0.0)
     reflective = props.get("reflective", 0.0)
     conductive = props.get("conductive", 0.0)
+    porous = props.get("porous", 0.0)
+    absorbent = props.get("absorbent", 0.0)
     length = props.get("length", 0.0)
     grippable = props.get("grippable", 0.0)
     return {
@@ -203,6 +231,7 @@ def derive_affordances_from_properties(props: Mapping[str, float]) -> dict[str, 
         "concentrate_heat": min(1.0, reflective * 0.70 + hard * 0.15 + grippable * 0.15),
         "conduct": min(1.0, conductive * 0.85 + hard * 0.05 + grippable * 0.10),
         "lever": min(1.0, length * 0.55 + hard * 0.25 + grippable * 0.20),
+        "filter": min(1.0, porous * 0.55 + absorbent * 0.20 + flexible * 0.10 + bindable * 0.10 + container * 0.05),
     }
 
 
@@ -218,11 +247,23 @@ def derive_artifact_capabilities(properties: Mapping[str, float]) -> dict[str, f
     conductive = properties.get("conductive", 0.0)
     length = properties.get("length", 0.0)
     thermal_mass = properties.get("thermal_mass", 0.0)
+    thermal_capacity = max(thermal_mass, properties.get("thermal_capacity", 0.0))
     sticky = properties.get("sticky", 0.0)
+    porous = properties.get("porous", 0.0)
+    absorbent = properties.get("absorbent", 0.0)
+    buoyant = properties.get("buoyant", 0.0)
+    density = properties.get("density", heavy)
+    insulating = properties.get("insulating", 0.0)
+    sealant = properties.get("sealant", 0.0)
     capabilities = dict(affordances)
     capabilities["traverse"] = min(1.0, length * 0.35 + hard * 0.20 + flexible * 0.15 + bindable * 0.15 + sticky * 0.15)
-    capabilities["insulate"] = min(1.0, flexible * 0.20 + container * 0.20 + thermal_mass * 0.25 + hard * 0.10 + sticky * 0.10)
-    capabilities["energy_storage"] = min(1.0, container * 0.45 + conductive * 0.20 + thermal_mass * 0.20 + hard * 0.10)
+    capabilities["insulate"] = min(1.0, flexible * 0.20 + container * 0.18 + thermal_capacity * 0.20 + hard * 0.08 + sticky * 0.08 + insulating * 0.35 + porous * 0.08)
+    capabilities["energy_storage"] = min(1.0, container * 0.35 + conductive * 0.18 + thermal_capacity * 0.28 + hard * 0.10 + sealant * 0.12)
+    capabilities["filter"] = min(1.0, capabilities["filter"] + porous * 0.25 + absorbent * 0.12 + container * 0.08)
+    capabilities["float"] = max(0.0, min(1.0, buoyant * 0.62 + container * 0.18 + flexible * 0.10 + sealant * 0.10 - density * 0.24))
+    capabilities["anchor"] = min(1.0, density * 0.42 + heavy * 0.32 + hard * 0.20 + length * 0.06)
+    capabilities["contain"] = min(1.0, capabilities["contain"] + sealant * 0.16 + absorbent * 0.04)
+    capabilities["traverse"] = min(1.0, capabilities["traverse"] + capabilities["float"] * 0.20 + capabilities["anchor"] * 0.08)
     capabilities["concentrate_heat"] = min(1.0, capabilities["concentrate_heat"] + reflective * hard * 0.25)
     capabilities["conduct"] = min(1.0, capabilities["conduct"] + conductive * length * 0.25)
     capabilities["cut"] = min(1.0, capabilities["cut"] + sharp * hard * 0.15)

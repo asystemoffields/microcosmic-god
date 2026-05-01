@@ -28,6 +28,8 @@ class Genome:
     aquatic_affinity: float
     salinity_tolerance: float
     desiccation_tolerance: float
+    pressure_tolerance: float
+    buoyancy: float
     photosynthesis_surface: float
     digestion: float
     mobility: float
@@ -64,6 +66,8 @@ class Genome:
             aquatic_affinity=rng.uniform(0.05, 0.45),
             salinity_tolerance=rng.uniform(0.05, 0.45),
             desiccation_tolerance=rng.uniform(0.25, 0.90),
+            pressure_tolerance=rng.uniform(0.00, 0.35),
+            buoyancy=rng.uniform(0.05, 0.45),
             photosynthesis_surface=rng.uniform(0.55, 1.00),
             digestion=rng.uniform(0.00, 0.12),
             mobility=rng.uniform(0.00, 0.04),
@@ -101,6 +105,8 @@ class Genome:
             aquatic_affinity=rng.uniform(0.15, 0.65),
             salinity_tolerance=rng.uniform(0.05, 0.55),
             desiccation_tolerance=rng.uniform(0.05, 0.65),
+            pressure_tolerance=rng.uniform(0.05, 0.55),
+            buoyancy=rng.uniform(0.10, 0.60),
             photosynthesis_surface=rng.uniform(0.00, 0.15),
             digestion=rng.uniform(0.45, 0.90),
             mobility=rng.uniform(0.00, 0.06),
@@ -138,6 +144,8 @@ class Genome:
             aquatic_affinity=rng.uniform(0.00, 0.55),
             salinity_tolerance=rng.uniform(0.00, 0.50),
             desiccation_tolerance=rng.uniform(0.20, 0.90),
+            pressure_tolerance=rng.uniform(0.00, 0.55),
+            buoyancy=rng.uniform(0.00, 0.65),
             photosynthesis_surface=rng.uniform(0.00, 0.16),
             digestion=rng.uniform(0.35, 0.90),
             mobility=rng.uniform(0.35, 0.90),
@@ -172,6 +180,8 @@ class Genome:
             "aquatic_affinity": 0.25,
             "salinity_tolerance": 0.20,
             "desiccation_tolerance": 0.55,
+            "pressure_tolerance": 0.20,
+            "buoyancy": 0.25,
         }
         for field in fields(cls):
             if field.name not in data and field.name in defaults:
@@ -214,6 +224,8 @@ class Genome:
             self.developmental_complexity
             + self.mobility * 0.65
             + abs(self.aquatic_affinity - 0.35) * 0.15
+            + self.pressure_tolerance * 0.10
+            + self.buoyancy * 0.08
             + self.manipulator * 0.65
             + self.sensor_range * 0.45
             + self.neural_budget / 10.0

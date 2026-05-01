@@ -31,6 +31,22 @@ def world_energy_summary(world: World) -> dict[str, float]:
     return totals
 
 
+def world_physics_summary(world: World) -> dict[str, float]:
+    keys = ("temperature", "fluid_level", "pressure", "humidity", "salinity", "elevation", "current_exposure")
+    summary: dict[str, float] = {}
+    for key in keys:
+        values = [place.physics.get(key, 0.0) for place in world.places]
+        summary[f"avg_{key}"] = round(sum(values) / max(1, len(values)), 5)
+        summary[f"max_{key}"] = round(max(values, default=0.0), 5)
+    edge_currents = [abs(edge.current) for edge in world.edges]
+    edge_slopes = [abs(edge.slope) for edge in world.edges]
+    summary["avg_edge_current"] = round(sum(edge_currents) / max(1, len(edge_currents)), 5)
+    summary["max_edge_current"] = round(max(edge_currents, default=0.0), 5)
+    summary["avg_edge_slope"] = round(sum(edge_slopes) / max(1, len(edge_slopes)), 5)
+    summary["max_edge_slope"] = round(max(edge_slopes, default=0.0), 5)
+    return summary
+
+
 def top_organisms(organisms: dict[int, Organism], limit: int = 10) -> list[dict[str, Any]]:
     living = [organism for organism in organisms.values() if organism.alive]
     living.sort(key=lambda item: (item.offspring_count, item.successful_tools, item.energy, item.age), reverse=True)
@@ -40,6 +56,7 @@ def top_organisms(organisms: dict[int, Organism], limit: int = 10) -> list[dict[
 def build_debrief(sim: Any, reason: str, elapsed_seconds: float) -> dict[str, Any]:
     counts = population_counts(sim.organisms)
     energy = world_energy_summary(sim.world)
+    physics = world_physics_summary(sim.world)
     likely_causes: list[str] = []
     if counts.get("total", 0) == 0:
         likely_causes.append("full extinction")
@@ -76,6 +93,8 @@ def build_debrief(sim: Any, reason: str, elapsed_seconds: float) -> dict[str, An
         },
         "checkpointing": sim.checkpoints.to_summary(),
         "world_energy": energy,
+        "world_physics": physics,
+        "physics_events": dict(sim.physics_events),
         "climate_drift": round(sim.world.climate_drift, 6),
         "top_living_organisms": top_organisms(sim.organisms),
         "likely_causes": likely_causes,

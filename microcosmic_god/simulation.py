@@ -9,7 +9,7 @@ from typing import Any
 from .brain import TinyBrain
 from .checkpoints import CheckpointManager
 from .config import RunConfig
-from .debrief import build_debrief, population_counts, world_energy_summary
+from .debrief import build_debrief, population_counts, world_energy_summary, world_physics_summary
 from .energy import MATERIALS, artifact_capability, best_affordance, build_artifact, derive_affordances
 from .genome import Genome
 from .interventions import Intervention, load_interventions
@@ -39,6 +39,7 @@ class Simulation:
         self.marks_created: Counter[str] = Counter()
         self.artifacts_created: Counter[str] = Counter()
         self.artifacts_broken: Counter[str] = Counter()
+        self.physics_events: Counter[str] = Counter()
         self.reproduction_attempts: Counter[str] = Counter()
         self.reproduction_failures: Counter[str] = Counter()
         self.action_counts: Counter[str] = Counter()
@@ -122,7 +123,9 @@ class Simulation:
 
     def step(self) -> None:
         self.tick += 1
-        self.world.update_environment(self.rng)
+        physics_events = self.world.update_environment(self.rng)
+        self.physics_events.update(physics_events)
+        self._apply_physics_transport()
         self._apply_interventions()
         self.demonstrations.clear()
 
@@ -218,6 +221,57 @@ class Simulation:
         counts["total"] = self.living_total
         return counts
 
+    def _apply_physics_transport(self) -> None:
+        for organism in list(self.organisms.values()):
+            if not organism.alive:
+                continue
+            place = self.world.places[organism.location]
+            physics = place.physics
+            fluid = physics.get("fluid_level", 0.0)
+            current = physics.get("current_exposure", 0.0)
+            downstream = self.world.downstream_neighbor(place.id)
+            if downstream and fluid > 0.35 and current > 0.08:
+                float_cap = artifact_capability(organism.artifacts, "float")
+                anchor = artifact_capability(organism.artifacts, "anchor")
+                traverse = artifact_capability(organism.artifacts, "traverse")
+                resistance = max(
+                    organism.genome.aquatic_affinity * 0.65 + organism.genome.buoyancy * 0.35,
+                    organism.genome.mobility * 0.30,
+                    float_cap * 0.75,
+                    anchor * 0.80,
+                    traverse * 0.55,
+                )
+                drift_chance = max(0.0, downstream[1] * fluid * (1.0 - resistance)) * 0.020
+                if self.rng.random() < drift_chance:
+                    organism.location = downstream[0]
+                    organism.energy -= 0.010 + current * 0.012
+                    if organism.genome.aquatic_affinity < fluid * 0.45 and float_cap < 0.20:
+                        organism.health -= fluid * 0.006
+                    self.physics_events["current_transport"] += 1
+                    if organism.health <= 0.0:
+                        self._kill(organism, "current_washout")
+                        continue
+
+            steep_edges = [
+                edge
+                for edge in self.world.edges_from(place.id)
+                if edge.slope_from(place.id) < -0.35 and edge.danger > 0.10
+            ]
+            if steep_edges and organism.genome.mobility < 0.65:
+                edge = min(steep_edges, key=lambda item: item.slope_from(place.id))
+                traverse = artifact_capability(organism.artifacts, "traverse")
+                anchor = artifact_capability(organism.artifacts, "anchor")
+                footing = max(organism.genome.mobility, traverse * 0.65, anchor * 0.75)
+                fall_chance = max(0.0, abs(edge.slope_from(place.id)) * edge.danger * (1.0 - footing)) * 0.004
+                if self.rng.random() < fall_chance:
+                    organism.location = edge.other(place.id)
+                    damage = max(0.0, abs(edge.slope_from(place.id)) - footing) * 0.035
+                    organism.health -= damage
+                    organism.energy -= 0.025
+                    self.physics_events["gravity_fall"] += 1
+                    if organism.health <= 0.0:
+                        self._kill(organism, "fall")
+
     def _metabolize(self, organism: Organism) -> None:
         organism.age += 1
         organism.energy -= organism.metabolic_cost()
@@ -233,16 +287,43 @@ class Simulation:
         depth = place.habitat.get("depth", 0.0)
         salinity = place.habitat.get("salinity", 0.0)
         humidity = place.habitat.get("humidity", 0.5)
-        drowning = max(0.0, aquatic * depth - organism.genome.aquatic_affinity * 0.85 - organism.genome.mobility * 0.15)
+        physics = place.physics
+        temperature = physics.get("temperature", 0.5)
+        pressure = physics.get("pressure", depth)
+        current = physics.get("current_exposure", 0.0)
+        insulation = artifact_capability(organism.artifacts, "insulate")
+        float_cap = artifact_capability(organism.artifacts, "float")
+        anchor = artifact_capability(organism.artifacts, "anchor")
+        traverse = artifact_capability(organism.artifacts, "traverse")
+        drowning = max(0.0, aquatic * depth - organism.genome.aquatic_affinity * 0.85 - organism.genome.mobility * 0.15 - float_cap * 0.20)
         desiccation = max(0.0, organism.genome.aquatic_affinity * (1.0 - humidity) - organism.genome.desiccation_tolerance * 0.55)
         salinity_stress = max(0.0, abs(salinity - organism.genome.salinity_tolerance) - 0.55)
-        stress = drowning * 0.020 + desiccation * 0.015 + salinity_stress * 0.010
+        heat_stress = max(0.0, temperature - (0.58 + organism.genome.thermal_tolerance * 0.42 + insulation * 0.25))
+        cold_stress = max(0.0, 0.18 - temperature - organism.genome.thermal_tolerance * 0.12 - insulation * 0.18)
+        pressure_stress = max(0.0, pressure - (organism.genome.pressure_tolerance * 1.05 + organism.genome.aquatic_affinity * 0.20 + organism.genome.armor * 0.12))
+        current_stress = max(0.0, current * aquatic - max(organism.genome.buoyancy, float_cap, anchor * 0.80, traverse * 0.55, organism.genome.mobility * 0.25))
+        stress = (
+            drowning * 0.020
+            + desiccation * 0.015
+            + salinity_stress * 0.010
+            + heat_stress * 0.018
+            + cold_stress * 0.012
+            + pressure_stress * 0.012
+            + current_stress * 0.009
+        )
         if stress <= 0.0:
             return
         organism.energy -= stress * 2.0
         organism.health -= stress
         if organism.health <= 0.0:
-            self._kill(organism, "habitat_mismatch")
+            if pressure_stress > max(drowning, desiccation, salinity_stress, heat_stress, cold_stress):
+                self._kill(organism, "pressure_stress")
+            elif heat_stress > max(drowning, desiccation, salinity_stress, pressure_stress, cold_stress):
+                self._kill(organism, "thermal_stress")
+            elif current_stress > max(drowning, desiccation, salinity_stress, pressure_stress, heat_stress):
+                self._kill(organism, "current_exposure")
+            else:
+                self._kill(organism, "habitat_mismatch")
 
     def _age_risk(self, organism: Organism) -> None:
         life_expectancy = 850 + organism.genome.storage_capacity * 800 + organism.genome.armor * 300
@@ -279,6 +360,10 @@ class Simulation:
             best_skill,
             season,
             self.world.climate_drift,
+            place.physics.get("temperature", 0.5),
+            place.physics.get("pressure", 0.0),
+            place.physics.get("current_exposure", 0.0),
+            place.physics.get("elevation", 0.5),
             place.habitat.get("aquatic", 0.0),
             place.habitat.get("depth", 0.0),
             place.habitat.get("salinity", 0.0),
@@ -393,23 +478,47 @@ class Simulation:
         else:
             destination_id = self.rng.choice(place.neighbors)
         destination = self.world.places[destination_id]
+        edge = self.world.edge_between(place.id, destination_id)
         traverse = artifact_capability(organism.artifacts, "traverse")
         insulation = artifact_capability(organism.artifacts, "insulate")
+        float_cap = artifact_capability(organism.artifacts, "float")
+        anchor = artifact_capability(organism.artifacts, "anchor")
         cut = max(organism.tool_skill.get("cut", 0.0), artifact_capability(organism.artifacts, "cut"))
         aquatic_fit = organism.genome.aquatic_affinity
+        slope = edge.slope_from(place.id) if edge else 0.0
+        current = edge.current_from(place.id) if edge else 0.0
+        distance = edge.distance if edge else 1.0
+        edge_required = edge.traversal_required if edge else 0.0
+        uphill = max(0.0, slope)
+        downhill = max(0.0, -slope)
+        against_current = max(0.0, -current)
+        with_current = max(0.0, current)
         barrier = (
             destination.obstacles.get("water", 0.0) * (1.0 - max(traverse, aquatic_fit))
             + destination.obstacles.get("height", 0.0) * (1.0 - max(traverse, organism.genome.mobility))
             + destination.obstacles.get("thorn", 0.0) * (1.0 - max(cut, organism.genome.armor))
             + destination.obstacles.get("heat", 0.0) * (1.0 - max(insulation, organism.genome.thermal_tolerance))
-        ) / 4.0
-        success = organism.genome.mobility + traverse * 0.65 + organism.genome.sensor_range * 0.10 + self.rng.gauss(0.0, 0.04)
+            + edge_required * (1.0 - max(traverse, float_cap, anchor * 0.65, organism.genome.mobility))
+            + uphill * (1.0 - max(traverse, organism.genome.mobility))
+            + against_current * (1.0 - max(traverse, float_cap, aquatic_fit, anchor * 0.55))
+            + downhill * (1.0 - max(traverse, anchor, organism.genome.mobility)) * 0.35
+        ) / 7.35
+        success = (
+            organism.genome.mobility
+            + traverse * 0.65
+            + organism.genome.sensor_range * 0.10
+            + with_current * max(float_cap, aquatic_fit) * 0.10
+            + anchor * 0.04
+            + self.rng.gauss(0.0, 0.04)
+        )
         if success >= barrier:
             organism.location = destination_id
-            organism.energy -= barrier * 0.06
+            organism.energy -= barrier * 0.06 + distance * 0.012 + uphill * 0.020
+            if with_current > 0.1 and destination.obstacles.get("water", 0.0) > 0.3:
+                self.physics_events["current_assisted_move"] += 1
         else:
-            organism.energy -= barrier * 0.18
-            organism.health -= max(0.0, barrier - success) * 0.035
+            organism.energy -= barrier * 0.18 + distance * 0.016
+            organism.health -= max(0.0, barrier - success) * (0.035 + downhill * 0.015)
             if organism.health <= 0.0:
                 self._kill(organism, "movement_hazard")
 
@@ -536,16 +645,19 @@ class Simulation:
                 self._kill(organism, "tool_accident")
 
     def _affordance_resistance(self, place: Place, affordance: str) -> float:
+        physics = place.physics
         if affordance in {"crack", "lever"}:
-            return min(1.0, 0.22 + place.mineral_richness * 0.45 + place.locked_chemical / 420.0)
+            return min(1.0, 0.22 + place.mineral_richness * 0.45 + place.locked_chemical / 420.0 + physics.get("pressure", 0.0) * 0.05)
         if affordance == "cut":
             return min(1.0, 0.10 + place.obstacles.get("thorn", 0.0) * 0.60)
         if affordance == "contain":
-            return min(1.0, 0.10 + place.obstacles.get("water", 0.0) * 0.25 + place.water_flow * 0.15)
+            return min(1.0, 0.10 + place.obstacles.get("water", 0.0) * 0.22 + physics.get("pressure", 0.0) * 0.10 + physics.get("current_exposure", 0.0) * 0.12)
         if affordance == "concentrate_heat":
-            return min(1.0, 0.15 + place.obstacles.get("heat", 0.0) * 0.25 + place.volatility * 0.20)
+            return min(1.0, 0.15 + place.obstacles.get("heat", 0.0) * 0.25 + place.volatility * 0.20 + physics.get("humidity", 0.5) * 0.06)
         if affordance == "conduct":
-            return min(1.0, 0.35 + place.mineral_richness * 0.30)
+            return min(1.0, 0.30 + place.mineral_richness * 0.25 + physics.get("fluid_level", 0.0) * 0.08)
+        if affordance == "filter":
+            return min(1.0, 0.10 + physics.get("current_exposure", 0.0) * 0.18 + physics.get("salinity", 0.0) * 0.10)
         if affordance == "bind":
             return 0.18
         return 0.25
@@ -565,21 +677,30 @@ class Simulation:
                 organism.tool_skill[name] = min(1.0, organism.tool_skill[name] + 0.004)
             return 0.5 + competence * 1.4
         if affordance == "contain":
-            amount = min(place.resources["mechanical"], 0.8 + competence * 4.0)
+            amount = min(place.resources["mechanical"], 0.8 + competence * 4.0 + place.physics.get("current_exposure", 0.0) * 2.5)
             place.resources["mechanical"] -= amount * 0.15
+            place.physics["fluid_level"] = max(0.0, place.physics.get("fluid_level", 0.0) - amount * 0.0008)
             return amount * (0.15 + organism.genome.storage_capacity * 0.25)
         if affordance == "concentrate_heat":
             radiant = min(place.resources["radiant"], 2.0 + competence * 10.0)
             place.resources["thermal"] = min(180.0, place.resources["thermal"] + radiant * 0.15)
+            place.physics["temperature"] = min(1.45, place.physics.get("temperature", 0.5) + radiant * 0.0008)
             return radiant * (0.04 + organism.genome.thermal_tolerance * 0.09 + organism.genome.radiant_metabolism * 0.06)
         if affordance == "conduct":
-            amount = min(place.resources["electrical"], 0.5 + competence * 5.0)
+            amount = min(place.resources["electrical"], 0.5 + competence * 5.0 + place.mineral_richness * 1.5)
             place.resources["electrical"] -= amount
             return amount * (0.1 + organism.genome.electrical_use * 1.3)
         if affordance == "lever":
             amount = min(place.locked_chemical, 1.0 + competence * 5.5)
             place.locked_chemical -= amount
             return amount * (0.15 + organism.genome.mechanical_use * 0.55 + organism.genome.chemical_metabolism * 0.25)
+        if affordance == "filter":
+            flow_bonus = place.physics.get("current_exposure", 0.0) * 3.0 + place.physics.get("fluid_level", 0.0) * 1.5
+            chemical = min(place.resources["chemical"], 0.5 + competence * 3.0 + flow_bonus)
+            biological = min(place.resources["biological_storage"], 0.3 + competence * 1.8 + flow_bonus * 0.40)
+            place.resources["chemical"] -= chemical * 0.55
+            place.resources["biological_storage"] -= biological * 0.45
+            return chemical * (0.12 + organism.genome.chemical_metabolism * 0.45) + biological * (0.15 + organism.genome.digestion * 0.38)
         return 0.0
 
     def _wear_artifacts(self, organism: Organism, affordance: str, amount: float) -> None:
@@ -926,6 +1047,7 @@ class Simulation:
             "marks_created": dict(self.marks_created),
             "artifacts_created": dict(self.artifacts_created),
             "artifacts_broken": dict(self.artifacts_broken),
+            "physics_events": dict(self.physics_events),
             "reproduction_attempts": dict(self.reproduction_attempts),
             "reproduction_failures": dict(self.reproduction_failures),
             "action_counts": dict(self.action_counts),
@@ -935,6 +1057,7 @@ class Simulation:
                 for key in self.action_counts
             },
             "world_energy": world_energy_summary(self.world),
+            "world_physics": world_physics_summary(self.world),
         }
         self.aggregate_history.append(aggregate)
         if len(self.aggregate_history) > 500:

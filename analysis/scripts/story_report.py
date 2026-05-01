@@ -71,7 +71,8 @@ def print_timeline(aggregates: list[dict[str, Any]]) -> None:
             f"neural={pop.get('neural', 0):>4} "
             f"neural_energy={item.get('neural_avg_energy', 0):>8.3f} "
             f"tools={sum(tools.values()) if tools else 0:>5} "
-            f"marks={sum(item.get('marks_created', {}).values()):>5}"
+            f"marks={sum(item.get('marks_created', {}).values()):>5} "
+            f"fluid={item.get('world_physics', {}).get('avg_fluid_level', 0):>5.2f}"
         )
     last = aggregates[-1]
     pop = last["population"]
@@ -80,7 +81,8 @@ def print_timeline(aggregates: list[dict[str, Any]]) -> None:
         f"neural={pop.get('neural', 0):>4} "
         f"neural_energy={last.get('neural_avg_energy', 0):>8.3f} "
         f"tools={sum(last.get('tool_successes', {}).values()):>5} "
-        f"marks={sum(last.get('marks_created', {}).values()):>5}"
+        f"marks={sum(last.get('marks_created', {}).values()):>5} "
+        f"fluid={last.get('world_physics', {}).get('avg_fluid_level', 0):>5.2f}"
     )
 
 
@@ -97,6 +99,8 @@ def print_notes(summary: dict[str, Any], aggregates: list[dict[str, Any]]) -> No
     print(f"  marks_created: {summary.get('marks_created', {})}")
     print(f"  artifacts_created: {summary.get('artifacts_created', {})}")
     print(f"  artifacts_broken: {summary.get('artifacts_broken', {})}")
+    print(f"  physics_events: {summary.get('physics_events', {})}")
+    print(f"  world_physics: {summary.get('world_physics', {})}")
     print(f"  reproduction_attempts: {summary.get('reproduction_attempts', {})}")
     print(f"  reproduction_failures: {summary.get('reproduction_failures', {})}")
     print(f"  action_avg_energy_delta: {summary.get('action_avg_energy_delta', {})}")

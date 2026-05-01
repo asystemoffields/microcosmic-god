@@ -30,6 +30,19 @@ if agent has axe and target is tree:
 
 The first form can support axes, chisels, shells, pumps, boats, heat lenses, conductors, underwater tools, future environments, and unknown combinations. The second form only supports the scene we imagined in advance.
 
+## Open-Ended Interaction
+
+Casual structures and relationships should arise from shared causal channels rather than special social or puzzle labels.
+
+Examples:
+
+- A current can transport organisms, nutrients, toxins, offspring, signals, marks, heat, tools, and debris.
+- A durable mark can be memory, warning, territory, lure, courtship trace, path marker, or useless scratch depending on later consequences.
+- A tool can be useful as weapon, lever, filter, float, anchor, insulator, heat store, conductor, container, bridge, or component because its materials allow those interactions.
+- A repeated association can become navigation, habit, social preference, avoidance, proto-teaching, or proto-trade without a dedicated "relationship type" being assigned first.
+
+When possible, add fields and material laws that multiple behaviors can use. Avoid creating one-purpose relationship slots unless the physics and memory layers cannot express the relationship at all.
+
 ## Tool And Environment Mastery
 
 Tools should be capability transformers. A composite artifact can matter because it changes what physical regimes are reachable:
@@ -38,6 +51,9 @@ Tools should be capability transformers. A composite artifact can matter because
 - `crack`: opens brittle shells, stones, and mineral seams up to a resistance tier.
 - `lever`: moves heavy barriers or exposes mechanically locked resources.
 - `contain`: carries fluid, buffers wet habitats, or enables chemical concentration.
+- `filter`: harvests suspended resources from flows, fluids, or porous media.
+- `float`: changes how currents, water barriers, pressure, and movement hazards apply.
+- `anchor`: resists current, slope, washout, and some traversal hazards.
 - `traverse`: reduces movement penalties through water, height, unstable ground, or future terrain.
 - `insulate`: buffers heat, cold, conductivity, or chemical exposure.
 - `conduct`: routes electrical/thermal/electrochemical gradients.
