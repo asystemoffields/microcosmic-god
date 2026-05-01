@@ -141,6 +141,12 @@ Mark creation is summarized in aggregate/debrief counters rather than logged as 
 
 See [docs/LANGUAGE_RUNWAY.md](docs/LANGUAGE_RUNWAY.md) for the longer path from meaningless signals to possible future language-transfer experiments.
 
+## Generality And Scaling
+
+Every new mechanic should be governed by reusable laws rather than special-case objectives. Tool and habitat mechanics should compose through properties like hardness, resistance, containment, traversal, insulation, conductivity, and learned skill.
+
+See [docs/GENERALITY_AND_SCALING.md](docs/GENERALITY_AND_SCALING.md) for the project contract that keeps the simulator general enough for open-ended evolution and structured enough to move from local CPU runs to many-world GPU epochs.
+
 ## Design Rule
 
 Do not directly reward intelligence, tool use, communication, curiosity, family, teaching, trade, or culture.
