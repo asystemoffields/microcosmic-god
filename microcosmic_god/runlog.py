@@ -35,13 +35,17 @@ class RunLogger:
         self._stories.write(json.dumps(record, sort_keys=True) + "\n")
 
     def flush(self) -> None:
-        self._events.flush()
-        self._stories.flush()
+        if not self._events.closed:
+            self._events.flush()
+        if not self._stories.closed:
+            self._stories.flush()
 
     def close(self) -> None:
         self.flush()
-        self._events.close()
-        self._stories.close()
+        if not self._events.closed:
+            self._events.close()
+        if not self._stories.closed:
+            self._stories.close()
 
 
 def json_safe_number(value: float) -> float:

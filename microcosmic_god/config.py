@@ -28,6 +28,8 @@ class RunConfig:
     clone_complexity_soft_limit: float = 4.8
     asexual_complexity_ceiling: float = 4.8
     neural_checkpoint_limit: int = 64
+    compute_backend: str = "cpu"
+    device: str = "auto"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

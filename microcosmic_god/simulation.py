@@ -6,6 +6,7 @@ from collections import Counter, defaultdict
 from random import Random
 from typing import Any
 
+from .backends import BrainLearningCase, make_brain_runtime
 from .brain import TinyBrain
 from .checkpoints import CheckpointManager
 from .config import RunConfig
@@ -60,6 +61,7 @@ class Simulation:
         self.logger = RunLogger(config)
         self.observer = EventObserver(self.logger)
         self.checkpoints = CheckpointManager(self.logger.checkpoint_dir, config.neural_checkpoint_limit)
+        self.brain_runtime = make_brain_runtime(config.compute_backend, config.device)
         self.evolution = EvolutionEngine(self.rng, config)
         self.interventions = load_interventions(config.interventions_path) if config.run_mode == "garden" else {}
         self.organisms: dict[int, Organism] = {}
@@ -184,8 +186,12 @@ class Simulation:
         # Perception is a tick-start snapshot; action effects below resolve sequentially
         # against current organism locations, births, and deaths.
         rosters = self._rosters()
+        context_bases: dict[int, tuple[list[float], float, float, list[int]]] = {}
         contexts: dict[int, tuple[list[float], int, float, float, list[int]]] = {}
         intents: dict[int, str] = {}
+        intent_slots: list[tuple[int, str | None]] = []
+        neural_choice_rows: list[tuple[Organism, list[float]]] = []
+        neural_actions: dict[int, str] = {}
         feedback: dict[int, dict[str, float]] = defaultdict(lambda: {"reproduction": 0.0, "social": 0.0, "tool": 0.0})
 
         for organism in list(self.organisms.values()):
@@ -197,9 +203,30 @@ class Simulation:
                 continue
             observed_tokens = self._observed_tokens(organism)
             observation = self._observe(organism, rosters)
-            action = self._choose_action(organism, observation)
-            intents[organism.id] = action
-            contexts[organism.id] = (observation, ACTION_INDEX[action], organism.energy, organism.health, observed_tokens)
+            context_bases[organism.id] = (observation, organism.energy, organism.health, observed_tokens)
+            if organism.brain is not None and self.config.compute_backend == "torch":
+                neural_choice_rows.append((organism, observation))
+                intent_slots.append((organism.id, None))
+            else:
+                action = self._choose_action(organism, observation)
+                intent_slots.append((organism.id, action))
+
+        if neural_choice_rows:
+            neural_brains: list[TinyBrain] = []
+            neural_observations: list[list[float]] = []
+            for organism, observation in neural_choice_rows:
+                assert organism.brain is not None
+                neural_brains.append(organism.brain)
+                neural_observations.append(observation)
+            outputs = self.brain_runtime.forward_many(neural_brains, neural_observations)
+            for (organism, _observation), action_outputs in zip(neural_choice_rows, outputs):
+                neural_actions[organism.id] = self._choose_action_from_outputs(organism, action_outputs)
+
+        for organism_id, action in intent_slots:
+            resolved_action = action if action is not None else neural_actions.get(organism_id, "rest")
+            intents[organism_id] = resolved_action
+            observation, before_energy, before_health, observed_tokens = context_bases[organism_id]
+            contexts[organism_id] = (observation, ACTION_INDEX[resolved_action], before_energy, before_health, observed_tokens)
 
         active_recombine_places: set[int] = set()
         for organism_id, action in list(intents.items()):
@@ -217,11 +244,13 @@ class Simulation:
                 active_recombine_places.add(organism.location)
         self._resolve_recombine(active_recombine_places, feedback)
 
+        learning_rows: list[tuple[Organism, int, float, float, float, float, dict[str, float], list[int]]] = []
+        learning_cases: list[BrainLearningCase] = []
         for organism_id, context in contexts.items():
             organism = self.organisms.get(organism_id)
             if organism is None:
                 continue
-            observation, action_index, before_energy, before_health, observed_tokens = context
+            _observation, action_index, before_energy, before_health, observed_tokens = context
             action_name = ACTIONS[action_index]
             energy_delta = organism.energy - before_energy
             self.action_counts[action_name] += 1
@@ -239,21 +268,30 @@ class Simulation:
                 + organism.genome.valence_reproduction * extra.get("reproduction", 0.0)
                 + organism.genome.valence_social * extra.get("social", 0.0)
             )
-            prediction_error = organism.brain.learn(
-                action_index=action_index,
-                valence=valence,
-                energy_delta=energy_delta / 10.0,
-                learning_rate=organism.genome.learning_rate,
-                plasticity=organism.genome.plasticity_rate,
-                prediction_weight=organism.genome.prediction_weight,
-                outcome_targets={
-                    "damage": damage * 4.0,
-                    "reproduction": extra.get("reproduction", 0.0),
-                    "social": extra.get("social", 0.0),
-                    "tool": extra.get("tool", 0.0),
-                    "hazard": movement_hazard,
-                },
+            outcome_targets = {
+                "damage": damage * 4.0,
+                "reproduction": extra.get("reproduction", 0.0),
+                "social": extra.get("social", 0.0),
+                "tool": extra.get("tool", 0.0),
+                "hazard": movement_hazard,
+            }
+            learning_rows.append((organism, action_index, energy_delta, health_delta, damage, valence, extra, observed_tokens))
+            learning_cases.append(
+                BrainLearningCase(
+                    brain=organism.brain,
+                    action_index=action_index,
+                    valence=valence,
+                    energy_delta=energy_delta / 10.0,
+                    learning_rate=organism.genome.learning_rate,
+                    plasticity=organism.genome.plasticity_rate,
+                    prediction_weight=organism.genome.prediction_weight,
+                    outcome_targets=outcome_targets,
+                )
             )
+
+        prediction_errors = self.brain_runtime.learn_many(learning_cases)
+        for row, prediction_error in zip(learning_rows, prediction_errors):
+            organism, action_index, energy_delta, health_delta, damage, valence, extra, observed_tokens = row
             organism.last_valence = valence
             organism.record_action_result(
                 action_index=action_index,
@@ -923,7 +961,10 @@ class Simulation:
                 return "eat" if self.rng.random() < 0.72 else "forage"
             return "rest"
 
-        outputs = organism.brain.forward(observation)
+        outputs = self.brain_runtime.forward_many([organism.brain], [observation])[0]
+        return self._choose_action_from_outputs(organism, outputs)
+
+    def _choose_action_from_outputs(self, organism: Organism, outputs: list[float]) -> str:
         exploration = 0.025 + organism.genome.plasticity_rate * 0.055 + organism.genome.mutation_rate * 0.25
         if self.rng.random() < exploration:
             return self.rng.choice(ACTIONS)

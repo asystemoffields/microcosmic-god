@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from random import Random
 
+from microcosmic_god.backends import BrainLearningCase
 from microcosmic_god.brain import PREDICTION_HEADS, TinyBrain
 from microcosmic_god.config import RunConfig
 from microcosmic_god.energy import build_artifact, build_structure, structure_decay_channels
@@ -1029,6 +1030,118 @@ class CausalContractTests(unittest.TestCase):
         self.assertIn("final_lineage_founder", summary["reasons"])
         self.assertGreater(summary["buckets"].get("reproductive_champion", 0), 0)
         self.assertGreater(summary["buckets"].get("lineage_founder", 0), 0)
+
+    def _torch_runtime_or_skip(self):  # type: ignore[no-untyped-def]
+        try:
+            from microcosmic_god.backends.torch_gpu import TorchBrainRuntime
+
+            return TorchBrainRuntime(device="cpu")
+        except Exception as exc:
+            raise unittest.SkipTest(f"torch backend unavailable: {exc}") from exc
+
+    def test_torch_brain_batch_forward_matches_cpu_reference(self) -> None:
+        runtime = self._torch_runtime_or_skip()
+        rng = Random(123)
+        cpu_brains = [
+            TinyBrain.random(rng, input_size=5, hidden_size=3, output_size=4),
+            TinyBrain.random(rng, input_size=5, hidden_size=4, output_size=4),
+            TinyBrain.random(rng, input_size=5, hidden_size=3, output_size=4),
+        ]
+        torch_brains = [TinyBrain.from_dict(brain.to_dict(include_state=True)) for brain in cpu_brains]
+        observations = [
+            [0.2, -0.1, 0.7, 0.0, 0.5],
+            [-0.3, 0.4, 0.1, 0.9, -0.2],
+            [0.8, 0.0, -0.5, 0.3, 0.2],
+        ]
+
+        expected = [brain.forward(observation) for brain, observation in zip(cpu_brains, observations)]
+        actual = runtime.forward_many(torch_brains, observations)
+
+        for expected_row, actual_row in zip(expected, actual):
+            for expected_value, actual_value in zip(expected_row, actual_row):
+                self.assertAlmostEqual(expected_value, actual_value, places=5)
+        for cpu_brain, torch_brain in zip(cpu_brains, torch_brains):
+            for expected_value, actual_value in zip(cpu_brain.hidden, torch_brain.hidden):
+                self.assertAlmostEqual(expected_value, actual_value, places=5)
+            for expected_value, actual_value in zip(cpu_brain.input_trace, torch_brain.input_trace):
+                self.assertAlmostEqual(expected_value, actual_value, places=6)
+
+    def test_torch_brain_batch_learning_matches_cpu_reference(self) -> None:
+        runtime = self._torch_runtime_or_skip()
+        rng = Random(321)
+        cpu_brains = [
+            TinyBrain.random(rng, input_size=5, hidden_size=4, output_size=3),
+            TinyBrain.random(rng, input_size=5, hidden_size=4, output_size=3),
+        ]
+        torch_brains = [TinyBrain.from_dict(brain.to_dict(include_state=True)) for brain in cpu_brains]
+        observations = [[0.3, -0.2, 0.8, 0.1, 0.0], [-0.4, 0.9, 0.2, 0.0, 0.5]]
+        for brain, observation in zip(cpu_brains, observations):
+            brain.forward(observation)
+        runtime.forward_many(torch_brains, observations)
+
+        params = [
+            {
+                "action_index": 1,
+                "valence": 0.8,
+                "energy_delta": 0.4,
+                "learning_rate": 0.16,
+                "plasticity": 0.75,
+                "prediction_weight": 0.60,
+                "outcome_targets": {"damage": 0.1, "reproduction": 0.0, "social": 0.2, "tool": 1.0, "hazard": 0.1},
+            },
+            {
+                "action_index": 2,
+                "valence": -0.5,
+                "energy_delta": -0.3,
+                "learning_rate": 0.12,
+                "plasticity": 0.90,
+                "prediction_weight": 0.80,
+                "outcome_targets": {"damage": 0.4, "reproduction": 0.0, "social": -0.1, "tool": 0.0, "hazard": 0.5},
+            },
+        ]
+        expected_errors = [brain.learn(**param) for brain, param in zip(cpu_brains, params)]
+        actual_errors = runtime.learn_many(
+            [
+                BrainLearningCase(brain=brain, **param)
+                for brain, param in zip(torch_brains, params)
+            ]
+        )
+
+        for expected_value, actual_value in zip(expected_errors, actual_errors):
+            self.assertAlmostEqual(expected_value, actual_value, places=5)
+        for cpu_brain, torch_brain in zip(cpu_brains, torch_brains):
+            for expected_value, actual_value in zip(cpu_brain.weights_out, torch_brain.weights_out):
+                self.assertAlmostEqual(expected_value, actual_value, places=5)
+            for expected_value, actual_value in zip(cpu_brain.prediction_weights, torch_brain.prediction_weights):
+                self.assertAlmostEqual(expected_value, actual_value, places=5)
+            self.assertEqual(set(torch_brain.last_prediction_errors), set(PREDICTION_HEADS))
+
+    def test_torch_backend_can_run_small_simulation(self) -> None:
+        self._torch_runtime_or_skip()
+        tmp = tempfile.TemporaryDirectory()
+        config = RunConfig(
+            seed=909,
+            profile="test",
+            max_ticks=3,
+            max_wall_seconds=0,
+            places=4,
+            initial_plants=2,
+            initial_fungi=1,
+            initial_agents=2,
+            max_population=20,
+            output_dir=tmp.name,
+            event_detail=False,
+            compute_backend="torch",
+            device="cpu",
+        )
+        self.sim = Simulation(config)
+        self.sim._tmpdir = tmp  # type: ignore[attr-defined]
+
+        debrief = self.sim.run()
+
+        self.assertEqual(debrief["reason"], "max_ticks")
+        self.assertEqual(debrief["tick"], 3)
+        self.assertEqual(self.sim.config.compute_backend, "torch")
 
 
 if __name__ == "__main__":

@@ -28,6 +28,8 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--log-every", type=int, default=None)
     run.add_argument("--checkpoint-every", type=int, default=None)
     run.add_argument("--checkpoint-limit", type=int, default=None)
+    run.add_argument("--backend", choices=["cpu", "torch"], default=None, help="brain compute backend")
+    run.add_argument("--device", default=None, help="compute device for --backend torch, such as auto, cpu, cuda, or cuda:0")
     run.add_argument("--garden", action="store_true", help="allow logged interventions")
     run.add_argument("--interventions", default=None, help="path to an interventions JSON file")
     run.add_argument("--no-stop-on-neural-extinction", action="store_true")
@@ -54,6 +56,8 @@ def config_from_args(args: argparse.Namespace) -> RunConfig:
         "log_every": args.log_every,
         "checkpoint_every": args.checkpoint_every,
         "neural_checkpoint_limit": args.checkpoint_limit,
+        "compute_backend": args.backend,
+        "device": args.device,
         "run_mode": "garden" if args.garden else "sealed",
         "interventions_path": args.interventions,
         "stop_on_neural_extinction": not args.no_stop_on_neural_extinction,
@@ -102,6 +106,8 @@ def print_run_card(config: RunConfig) -> None:
     print(f"  log every: {config.log_every} ticks")
     print(f"  checkpoint every: {config.checkpoint_every} ticks")
     print(f"  checkpoint limit: {config.neural_checkpoint_limit}")
+    print(f"  compute backend: {config.compute_backend}")
+    print(f"  device: {config.device}")
     print(f"  output dir: {config.output_dir}")
 
 
