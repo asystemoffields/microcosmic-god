@@ -67,6 +67,8 @@ Implemented pressure should look like this:
 
 - Better prediction and memory make movement, foraging, tool use, construction, and social learning slightly more reliable or less wasteful.
 - Learned skill changes the outcome of future actions in the same physical channel.
+- Repeated specialization counts as real control, while broad skill diversity counts separately. A narrow master should not be mislabeled as a universal engineer, but should still receive credit for genuine mastery.
+- Relocation is costly enough that agents must learn when to stay, when to explore, and when tools/social support make a hostile transition worth attempting.
 - Mark reading and writing improve only when they transmit useful causal traces into later action, so literacy is valuable through changed outcomes rather than direct reward.
 - Larger neural machinery costs metabolism, so unused capacity is a liability.
 - Selection can favor cognition through survival, energy control, tool success, and reproduction, not through a hidden intelligence score.

@@ -38,6 +38,7 @@ SUCCESS_PROFILE_LABELS = (
     "structure",
     "causal_step",
     "causal_unlock",
+    "collaboration",
     "social_learning",
     "written_learning",
     "knowledge_transmitted",
@@ -107,6 +108,7 @@ class Organism:
     recombine_intent_until: int = -1
     coordination_token: int = 0
     successful_tools: int = 0
+    tool_use_counts: dict[str, int] = field(default_factory=dict)
     offspring_count: int = 0
     success_profile: dict[str, float] = field(default_factory=lambda: {label: 0.0 for label in SUCCESS_PROFILE_LABELS})
     last_tool_affordance: str = ""
@@ -272,6 +274,10 @@ class Organism:
             self.success_profile[label] = 0.0
         self.success_profile[label] = max(0.0, min(1_000_000.0, self.success_profile[label] + max(0.0, amount)))
 
+    def record_tool_success(self, affordance: str) -> None:
+        self.successful_tools += 1
+        self.tool_use_counts[affordance] = self.tool_use_counts.get(affordance, 0) + 1
+
     def record_lesson(self, lesson: dict[str, Any]) -> None:
         self.lesson_memory.append(self._lesson_safe(lesson))
         if len(self.lesson_memory) > 5:
@@ -308,6 +314,7 @@ class Organism:
             "neural": self.neural,
             "offspring_count": self.offspring_count,
             "successful_tools": self.successful_tools,
+            "tool_use_counts": dict(sorted(self.tool_use_counts.items())),
             "success_profile": {key: round(value, 4) for key, value in sorted(self.success_profile.items()) if value > 0.0},
             "last_action": self.last_action,
             "last_tool_affordance": self.last_tool_affordance,

@@ -24,6 +24,8 @@ def main() -> None:
     print(f"deaths: {summary['deaths_by_cause']}")
     print(f"deaths_by_kind_cause: {summary.get('deaths_by_kind_cause', {})}")
     print(f"tool_successes: {summary['tool_successes']}")
+    print(f"collaboration_events: {summary.get('collaboration_events', {})}")
+    print(f"movement: {summary.get('movement', {})}")
     print(f"marks_created: {summary.get('marks_created', {})}")
     print(f"mark_lessons: {summary.get('mark_lessons', {})}")
     print(f"mark_read_value: {summary.get('mark_read_value', {})}")

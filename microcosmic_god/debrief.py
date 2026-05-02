@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
+import math
 from typing import Any
 
 from .energy import ENERGY_KINDS
@@ -31,7 +32,7 @@ def world_energy_summary(world: World) -> dict[str, float]:
     return totals
 
 
-def world_physics_summary(world: World) -> dict[str, float]:
+def world_physics_summary(world: World) -> dict[str, Any]:
     keys = (
         "temperature",
         "fluid_level",
@@ -48,6 +49,8 @@ def world_physics_summary(world: World) -> dict[str, float]:
         "interiority",
         "boundary_permeability",
         "shelter",
+        "resource_gradient",
+        "terrain_richness",
     )
     summary: dict[str, float] = {}
     for key in keys:
@@ -64,6 +67,8 @@ def world_physics_summary(world: World) -> dict[str, float]:
     summary["structure_count"] = float(len(structures))
     summary["avg_structure_scale"] = round(sum(structure.scale for structure in structures) / max(1, len(structures)), 5)
     summary["max_structure_scale"] = round(max((structure.scale for structure in structures), default=0.0), 5)
+    archetypes: Counter[str] = Counter(place.archetype for place in world.places)
+    summary["archetype_counts"] = dict(archetypes)  # type: ignore[assignment]
     return summary
 
 
@@ -91,9 +96,13 @@ def success_profile_summary(organisms: dict[int, Organism]) -> dict[str, dict[st
 
 def organism_success_score(organism: Organism) -> float:
     profile = organism.success_profile
+    top_specialty = max(organism.tool_use_counts.values(), default=0)
+    distinct_tools = sum(1 for count in organism.tool_use_counts.values() if count > 0)
     return (
         organism.offspring_count * 4.0
         + organism.successful_tools * 1.5
+        + math.log1p(top_specialty) * 0.9
+        + distinct_tools * 0.8
         + profile.get("causal_unlock", 0.0) * 4.0
         + profile.get("causal_step", 0.0) * 1.0
         + profile.get("prediction_fit", 0.0) * 1.2
@@ -141,6 +150,8 @@ def build_debrief(sim: Any, reason: str, elapsed_seconds: float) -> dict[str, An
         "tool_successes": dict(sim.tool_successes),
         "causal_steps": dict(getattr(sim, "causal_steps", {})),
         "causal_unlocks": dict(getattr(sim, "causal_unlocks", {})),
+        "collaboration_events": dict(getattr(sim, "collaboration_events", {})),
+        "movement": sim._movement_summary() if hasattr(sim, "_movement_summary") else {},
         "success_profile": success_profile_summary(sim.organisms),
         "marks_created": dict(sim.marks_created),
         "mark_lessons": dict(getattr(sim, "mark_lessons", {})),

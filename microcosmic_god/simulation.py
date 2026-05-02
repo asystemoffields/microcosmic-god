@@ -33,6 +33,25 @@ from .runlog import RunLogger
 from .world import Place, World
 
 
+SKILL_TRANSFER: dict[str, dict[str, float]] = {
+    "bind": {"craft": 0.35, "build": 0.18, "support": 0.12, "contain": 0.08, "carry": 0.08, "record": 0.05},
+    "craft": {"bind": 0.18, "build": 0.12},
+    "build": {"support": 0.24, "anchor": 0.14, "shelter": 0.08, "bind": 0.08},
+    "crack": {"lever": 0.14, "cut": 0.06},
+    "cut": {"crack": 0.06, "filter": 0.05},
+    "contain": {"filter": 0.14, "insulate": 0.08, "energy_storage": 0.08, "carry": 0.05},
+    "filter": {"contain": 0.10, "permeable": 0.08, "reaction_surface": 0.05},
+    "concentrate_heat": {"conduct": 0.12, "insulate": 0.06, "energy_storage": 0.04},
+    "conduct": {"concentrate_heat": 0.08, "energy_storage": 0.08, "gradient_harvest": 0.05},
+    "lever": {"traverse": 0.10, "support": 0.08, "crack": 0.05},
+    "traverse": {"anchor": 0.10, "float": 0.08, "support": 0.06},
+    "protect": {"insulate": 0.08, "shelter": 0.05},
+    "record": {"inscribe": 0.12, "carry": 0.06},
+    "inscribe": {"record": 0.08, "interpret_mark": 0.04},
+    "interpret_mark": {"inscribe": 0.03},
+}
+
+
 class Simulation:
     def __init__(self, config: RunConfig):
         self.config = config
@@ -62,6 +81,11 @@ class Simulation:
         self.mark_author_feedbacks: Counter[str] = Counter()
         self.portable_marks_created: Counter[str] = Counter()
         self.portable_mark_reads: Counter[str] = Counter()
+        self.collaboration_events: Counter[str] = Counter()
+        self.movement_events: Counter[str] = Counter()
+        self.movement_costs: Counter[str] = Counter()
+        self.movement_motives: Counter[str] = Counter()
+        self.movement_routes: Counter[str] = Counter()
         self.artifacts_created: Counter[str] = Counter()
         self.artifacts_broken: Counter[str] = Counter()
         self.structures_built: Counter[str] = Counter()
@@ -296,9 +320,298 @@ class Simulation:
         average_error = sum(abs(value) for value in organism.prediction_error_profile) / max(1, len(organism.prediction_error_profile))
         prediction_fit = max(0.0, 1.0 - average_error / 1.5) if has_history else 0.0
         memory_signal = min(1.0, sum(abs(value) for value in organism.event_memory) / max(1.0, len(organism.event_memory) * 0.35))
-        learned_skill = max(organism.tool_skill.values(), default=0.0)
+        learned_skill = self._skill_breadth(organism)
         place_knowledge = min(1.0, len(organism.place_memory) / max(1.0, organism.genome.memory_budget * 2.0))
         return max(0.0, min(1.0, prediction_fit * 0.38 + memory_signal * 0.24 + learned_skill * 0.24 + place_knowledge * 0.14))
+
+    def _skill_breadth(self, organism: Organism) -> float:
+        tracked = (*AFFORDANCES, "craft", "build", "traverse", "protect", "record", "inscribe", "interpret_mark")
+        values = [max(0.0, min(1.0, organism.tool_skill.get(name, 0.0))) for name in tracked]
+        if not values:
+            return 0.0
+        top = sorted(values, reverse=True)[:4]
+        mastery = max(values)
+        active = sum(1 for value in values if value >= 0.18) / len(values)
+        diversity = min(1.0, len([name for name, count in organism.tool_use_counts.items() if count > 0]) / 5.0)
+        specialist_practice = 1.0 - math.exp(-max(organism.tool_use_counts.values(), default=0) / 24.0)
+        return max(
+            0.0,
+            min(
+                1.0,
+                mastery * 0.28
+                + sum(top) / max(1, len(top)) * 0.24
+                + active * 0.20
+                + diversity * 0.14
+                + specialist_practice * 0.14,
+            ),
+        )
+
+    def _increase_skill(self, organism: Organism, skill: str, amount: float, *, transfer: float = 0.0) -> None:
+        if amount <= 0.0 or skill not in organism.tool_skill:
+            return
+        current = organism.tool_skill.get(skill, 0.0)
+        organism.tool_skill[skill] = min(1.0, current + amount)
+        if transfer <= 0.0:
+            return
+        for related, weight in SKILL_TRANSFER.get(skill, {}).items():
+            if related not in organism.tool_skill:
+                continue
+            related_current = organism.tool_skill.get(related, 0.0)
+            related_gain = amount * transfer * weight * (0.35 + max(0.0, 1.0 - related_current) * 0.65)
+            organism.tool_skill[related] = min(1.0, related_current + related_gain)
+
+    def _signal_intensity_from(self, place: Place, source_id: int) -> float:
+        return max((signal.intensity for signal in place.signals if signal.source_id == source_id), default=0.0)
+
+    def _active_helper_candidates(self, organism: Organism, focus: str) -> list[tuple[Organism, float]]:
+        place = self.world.places[organism.location]
+        helpers: list[tuple[Organism, float]] = []
+        for helper_id in self._living_ids_at(place.id):
+            if helper_id == organism.id:
+                continue
+            helper = self.organisms.get(helper_id)
+            if helper is None or not helper.alive or helper.kind != "agent":
+                continue
+            signal = self._signal_intensity_from(place, helper.id)
+            active = (
+                helper.recombine_intent_until >= self.tick
+                or helper.last_action in {"coordinate", "signal", "observe"}
+                or signal > 0.025
+            )
+            if not active:
+                continue
+            energy_readiness = min(1.0, helper.energy / max(1.0, helper.storage_limit()))
+            focus_skill = max(
+                helper.tool_skill.get(focus, 0.0),
+                helper.tool_skill.get("support", 0.0) * 0.45,
+                helper.tool_skill.get("protect", 0.0) * 0.30 if focus in {"traverse", "build"} else 0.0,
+            )
+            body = helper.genome.manipulator * 0.22 + helper.genome.mobility * 0.12 + helper.genome.sensor_range * 0.16
+            alignment = 0.32 + signal * 0.34 + (0.18 if helper.recombine_intent_until >= self.tick else 0.0)
+            alignment += 0.12 if helper.last_action in {"coordinate", "signal", "observe"} else 0.0
+            contribution = max(0.0, min(1.0, (body + focus_skill * 0.32 + helper.genome.signal_strength * 0.10 + energy_readiness * 0.14) * alignment))
+            if contribution > 0.035:
+                helpers.append((helper, contribution))
+        helpers.sort(key=lambda item: item[1], reverse=True)
+        return helpers[:8]
+
+    def _collective_support(self, organism: Organism, focus: str, difficulty: float = 0.0) -> dict[str, Any]:
+        helpers = self._active_helper_candidates(organism, focus)
+        if not helpers:
+            return {"support": 0.0, "helpers": [], "raw": 0.0}
+        raw = sum(value for _, value in helpers)
+        support = (1.0 - math.exp(-raw)) * (0.28 + min(0.62, max(0.0, difficulty) * 0.85))
+        return {
+            "support": max(0.0, min(0.82, support)),
+            "helpers": [helper.id for helper, _ in helpers],
+            "raw": raw,
+        }
+
+    def _apply_collaboration_effects(self, organism: Organism, focus: str, context: str, collaboration: dict[str, Any], score: float) -> None:
+        support = float(collaboration.get("support", 0.0))
+        helper_ids = list(collaboration.get("helpers", []))
+        if support <= 0.01 or not helper_ids:
+            return
+        self.collaboration_events[context] += 1
+        organism.record_success("collaboration", support * (0.25 + min(1.0, score) * 0.40))
+        for helper_id in helper_ids:
+            helper = self.organisms.get(helper_id)
+            if helper is None or not helper.alive:
+                continue
+            helper.energy -= 0.004 + support * 0.004
+            helper.recent_social_feedback = max(helper.recent_social_feedback, min(1.0, support * 0.35))
+            helper.record_success("collaboration", support / max(1, len(helper_ids)))
+            self._increase_skill(helper, focus, 0.0015 + support * 0.003, transfer=0.08)
+        self.observer.observe(
+            self.tick,
+            "collaboration",
+            {
+                "organism_id": organism.id,
+                "place": organism.location,
+                "focus": focus,
+                "context": context,
+                "support": support,
+                "helpers": helper_ids[:8],
+            },
+            subjects=self._subjects(organism, extra=[f"affordance:{focus}", f"collaboration:{context}", *[f"organism:{helper_id}" for helper_id in helper_ids[:4]]]),
+            score=support + min(1.0, score) * 0.45 + min(0.35, len(helper_ids) * 0.04),
+            rarity_key=f"collaboration:{context}:{focus}",
+        )
+
+    def _place_hazard_pressure(self, place: Place) -> float:
+        physics = place.physics
+        obstacles = place.obstacles
+        return max(
+            0.0,
+            min(
+                1.5,
+                obstacles.get("water", 0.0) * 0.18
+                + obstacles.get("height", 0.0) * 0.18
+                + obstacles.get("thorn", 0.0) * 0.14
+                + obstacles.get("heat", 0.0) * 0.16
+                + physics.get("pressure", 0.0) * 0.12
+                + physics.get("salinity", 0.0) * 0.08
+                + physics.get("current_exposure", 0.0) * 0.10
+                + max(0.0, physics.get("interiority", 0.0) - physics.get("boundary_permeability", 0.0)) * 0.10,
+            ),
+        )
+
+    def _movement_motivation(self, organism: Organism, origin: Place, destination: Place, planning: float) -> dict[str, float]:
+        origin_energy = min(1.0, origin.total_accessible_energy() / 420.0)
+        destination_energy = min(1.0, destination.total_accessible_energy() / 420.0)
+        origin_memory = organism.place_memory.get(origin.id, origin_energy)
+        destination_memory = organism.place_memory.get(destination.id, destination_energy)
+        origin_crowd = len(self._living_ids_at(origin.id)) / max(1.0, origin.capacity)
+        destination_crowd = len(self._living_ids_at(destination.id)) / max(1.0, destination.capacity)
+        origin_hazard = self._place_hazard_pressure(origin)
+        destination_hazard = self._place_hazard_pressure(destination)
+        locked_pull = max(0.0, destination.locked_chemical - origin.locked_chemical) / 520.0
+        material_pull = max(0.0, sum(destination.materials.values()) - sum(origin.materials.values())) / 120.0
+        motivation = {
+            "energy_gradient": max(0.0, destination_energy - origin_energy),
+            "remembered_value": max(0.0, destination_memory - origin_memory * 0.72),
+            "crowding_escape": max(0.0, origin_crowd - destination_crowd),
+            "hazard_escape": max(0.0, origin_hazard - destination_hazard),
+            "locked_resource_pull": min(1.0, locked_pull + material_pull * 0.20),
+            "novelty": 0.16 if destination.id not in organism.place_memory else 0.0,
+            "drift": max(0.0, 0.10 - planning * 0.05),
+        }
+        total = sum(motivation.values())
+        if total <= 0.0001:
+            motivation["drift"] = 0.10
+        return motivation
+
+    def _relocation_shock(self, organism: Organism, origin: Place, destination: Place, planning: float) -> float:
+        origin_physics = origin.physics
+        destination_physics = destination.physics
+        physical_delta = (
+            abs(destination_physics.get("temperature", 0.5) - origin_physics.get("temperature", 0.5)) * 0.30
+            + abs(destination_physics.get("fluid_level", 0.0) - origin_physics.get("fluid_level", 0.0)) * 0.30
+            + abs(destination_physics.get("pressure", 0.0) - origin_physics.get("pressure", 0.0)) * 0.26
+            + abs(destination_physics.get("humidity", 0.5) - origin_physics.get("humidity", 0.5)) * 0.16
+            + abs(destination_physics.get("salinity", 0.0) - origin_physics.get("salinity", 0.0)) * 0.18
+            + abs(destination_physics.get("elevation", 0.5) - origin_physics.get("elevation", 0.5)) * 0.18
+            + abs(destination_physics.get("oxygen", 0.35) - origin_physics.get("oxygen", 0.35)) * 0.14
+        )
+        destination_mismatch = (
+            max(0.0, destination_physics.get("fluid_level", 0.0) - organism.genome.aquatic_affinity * 0.88) * 0.28
+            + max(0.0, organism.genome.aquatic_affinity * (1.0 - destination_physics.get("humidity", 0.5)) - organism.genome.desiccation_tolerance * 0.58) * 0.24
+            + max(0.0, destination_physics.get("pressure", 0.0) - organism.genome.pressure_tolerance * 1.05) * 0.22
+            + max(0.0, abs(destination_physics.get("salinity", 0.0) - organism.genome.salinity_tolerance) - 0.55) * 0.14
+            + max(0.0, destination_physics.get("temperature", 0.5) - (0.60 + organism.genome.thermal_tolerance * 0.42)) * 0.18
+            + max(0.0, 0.18 - destination_physics.get("temperature", 0.5) - organism.genome.thermal_tolerance * 0.12) * 0.10
+        )
+        hazard_delta = max(0.0, self._place_hazard_pressure(destination) - self._place_hazard_pressure(origin) * 0.55)
+        raw = physical_delta + destination_mismatch + hazard_delta
+        protection = artifact_capability(organism.artifacts, "protect")
+        traverse = artifact_capability(organism.artifacts, "traverse")
+        insulate = artifact_capability(organism.artifacts, "insulate")
+        contain = artifact_capability(organism.artifacts, "contain")
+        memory = min(1.0, organism.place_memory.get(destination.id, 0.0) * 2.0)
+        skill = max(
+            organism.tool_skill.get("traverse", 0.0) * 0.20,
+            organism.tool_skill.get("protect", 0.0) * 0.18,
+            organism.tool_skill.get("contain", 0.0) * 0.12,
+        )
+        mitigation = min(
+            0.72,
+            planning * 0.14
+            + memory * 0.16
+            + protection * 0.20
+            + traverse * 0.12
+            + insulate * 0.10
+            + contain * 0.08
+            + skill,
+        )
+        return max(0.0, raw * (1.0 - mitigation))
+
+    def _record_movement(
+        self,
+        organism: Organism,
+        origin: Place,
+        destination: Place,
+        *,
+        success: bool,
+        before_energy: float,
+        before_health: float,
+        barrier: float,
+        effective_barrier: float,
+        distance: float,
+        support: float,
+        relocation_shock: float,
+        planning: float,
+        motivation: dict[str, float],
+        solo_success: float,
+        success_score: float,
+    ) -> None:
+        self.movement_events["attempt"] += 1
+        self.movement_events["success" if success else "failure"] += 1
+        if support > 0.04:
+            self.movement_events["assisted_success" if success else "assisted_failure"] += 1
+        dominant = max(motivation, key=motivation.get) if motivation else "unknown"
+        self.movement_motives[dominant] += 1
+        for key, value in motivation.items():
+            self.movement_costs[f"motivation_{key}"] += max(0.0, float(value))
+        self.movement_costs["energy"] += max(0.0, before_energy - organism.energy)
+        self.movement_costs["health"] += max(0.0, before_health - organism.health)
+        self.movement_costs["barrier"] += max(0.0, barrier)
+        self.movement_costs["effective_barrier"] += max(0.0, effective_barrier)
+        self.movement_costs["distance"] += max(0.0, distance)
+        self.movement_costs["support"] += max(0.0, support)
+        self.movement_costs["relocation_shock"] += max(0.0, relocation_shock)
+        self.movement_costs["planning"] += max(0.0, planning)
+        route = f"{origin.id}->{destination.id}"
+        self.movement_routes[route] += 1
+        if relocation_shock > 0.08:
+            self.movement_events["major_relocation"] += 1
+        notable = support > 0.06 or barrier > 0.14 or relocation_shock > 0.08 or before_health - organism.health > 0.004 or (success and destination.id not in organism.place_memory)
+        if notable:
+            self.observer.observe(
+                self.tick,
+                "movement_attempt",
+                {
+                    "organism_id": organism.id,
+                    "origin": origin.id,
+                    "destination": destination.id,
+                    "success": success,
+                    "dominant_motive": dominant,
+                    "barrier": barrier,
+                    "effective_barrier": effective_barrier,
+                    "distance": distance,
+                    "support": support,
+                    "relocation_shock": relocation_shock,
+                    "energy_cost": max(0.0, before_energy - organism.energy),
+                    "health_cost": max(0.0, before_health - organism.health),
+                    "solo_success": solo_success,
+                    "success_score": success_score,
+                    "motivation": {key: round(value, 5) for key, value in motivation.items()},
+                },
+                subjects=self._subjects(organism, origin.id, [f"place:{destination.id}", f"movement_motive:{dominant}"]),
+                score=min(3.0, barrier * 2.0 + relocation_shock * 2.2 + support * 2.4 + max(0.0, before_health - organism.health) * 40.0 + max(motivation.values(), default=0.0)),
+                rarity_key=f"movement:{dominant}",
+            )
+
+    def _movement_summary(self) -> dict[str, Any]:
+        attempts = max(1, int(self.movement_events.get("attempt", 0)))
+        motive_signal = {
+            key.replace("motivation_", ""): round(value / attempts, 6)
+            for key, value in sorted(self.movement_costs.items())
+            if key.startswith("motivation_")
+        }
+        return {
+            "events": dict(self.movement_events),
+            "avg_energy_cost": round(self.movement_costs.get("energy", 0.0) / attempts, 6),
+            "avg_health_cost": round(self.movement_costs.get("health", 0.0) / attempts, 6),
+            "avg_barrier": round(self.movement_costs.get("barrier", 0.0) / attempts, 6),
+            "avg_effective_barrier": round(self.movement_costs.get("effective_barrier", 0.0) / attempts, 6),
+            "avg_distance": round(self.movement_costs.get("distance", 0.0) / attempts, 6),
+            "avg_support": round(self.movement_costs.get("support", 0.0) / attempts, 6),
+            "avg_relocation_shock": round(self.movement_costs.get("relocation_shock", 0.0) / attempts, 6),
+            "avg_planning": round(self.movement_costs.get("planning", 0.0) / attempts, 6),
+            "motives": dict(self.movement_motives),
+            "motive_signal": motive_signal,
+            "top_routes": dict(self.movement_routes.most_common(12)),
+        }
 
     def _salient_problem(self, organism: Organism, place: Place, target_affordance: str = "") -> dict[str, Any]:
         target_affordance = target_affordance if target_affordance in AFFORDANCES else ""
@@ -515,7 +828,7 @@ class Simulation:
             return
         if protection > 0.0:
             self._wear_artifacts(organism, "protect", amount=stress * (0.35 + protection * 0.20))
-            organism.tool_skill["protect"] = min(1.0, organism.tool_skill.get("protect", 0.0) + stress * 0.018)
+            self._increase_skill(organism, "protect", stress * 0.018, transfer=0.06)
         organism.energy -= stress * 2.0
         organism.health -= stress
         if organism.health <= 0.0:
@@ -540,7 +853,7 @@ class Simulation:
         resources = [place.resources[kind] / 120.0 for kind in ("radiant", "chemical", "biological_storage", "thermal", "mechanical", "electrical", "high_density")]
         local_ids = rosters.get(place.id, [])
         local_neural = sum(1 for oid in local_ids if self.organisms[oid].neural)
-        best_skill = max(organism.tool_skill.values()) if organism.tool_skill else 0.0
+        best_skill = self._skill_breadth(organism)
         season = math.sin(2.0 * math.pi * self.world.tick / max(2, self.world.season_length))
         features = [
             organism.energy / max(1.0, organism.storage_limit()),
@@ -633,7 +946,9 @@ class Simulation:
             return False
         if action == "craft" and (organism.inventory_count() < 2 or len(organism.artifacts) >= organism.artifact_limit()):
             return False
-        if action == "build" and (organism.inventory_count() < 3 or organism.genome.manipulator < 0.18):
+        if action == "build" and organism.genome.manipulator < 0.18:
+            return False
+        if action == "build" and organism.inventory_count() < 3 and self._collective_material_count(organism) < 3:
             return False
         if action == "move" and organism.genome.mobility < 0.05:
             return False
@@ -654,7 +969,7 @@ class Simulation:
             organism.energy -= 0.004
             return
         if action == "move":
-            self._move(organism)
+            self._move(organism, feedback)
         elif action == "eat":
             self._eat(organism)
         elif action == "absorb_radiant":
@@ -680,13 +995,20 @@ class Simulation:
         elif action == "observe":
             self._observe_others(organism, feedback)
 
-    def _move(self, organism: Organism) -> None:
+    def _move(self, organism: Organism, feedback: dict[str, float] | None = None) -> None:
         place = self.world.places[organism.location]
         if not place.neighbors:
             return
+        before_energy = organism.energy
+        before_health = organism.health
         planning = self._interaction_control(organism)
         efficiency = 1.0 - planning * 0.14
-        organism.energy -= (0.05 + organism.genome.mobility * 0.08) * efficiency
+        load_ratio = min(
+            1.0,
+            organism.inventory_count() / max(1.0, organism.inventory_limit())
+            + len(organism.artifacts) / max(2.0, organism.artifact_limit() * 2.0),
+        )
+        organism.energy -= (0.055 + organism.genome.mobility * 0.055 + load_ratio * 0.035) * efficiency
         if organism.brain and organism.place_memory:
             scored = []
             for neighbor in place.neighbors:
@@ -698,6 +1020,7 @@ class Simulation:
         else:
             destination_id = self.rng.choice(place.neighbors)
         destination = self.world.places[destination_id]
+        motivation = self._movement_motivation(organism, place, destination, planning)
         edge = self.world.edge_between(place.id, destination_id)
         structure_traverse = max(
             structure_capability(place.structures, "support") * 0.25,
@@ -731,7 +1054,7 @@ class Simulation:
             + downhill * (1.0 - max(traverse, anchor, organism.genome.mobility)) * 0.35
             + boundary * (1.0 - max(traverse, organism.genome.manipulator * 0.35, cut * 0.25))
         ) / 8.35
-        success = (
+        solo_success = (
             organism.genome.mobility
             + traverse * 0.65
             + organism.genome.sensor_range * 0.10
@@ -740,16 +1063,144 @@ class Simulation:
             + anchor * 0.04
             + self.rng.gauss(0.0, 0.04)
         )
-        if success >= barrier:
+        voyage_difficulty = barrier + edge_required * 0.35 + destination.physics.get("pressure", 0.0) * 0.08 + (edge.danger if edge else 0.0) * 0.20
+        collaboration = self._collective_support(organism, "traverse", voyage_difficulty)
+        support = float(collaboration["support"])
+        relocation_shock = self._relocation_shock(organism, place, destination, planning)
+        success = solo_success + support * 0.48
+        effective_barrier = max(0.0, barrier + relocation_shock * 0.18 - support * 0.16)
+        if success >= effective_barrier:
             organism.location = destination_id
-            organism.energy -= (barrier * 0.06 + distance * 0.012 + uphill * 0.020) * efficiency
+            organism.energy -= (
+                effective_barrier * 0.080
+                + distance * 0.018
+                + uphill * 0.028
+                + destination.physics.get("pressure", 0.0) * 0.010
+                + relocation_shock * 0.48
+                + load_ratio * 0.025
+            ) * efficiency
+            organism.health -= relocation_shock * max(0.0, 0.020 - support * 0.006)
+            if relocation_shock > 0.12:
+                self._increase_skill(organism, "traverse", relocation_shock * 0.004, transfer=0.10)
+                self._increase_skill(organism, "protect", relocation_shock * 0.002, transfer=0.05)
             if with_current > 0.1 and destination.obstacles.get("water", 0.0) > 0.3:
                 self.physics_events["current_assisted_move"] += 1
+            if support > 0.04:
+                self._apply_collaboration_effects(organism, "traverse", "expedition", collaboration, voyage_difficulty)
+                self._move_expedition_helpers(collaboration, from_place=place.id, to_place=destination_id, difficulty=voyage_difficulty)
+                if feedback is not None:
+                    feedback["social"] += support * 0.28
+                    feedback["tool"] = feedback.get("tool", 0.0) + support * 0.10
+            self._record_movement(
+                organism,
+                place,
+                destination,
+                success=True,
+                before_energy=before_energy,
+                before_health=before_health,
+                barrier=barrier,
+                effective_barrier=effective_barrier,
+                distance=distance,
+                support=support,
+                relocation_shock=relocation_shock,
+                planning=planning,
+                motivation=motivation,
+                solo_success=solo_success,
+                success_score=success,
+            )
+            if organism.health <= 0.0:
+                self._kill(organism, "relocation_shock")
         else:
-            organism.energy -= (barrier * 0.18 + distance * 0.016) * efficiency
-            organism.health -= max(0.0, barrier - success) * (0.035 + downhill * 0.015) * (1.0 - planning * 0.18)
+            organism.energy -= (effective_barrier * 0.240 + distance * 0.022 + relocation_shock * 0.24 + load_ratio * 0.030) * efficiency
+            organism.health -= (
+                max(0.0, effective_barrier - success) * (0.035 + downhill * 0.015) * (1.0 - planning * 0.18) * max(0.45, 1.0 - support * 0.35)
+                + relocation_shock * 0.008
+            )
+            if support > 0.04:
+                self._apply_collaboration_effects(organism, "traverse", "failed_expedition", collaboration, voyage_difficulty * 0.4)
+                if feedback is not None:
+                    feedback["social"] += support * 0.12
+            self._record_movement(
+                organism,
+                place,
+                destination,
+                success=False,
+                before_energy=before_energy,
+                before_health=before_health,
+                barrier=barrier,
+                effective_barrier=effective_barrier,
+                distance=distance,
+                support=support,
+                relocation_shock=relocation_shock,
+                planning=planning,
+                motivation=motivation,
+                solo_success=solo_success,
+                success_score=success,
+            )
             if organism.health <= 0.0:
                 self._kill(organism, "movement_hazard")
+
+    def _move_expedition_helpers(self, collaboration: dict[str, Any], *, from_place: int, to_place: int, difficulty: float) -> None:
+        support = float(collaboration.get("support", 0.0))
+        if support <= 0.06:
+            return
+        moved = 0
+        for helper_id in list(collaboration.get("helpers", [])):
+            if moved >= 3:
+                break
+            helper = self.organisms.get(helper_id)
+            if helper is None or not helper.alive or helper.location != from_place:
+                continue
+            travel_chance = min(0.62, 0.14 + support * 0.48 + helper.genome.mobility * 0.12)
+            if helper.recombine_intent_until < self.tick and self.rng.random() > travel_chance:
+                continue
+            helper.location = to_place
+            helper.energy -= 0.020 + difficulty * 0.030
+            helper.recent_social_feedback = max(helper.recent_social_feedback, support * 0.35)
+            moved += 1
+        if moved:
+            self.collaboration_events["helpers_moved"] += moved
+
+    def _collective_material_count(self, organism: Organism) -> int:
+        total = organism.inventory_count()
+        for helper, _contribution in self._active_helper_candidates(organism, "build")[:4]:
+            total += helper.inventory_count()
+        return total
+
+    def _collective_build_components(self, organism: Organism, components: dict[str, int], target_count: int, collaboration: dict[str, Any]) -> int:
+        added = 0
+        helper_ids = list(collaboration.get("helpers", []))
+        if not helper_ids:
+            return added
+        while sum(components.values()) < target_count:
+            changed = False
+            for helper_id in helper_ids:
+                helper = self.organisms.get(helper_id)
+                if helper is None or not helper.alive or helper.location != organism.location:
+                    continue
+                choices = [name for name, qty in helper.inventory.items() if qty > 0]
+                if not choices:
+                    continue
+                chosen = max(
+                    choices,
+                    key=lambda name: MATERIALS[name].properties.get("bindable", 0.0)
+                    + MATERIALS[name].properties.get("hard", 0.0) * 0.55
+                    + MATERIALS[name].properties.get("length", 0.0) * 0.22
+                    + self.rng.random() * 0.03,
+                )
+                helper.inventory[chosen] -= 1
+                if helper.inventory[chosen] <= 0:
+                    del helper.inventory[chosen]
+                components[chosen] = components.get(chosen, 0) + 1
+                helper.energy -= 0.012
+                helper.recent_social_feedback = max(helper.recent_social_feedback, 0.12)
+                added += 1
+                changed = True
+                if sum(components.values()) >= target_count:
+                    break
+            if not changed:
+                break
+        return added
 
     def _eat(self, organism: Organism) -> None:
         place = self.world.places[organism.location]
@@ -876,7 +1327,7 @@ class Simulation:
         component_affordances = derive_affordances(components)
         bind_help = component_affordances.get("bind", 0.0)
         target_fit = derive_artifact_capabilities(component_properties(components)).get(target, 0.0)
-        best_skill = max(organism.tool_skill.values(), default=0.0)
+        best_skill = self._skill_breadth(organism)
         craft_skill = organism.tool_skill.get("craft", 0.0)
         target_skill = organism.tool_skill.get(target, 0.0)
         material_gate = max(0.0, min(1.0, target_fit * 0.78 + bind_help * 0.16 + min(1.0, len(components) / max(1, sum(components.values()))) * 0.06))
@@ -907,8 +1358,8 @@ class Simulation:
         if self.rng.random() > chance:
             lost = self._lose_failed_craft_components(organism, components, bind_help)
             skill_gain = 0.0015 + lost * 0.0035
-            organism.tool_skill["bind"] = min(1.0, organism.tool_skill.get("bind", 0.0) + skill_gain)
-            organism.tool_skill["craft"] = min(1.0, craft_skill + skill_gain * 0.80)
+            self._increase_skill(organism, "bind", skill_gain, transfer=0.18)
+            self._increase_skill(organism, "craft", skill_gain * 0.80, transfer=0.10)
             feedback["tool"] = feedback.get("tool", 0.0) + skill_gain
             self._record_tool_lesson(
                 organism,
@@ -928,13 +1379,13 @@ class Simulation:
         artifact = build_artifact(components, method_quality=method_quality, target_affordance=target)
         organism.artifacts.append(artifact)
         self.artifacts_created[artifact.name] += 1
-        organism.successful_tools += 1
+        organism.record_tool_success("craft")
         organism.record_success("tool_make", 1.0 + method_quality)
         self.tool_successes["craft"] += 1
         feedback["social"] += 0.06
         feedback["tool"] = feedback.get("tool", 0.0) + 0.30 + method_quality * 0.30
-        organism.tool_skill["craft"] = min(1.0, craft_skill + 0.020 * (1.0 - craft_skill) + method_quality * 0.010)
-        organism.tool_skill[target] = min(1.0, organism.tool_skill.get(target, 0.0) + artifact.capabilities.get(target, 0.0) * 0.012 + method_quality * 0.010)
+        self._increase_skill(organism, "craft", 0.020 * (1.0 - craft_skill) + method_quality * 0.010, transfer=0.16)
+        self._increase_skill(organism, target, artifact.capabilities.get(target, 0.0) * 0.012 + method_quality * 0.010, transfer=0.10)
         organism.last_craft_target = target
         organism.last_tool_affordance = target
         organism.last_artifact_method = method_quality
@@ -951,7 +1402,7 @@ class Simulation:
         )
         for capability, value in artifact.capabilities.items():
             if capability in organism.tool_skill:
-                organism.tool_skill[capability] = min(1.0, organism.tool_skill.get(capability, 0.0) + value * 0.010)
+                self._increase_skill(organism, capability, value * 0.010, transfer=0.04)
         self.observer.observe(
             self.tick,
             "crafted_tool",
@@ -971,22 +1422,32 @@ class Simulation:
         self.checkpoints.save_first_tool(self.tick, organism, "craft", {"place": self.world.places[organism.location].to_summary(), "artifact": artifact.to_dict()})
 
     def _build_structure(self, organism: Organism, feedback: dict[str, float]) -> None:
-        if organism.genome.manipulator < 0.18 or organism.inventory_count() < 3:
+        if organism.genome.manipulator < 0.18:
+            organism.energy -= 0.035
+            return
+        planning = self._interaction_control(organism)
+        collaboration = self._collective_support(organism, "build", 0.35)
+        support = float(collaboration.get("support", 0.0))
+        collective_materials = self._collective_material_count(organism) if support > 0.01 else organism.inventory_count()
+        if collective_materials < 3:
             organism.energy -= 0.035
             return
         available = [name for name, qty in organism.inventory.items() if qty > 0]
-        if len(available) < 2:
+        if not available and support <= 0.01:
             organism.energy -= 0.025
             return
 
-        components: dict[str, int] = {}
+        actor_components: dict[str, int] = {}
         draws = min(8, organism.inventory_count())
         for _ in range(draws):
-            choices = [name for name, qty in organism.inventory.items() if qty > components.get(name, 0)]
+            choices = [name for name, qty in organism.inventory.items() if qty > actor_components.get(name, 0)]
             if not choices:
                 break
             chosen = self.rng.choice(choices)
-            components[chosen] = components.get(chosen, 0) + 1
+            actor_components[chosen] = actor_components.get(chosen, 0) + 1
+        components = dict(actor_components)
+        target_count = min(8, max(3, sum(actor_components.values()) + min(4, len(collaboration.get("helpers", [])))))
+        helper_components = self._collective_build_components(organism, components, target_count, collaboration) if support > 0.01 else 0
         material_count = sum(components.values())
         if material_count < 3:
             organism.energy -= 0.025
@@ -995,24 +1456,26 @@ class Simulation:
         affordances = derive_affordances(components)
         bind_help = affordances.get("bind", 0.0)
         build_skill = organism.tool_skill.get("build", 0.0)
-        general_skill = max(organism.tool_skill.values(), default=0.0)
+        general_skill = self._skill_breadth(organism)
         mass_bonus = min(1.0, material_count / 8.0) * 0.12
-        planning = self._interaction_control(organism)
         chance = min(
-            0.90,
+            0.94,
             organism.genome.manipulator * 0.30
             + bind_help * 0.26
             + build_skill * 0.22
             + general_skill * 0.08
             + planning * 0.16
-            + mass_bonus,
+            + mass_bonus
+            + support * 0.24,
         )
-        organism.energy -= (0.16 + 0.035 * material_count) * (1.0 - planning * 0.10)
+        organism.energy -= (0.16 + 0.035 * material_count) * (1.0 - planning * 0.10) * max(0.80, 1.0 - support * 0.18)
         if self.rng.random() > chance:
-            lost = self._lose_failed_craft_components(organism, components, bind_help)
-            organism.tool_skill["build"] = min(1.0, build_skill + 0.003 + lost * 0.003)
-            organism.tool_skill["bind"] = min(1.0, organism.tool_skill.get("bind", 0.0) + 0.0015 + lost * 0.002)
-            feedback["tool"] = feedback.get("tool", 0.0) + 0.04 + lost * 0.01
+            lost = self._lose_failed_craft_components(organism, actor_components, bind_help)
+            self._increase_skill(organism, "build", 0.003 + lost * 0.003 + helper_components * 0.0008, transfer=0.14)
+            self._increase_skill(organism, "bind", 0.0015 + lost * 0.002, transfer=0.10)
+            feedback["tool"] = feedback.get("tool", 0.0) + 0.04 + lost * 0.01 + support * 0.04
+            if support > 0.01:
+                self._apply_collaboration_effects(organism, "build", "failed_build", collaboration, bind_help)
             self.demonstrations[organism.location].append((organism.id, "build", False))
             self._record_tool_lesson(
                 organism,
@@ -1025,7 +1488,7 @@ class Simulation:
             )
             return
 
-        for name, qty in components.items():
+        for name, qty in actor_components.items():
             organism.inventory[name] -= qty
             if organism.inventory[name] <= 0:
                 del organism.inventory[name]
@@ -1046,15 +1509,18 @@ class Simulation:
             structure_summary = structure.to_dict()
             extended_action = False
 
-        organism.successful_tools += 1
+        organism.record_tool_success("build")
         organism.record_success("structure", 1.0 + min(1.5, structure_summary["scale"] / 8.0))
-        organism.tool_skill["build"] = min(1.0, build_skill + 0.035 * (1.0 - build_skill) + 0.004)
+        self._increase_skill(organism, "build", 0.035 * (1.0 - build_skill) + 0.004 + support * 0.006, transfer=0.16)
         for capability, value in structure_summary["capabilities"].items():
             if capability in organism.tool_skill:
-                organism.tool_skill[capability] = min(1.0, organism.tool_skill.get(capability, 0.0) + float(value) * 0.006)
+                self._increase_skill(organism, capability, float(value) * 0.006, transfer=0.04)
         self.tool_successes["build"] += 1
         feedback["social"] += 0.10
-        feedback["tool"] = feedback.get("tool", 0.0) + 0.75
+        feedback["tool"] = feedback.get("tool", 0.0) + 0.75 + support * 0.14
+        if support > 0.01:
+            feedback["social"] += support * 0.20
+            self._apply_collaboration_effects(organism, "build", "build", collaboration, bind_help + mass_bonus)
         self.demonstrations[place.id].append((organism.id, "build", True))
         self._record_tool_lesson(
             organism,
@@ -1077,9 +1543,11 @@ class Simulation:
                 "scale": structure_summary["scale"],
                 "best_capability": best_structure_capability,
                 "extended": extended_action,
+                "helper_components": helper_components,
+                "collaboration_support": support,
             },
             subjects=self._subjects(organism),
-            score=min(2.5, structure_summary["scale"] / 6.0 + best_structure_capability),
+            score=min(2.5, structure_summary["scale"] / 6.0 + best_structure_capability + support),
             rarity_key=f"structure:{built_name}",
         )
         if self.config.event_detail:
@@ -1099,23 +1567,28 @@ class Simulation:
         skill = organism.tool_skill.get(affordance, 0.0)
         resistance = self._affordance_resistance(place, affordance)
         planning = self._interaction_control(organism)
-        overmatch = score + skill * 0.25 + organism.genome.manipulator * 0.10 + planning * 0.22 - resistance
-        chance = min(0.96, max(0.02, score * 0.34 + skill * 0.30 + organism.genome.manipulator * 0.16 + planning * 0.26 + overmatch * 0.24))
-        organism.energy -= (0.12 + score * 0.10) * (1.0 - planning * 0.20)
+        collaboration = self._collective_support(organism, affordance, resistance)
+        support = float(collaboration.get("support", 0.0))
+        overmatch = score + skill * 0.25 + organism.genome.manipulator * 0.10 + planning * 0.22 + support * 0.18 - resistance
+        chance = min(0.96, max(0.02, score * 0.34 + skill * 0.30 + organism.genome.manipulator * 0.16 + planning * 0.26 + support * 0.16 + overmatch * 0.24))
+        organism.energy -= (0.12 + score * 0.10) * (1.0 - planning * 0.20) * max(0.82, 1.0 - support * 0.14)
         success = self.rng.random() < chance
         if success:
             gain = self._tool_effect(organism, place, affordance, score, skill)
-            competence = 0.45 + score * 0.35 + skill * 0.20
-            gain += self._advance_causal_challenge(organism, place, affordance, competence, feedback)
+            competence = min(1.35, 0.45 + score * 0.35 + skill * 0.20 + support * 0.18)
+            gain += self._advance_causal_challenge(organism, place, affordance, competence, feedback, collaboration=collaboration)
             organism.energy += gain
             self._wear_artifacts(organism, affordance, amount=0.18 + score * 0.10)
-            organism.tool_skill[affordance] = min(1.0, skill + 0.055 * (1.0 - skill) + 0.005)
-            organism.successful_tools += 1
+            self._increase_skill(organism, affordance, 0.055 * (1.0 - skill) + 0.005, transfer=0.12)
+            organism.record_tool_success(affordance)
             organism.last_tool_affordance = affordance
             organism.record_success("tool_use", 1.0 + min(2.0, max(0.0, gain) / 8.0))
             self.tool_successes[affordance] += 1
             feedback["social"] += 0.2
-            feedback["tool"] = feedback.get("tool", 0.0) + 1.0
+            feedback["tool"] = feedback.get("tool", 0.0) + 1.0 + support * 0.12
+            if support > 0.01:
+                feedback["social"] += support * 0.18
+                self._apply_collaboration_effects(organism, affordance, "tool_use", collaboration, score)
             self.demonstrations[place.id].append((organism.id, affordance, True))
             self._record_tool_lesson(
                 organism,
@@ -1146,22 +1619,24 @@ class Simulation:
                 self.logger.event(
                     self.tick,
                     "tool_success",
-                    {"organism_id": organism.id, "affordance": affordance, "gain": round(gain, 5), "place": place.id},
+                    {"organism_id": organism.id, "affordance": affordance, "gain": round(gain, 5), "place": place.id, "support": round(support, 5)},
                 )
             self.checkpoints.save_first_tool(self.tick, organism, affordance, {"place": place.to_summary(), "gain": gain})
         else:
-            organism.tool_skill[affordance] = min(1.0, skill + 0.010 * (1.0 - skill))
+            self._increase_skill(organism, affordance, 0.010 * (1.0 - skill), transfer=0.04)
             organism.last_tool_affordance = affordance
-            feedback["tool"] = feedback.get("tool", 0.0) + 0.05
+            feedback["tool"] = feedback.get("tool", 0.0) + 0.05 + support * 0.02
             if self.rng.random() < 0.10:
                 protection = artifact_capability(organism.artifacts, "protect")
                 accident_damage = (0.015 + score * 0.030) * max(0.45, 1.0 - protection * 0.42)
                 organism.health -= accident_damage
                 if protection > 0.0:
-                    organism.tool_skill["protect"] = min(1.0, organism.tool_skill.get("protect", 0.0) + accident_damage * 0.030)
+                    self._increase_skill(organism, "protect", accident_damage * 0.030, transfer=0.06)
                     self._wear_artifacts(organism, "protect", amount=accident_damage * 0.55)
             overmatch_penalty = max(0.0, resistance - score)
             self._wear_artifacts(organism, affordance, amount=0.35 + score * 0.18 + overmatch_penalty * 2.2)
+            if support > 0.01:
+                self._apply_collaboration_effects(organism, affordance, "failed_tool_use", collaboration, score)
             self.demonstrations[place.id].append((organism.id, affordance, False))
             self._record_tool_lesson(
                 organism,
@@ -1204,8 +1679,7 @@ class Simulation:
             place.resources["biological_storage"] -= amount
             return amount * (0.35 + organism.genome.digestion * 0.85)
         if affordance == "bind":
-            for name in organism.tool_skill:
-                organism.tool_skill[name] = min(1.0, organism.tool_skill[name] + 0.004)
+            self._increase_skill(organism, "bind", 0.004, transfer=0.55)
             return 0.5 + competence * 1.4
         if affordance == "contain":
             amount = min(place.resources["mechanical"], 0.8 + competence * 4.0 + place.physics.get("current_exposure", 0.0) * 2.5)
@@ -1248,6 +1722,7 @@ class Simulation:
         affordance: str,
         competence: float,
         feedback: dict[str, float],
+        collaboration: dict[str, Any] | None = None,
     ) -> float:
         challenge = place.causal_challenge
         if challenge is None or challenge.payoff_remaining <= 0.0:
@@ -1257,8 +1732,9 @@ class Simulation:
             return 0.0
         challenge.attempts += 1
         planning = self._interaction_control(organism)
+        support = float((collaboration or {}).get("support", 0.0))
         threshold = challenge.difficulty * (0.76 + challenge.progress * 0.14)
-        margin = competence + organism.tool_skill.get(affordance, 0.0) * 0.12 + planning * 0.30 + self.rng.gauss(0.0, 0.025)
+        margin = competence + organism.tool_skill.get(affordance, 0.0) * 0.12 + planning * 0.30 + support * 0.18 + self.rng.gauss(0.0, 0.025)
         if affordance != expected or margin < threshold:
             if affordance in challenge.sequence and self.rng.random() < 0.35:
                 challenge.progress = 0
@@ -1269,6 +1745,8 @@ class Simulation:
         self.causal_steps[signature] += 1
         organism.record_success("causal_step", 1.0)
         feedback["tool"] = feedback.get("tool", 0.0) + 0.10
+        if support > 0.01 and collaboration is not None:
+            self._apply_collaboration_effects(organism, affordance, "causal_step", collaboration, competence)
         if challenge.progress < len(challenge.sequence):
             self._record_tool_lesson(
                 organism,
@@ -1285,12 +1763,14 @@ class Simulation:
         challenge.progress = 0
         challenge.solved += 1
         sequence_bonus = max(0.0, len(challenge.sequence) - 1) * 2.0
-        release = min(challenge.payoff_remaining, 3.0 + competence * 13.0 + planning * 6.0 + sequence_bonus)
+        release = min(challenge.payoff_remaining, 3.0 + competence * 13.0 + planning * 6.0 + sequence_bonus + support * 3.0)
         challenge.payoff_remaining -= release
         place.resources[challenge.payoff_energy] = min(180.0, place.resources[challenge.payoff_energy] + release)
         self.causal_unlocks[signature] += 1
         organism.record_success("causal_unlock", 1.0 + min(2.0, release / 8.0))
         feedback["tool"] = feedback.get("tool", 0.0) + 0.70
+        if support > 0.01 and collaboration is not None:
+            self._apply_collaboration_effects(organism, affordance, "causal_unlock", collaboration, release / 8.0)
         self._record_tool_lesson(
             organism,
             place,
@@ -1373,7 +1853,7 @@ class Simulation:
         if damage > 0.0:
             if protection > 0.0:
                 damage *= max(0.35, 1.0 - protection * 0.38)
-                target.tool_skill["protect"] = min(1.0, target.tool_skill.get("protect", 0.0) + damage * 0.025)
+                self._increase_skill(target, "protect", damage * 0.025, transfer=0.06)
                 self._wear_artifacts(target, "protect", amount=damage * (0.55 + protection * 0.35))
             target.health -= damage
         if target.health <= 0.0:
@@ -1438,7 +1918,7 @@ class Simulation:
         if trace:
             affordance = str(trace.get("affordance", "unknown"))
             writing_quality = float(trace.get("writing_quality", clarity))
-            organism.tool_skill["inscribe"] = min(1.0, organism.tool_skill.get("inscribe", 0.0) + 0.003 + clarity * 0.006 + writing_quality * 0.008)
+            self._increase_skill(organism, "inscribe", 0.003 + clarity * 0.006 + writing_quality * 0.008, transfer=0.10)
             self.mark_lesson_packets[affordance] += 1
             lesson = trace.get("lesson", {})
             problem = lesson.get("problem", {}) if isinstance(lesson, dict) else {}
@@ -1783,7 +2263,7 @@ class Simulation:
             + min(1.0, candidate.energy / max(1.0, candidate.storage_limit())) * 0.25
             + candidate.genome.mobility * 0.10
             + candidate.genome.manipulator * 0.10
-            + max(candidate.tool_skill.values(), default=0.0) * 0.10
+            + self._skill_breadth(candidate) * 0.10
             + min(1.0, candidate.offspring_count / 5.0) * 0.10
         )
         selectivity = chooser.genome.mate_selectivity
@@ -1950,7 +2430,7 @@ class Simulation:
             + min(1.0, lesson_value / 1.5) * 0.007
         )
         interpretation_gain = 0.0010 + fidelity * 0.002 + min(0.010, gain * 0.22)
-        organism.tool_skill["interpret_mark"] = min(1.0, interpretation_skill + interpretation_gain)
+        self._increase_skill(organism, "interpret_mark", interpretation_gain)
         if candidate["kind"] == "place":
             mark = candidate["mark"]
             mark.reads += 1
@@ -1970,9 +2450,9 @@ class Simulation:
             inscription = candidate["inscription"]
             inscription["value_transmitted"] = min(100.0, float(inscription.get("value_transmitted", 0.0)) + gain)
             self.portable_mark_reads[affordance] += 1
-        organism.tool_skill[affordance] = min(1.0, organism.tool_skill.get(affordance, 0.0) + gain)
+        self._increase_skill(organism, affordance, gain, transfer=0.08)
         if method_quality > 0.0 or lesson.get("components"):
-            organism.tool_skill["craft"] = min(1.0, organism.tool_skill.get("craft", 0.0) + gain * 0.55)
+            self._increase_skill(organism, "craft", gain * 0.55, transfer=0.08)
             organism.last_craft_target = affordance
             organism.last_artifact_method = max(organism.last_artifact_method, method_quality * fidelity)
         organism.last_tool_affordance = affordance
@@ -2028,7 +2508,7 @@ class Simulation:
         if fidelity <= 0.0 or gain <= 0.0:
             return
         feedback_gain = min(0.020, 0.0015 + gain * 0.14 + fidelity * 0.002 + writing_quality * 0.004)
-        author.tool_skill["inscribe"] = min(1.0, author.tool_skill.get("inscribe", 0.0) + feedback_gain)
+        self._increase_skill(author, "inscribe", feedback_gain, transfer=0.08)
         author.learn_signal_value(token, gain * 6.0 + writing_quality)
         author.record_success("knowledge_transmitted", gain * 10.0)
         self.mark_author_feedbacks[affordance] += gain
@@ -2063,7 +2543,7 @@ class Simulation:
             return
         planning = self._interaction_control(organism)
         gain = (0.012 if success else 0.004) * (0.5 + organism.genome.sensor_range + planning * 1.10)
-        organism.tool_skill[affordance] = min(1.0, organism.tool_skill.get(affordance, 0.0) + gain)
+        self._increase_skill(organism, affordance, gain, transfer=0.10)
         organism.last_tool_affordance = affordance
         organism.record_success("social_learning", 0.2 if success else 0.05)
         feedback["social"] += 0.2 if success else 0.05
@@ -2323,6 +2803,8 @@ class Simulation:
             "tool_successes": dict(self.tool_successes),
             "causal_steps": dict(self.causal_steps),
             "causal_unlocks": dict(self.causal_unlocks),
+            "collaboration_events": dict(self.collaboration_events),
+            "movement": self._movement_summary(),
             "success_profile": success_profile_summary(self.organisms),
             "marks_created": dict(self.marks_created),
             "mark_lessons": dict(self.mark_lessons),

@@ -671,6 +671,135 @@ class CausalContractTests(unittest.TestCase):
         self.assertEqual(self.sim.tool_successes["build"], 1)
         self.assertGreater(agent.tool_skill["build"], 0.0)
 
+    def test_bind_practice_transfers_only_to_related_skills(self) -> None:
+        self.sim = make_sim()
+        agent = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        assert agent is not None
+
+        self.sim._tool_effect(agent, self.sim.world.places[0], "bind", score=1.0, skill=0.0)
+
+        self.assertGreater(agent.tool_skill["bind"], 0.0)
+        self.assertGreater(agent.tool_skill["craft"], 0.0)
+        self.assertGreater(agent.tool_skill["build"], 0.0)
+        self.assertEqual(agent.tool_skill["conduct"], 0.0)
+        self.assertEqual(agent.tool_skill["concentrate_heat"], 0.0)
+
+    def test_specialists_keep_cognitive_credit_from_repeated_practice(self) -> None:
+        self.sim = make_sim()
+        agent = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        assert agent is not None
+        agent.tool_skill["bind"] = 1.0
+        agent.tool_use_counts = {"bind": 96}
+
+        control = self.sim._skill_breadth(agent)
+
+        self.assertGreater(control, 0.45)
+        self.assertLess(control, 0.70)
+
+    def test_active_helpers_can_supply_build_materials(self) -> None:
+        self.sim = make_sim()
+        actor_genome = Genome.neural(self.sim.rng)
+        actor_genome.manipulator = 1.0
+        helper_genome = Genome.neural(self.sim.rng)
+        helper_genome.manipulator = 1.0
+        helper_genome.mobility = 1.0
+        helper_genome.sensor_range = 1.0
+        helper_genome.signal_strength = 1.0
+        actor = self.sim.add_organism("agent", actor_genome, 0, 100.0)
+        helper = self.sim.add_organism("agent", helper_genome, 0, 100.0)
+        assert actor is not None and helper is not None
+        actor.inventory = {"stone": 1}
+        helper.inventory = {"branch": 1, "fiber": 1, "resin": 1}
+        helper.last_action = "coordinate"
+        helper.recombine_intent_until = self.sim.tick + 4
+        helper.tool_skill["build"] = 1.0
+        helper.tool_skill["support"] = 1.0
+
+        class SuccessfulBuildRng:
+            def choice(self, values):  # type: ignore[no-untyped-def]
+                return tuple(values)[0]
+
+            def random(self) -> float:
+                return 0.0
+
+            def gauss(self, _mu: float, _sigma: float) -> float:
+                return 0.0
+
+        self.sim.rng = SuccessfulBuildRng()  # type: ignore[assignment]
+
+        self.sim._build_structure(actor, {"reproduction": 0.0, "social": 0.0, "tool": 0.0})
+
+        place = self.sim.world.places[actor.location]
+        self.assertEqual(len(place.structures), 1)
+        self.assertLess(helper.inventory_count(), 3)
+        self.assertEqual(actor.tool_use_counts["build"], 1)
+        self.assertGreater(self.sim.collaboration_events["build"], 0)
+
+    def test_collective_support_and_relocation_shock_are_tracked_for_moves(self) -> None:
+        self.sim = make_sim(places=2)
+        actor_genome = Genome.neural(self.sim.rng)
+        actor_genome.mobility = 0.40
+        actor_genome.manipulator = 0.25
+        actor_genome.sensor_range = 0.0
+        actor_genome.aquatic_affinity = 0.0
+        helper_genome = Genome.neural(self.sim.rng)
+        helper_genome.mobility = 1.0
+        helper_genome.manipulator = 1.0
+        helper_genome.sensor_range = 1.0
+        helper_genome.signal_strength = 1.0
+        actor = self.sim.add_organism("agent", actor_genome, 0, 120.0)
+        helper = self.sim.add_organism("agent", helper_genome, 0, 120.0)
+        assert actor is not None and helper is not None
+        helper.last_action = "coordinate"
+        helper.recombine_intent_until = self.sim.tick + 4
+        helper.tool_skill["traverse"] = 1.0
+        helper.tool_skill["support"] = 1.0
+        origin = self.sim.world.places[0]
+        destination = self.sim.world.places[1]
+        origin.physics.update({"temperature": 0.92, "fluid_level": 0.0, "pressure": 0.0, "humidity": 0.08, "salinity": 0.0, "elevation": 0.85, "oxygen": 0.30})
+        origin.obstacles.update({"water": 0.0, "height": 0.2, "thorn": 0.1, "heat": 0.5})
+        destination.physics.update({"temperature": 0.22, "fluid_level": 1.0, "pressure": 1.05, "humidity": 0.95, "salinity": 0.85, "elevation": 0.04, "oxygen": 0.18})
+        destination.obstacles.update({"water": 1.0, "height": 0.7, "thorn": 0.0, "heat": 0.0})
+        edge = self.sim.world.edge_between(0, 1)
+        assert edge is not None
+        edge.traversal_required = 0.75
+        edge.distance = 1.9
+        edge.danger = 0.45
+        edge.slope = -0.65
+        edge.current = 0.0
+
+        class MoveRng:
+            def choice(self, values):  # type: ignore[no-untyped-def]
+                return tuple(values)[0]
+
+            def random(self) -> float:
+                return 0.0
+
+            def gauss(self, _mu: float, _sigma: float) -> float:
+                return 0.0
+
+        self.sim.rng = MoveRng()  # type: ignore[assignment]
+
+        self.sim._move(actor, {"reproduction": 0.0, "social": 0.0, "tool": 0.0})
+
+        self.assertEqual(actor.location, 1)
+        movement = self.sim._movement_summary()
+        self.assertEqual(movement["events"]["attempt"], 1)
+        self.assertEqual(movement["events"]["assisted_success"], 1)
+        self.assertGreater(movement["avg_relocation_shock"], 0.0)
+        self.assertGreater(movement["avg_energy_cost"], 0.0)
+
+    def test_environment_generation_has_hostile_treasure_biomes(self) -> None:
+        self.sim = make_sim(seed=55, places=10)
+        places = {place.archetype: place for place in self.sim.world.places}
+
+        self.assertEqual(self.sim.world.places[0].archetype, "pelagic")
+        self.assertGreaterEqual(places["pelagic"].obstacles["water"], 0.72)
+        self.assertGreater(places["trench"].physics["pressure"], 0.75)
+        self.assertGreater(places["hydrothermal_vent"].resources["thermal"], 40.0)
+        self.assertGreaterEqual(places["high_ridge"].physics["elevation"], 0.72)
+        self.assertGreater(places["mineral_scree"].locked_chemical, 20.0)
+
     def test_structure_decay_couples_materials_to_environment(self) -> None:
         conductive = build_structure({"crystal": 6})
         dry = {

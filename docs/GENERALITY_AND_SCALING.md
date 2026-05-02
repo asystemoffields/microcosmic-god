@@ -65,6 +65,22 @@ Hardness and resistance tiers matter. A weak cutting artifact can work on fiber 
 
 Crafting should reward genuine problem solving, not effort spam. Better methods can improve durability and capability, but only by amplifying a real material fit for a locally relevant affordance. Planning helps agents choose components and avoid waste; it does not turn fiber into a conductor or make a bad solution good by wishing harder.
 
+Skill transfer should be local in affordance-space. A binding specialist can become very valuable and should be checkpoint-worthy, but repeated `bind` success should not magically teach electrical conduction, heat concentration, or unrelated causal channels. Specialist mastery, repeated practice, and diverse competence are all useful signals; none should erase the others.
+
+## Movement And Relocation Teeth
+
+Movement is not a free graph transition. It has metabolic cost, load cost, distance/slope/current/pressure cost, and possible health damage. Crossing between physically different habitats adds relocation shock from deltas in temperature, fluid level, pressure, humidity, salinity, elevation, oxygen, and hazard pressure. Planning, destination memory, protection, traversal tools, containment, insulation, and learned skill can reduce but not erase that shock.
+
+This lets worlds have teeth. A lineage born into a hot dry ridge may survive by mastering that niche instead of cheaply walking to the sea. A sea lineage may find treasure in trenches or vents, but land transition can be costly enough to kill the unprepared. If a population collapses because it keeps attempting bad relocation, that is an informative ecological failure, not necessarily a simulator bug.
+
+Movement telemetry records attempts, successes, failures, energy/health cost, barriers, support, relocation shock, dominant movement motive, and top routes. These remain observer data only.
+
+## Collaboration Without Dependency
+
+Collaboration should create optional capability jumps, not mandatory social scripts. Active nearby organisms that are signaling, coordinating, or observing can contribute support to hard movement, expeditions, tool use, causal steps, and structures. Helpers pay small energy costs and gain only action-mediated feedback. This means a solo agent can still live, but groups can sometimes cross hostile boundaries, build larger structures from pooled materials, or unlock harder local affordance sequences.
+
+The important rule is that collaboration helps through the same physical channels as individual action: more bodies, more materials, better signals, and complementary skills. There is no hidden "be cooperative" reward.
+
 ## Causal Inference Substrate
 
 Puzzle solving should be a world-law consequence, not a separate objective. The first substrate is a finite local causal challenge: a place can contain an affordance sequence implied by its fields and materials. For example, a high-flow wet place may expose more chemical energy after `contain` then `filter`, while a mineral/geothermal place may respond to `concentrate_heat` then `conduct`.

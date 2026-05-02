@@ -14,6 +14,20 @@ def _clamp(value: float, low: float = 0.0, high: float = 1.0) -> float:
     return max(low, min(high, value))
 
 
+ENV_ARCHETYPES = (
+    "pelagic",
+    "reef",
+    "trench",
+    "hydrothermal_vent",
+    "tidal_marsh",
+    "high_ridge",
+    "mineral_scree",
+    "forest_edge",
+    "desert_glass",
+    "cavern",
+)
+
+
 @dataclass(slots=True)
 class Signal:
     source_id: int
@@ -98,6 +112,7 @@ class Place:
     obstacles: dict[str, float]
     habitat: dict[str, float]
     physics: dict[str, float]
+    archetype: str = "mixed"
     structures: list[Structure] = field(default_factory=list)
     signals: list[Signal] = field(default_factory=list)
     marks: list[Mark] = field(default_factory=list)
@@ -118,6 +133,7 @@ class Place:
             "obstacles": {k: round(v, 4) for k, v in self.obstacles.items()},
             "habitat": {k: round(v, 4) for k, v in self.habitat.items()},
             "physics": {k: round(v, 4) for k, v in self.physics.items()},
+            "archetype": self.archetype,
             "structures": [structure.to_dict() for structure in self.structures[-8:]],
             "marks": [mark.to_dict() for mark in self.marks[-8:]],
             "causal_challenge": self.causal_challenge.to_dict() if self.causal_challenge else None,
@@ -204,6 +220,52 @@ class World:
             mineral = rng.random() ** 1.3
             volatility = rng.uniform(0.03, 0.22)
             elevation = _clamp(rng.random() ** 1.15)
+            archetype = ENV_ARCHETYPES[i % len(ENV_ARCHETYPES)] if i < len(ENV_ARCHETYPES) else rng.choice(ENV_ARCHETYPES)
+            if archetype == "pelagic":
+                water = max(water, rng.uniform(0.74, 1.0))
+                elevation = min(elevation, rng.uniform(0.02, 0.18))
+                volatility = max(volatility, rng.uniform(0.18, 0.34))
+            elif archetype == "reef":
+                water = max(water, rng.uniform(0.55, 0.90))
+                sun = max(sun, rng.uniform(0.55, 1.0))
+                mineral = max(mineral, rng.uniform(0.35, 0.80))
+            elif archetype == "trench":
+                water = max(water, rng.uniform(0.82, 1.0))
+                elevation = min(elevation, rng.uniform(0.0, 0.10))
+                sun = min(sun, rng.uniform(0.05, 0.24))
+                mineral = max(mineral, rng.uniform(0.45, 1.0))
+                volatility = max(volatility, rng.uniform(0.12, 0.28))
+            elif archetype == "hydrothermal_vent":
+                water = max(water, rng.uniform(0.45, 0.92))
+                geo = max(geo, rng.uniform(0.50, 1.0))
+                mineral = max(mineral, rng.uniform(0.55, 1.0))
+                volatility = max(volatility, rng.uniform(0.16, 0.36))
+            elif archetype == "tidal_marsh":
+                water = max(water, rng.uniform(0.45, 0.86))
+                sun = max(sun, rng.uniform(0.45, 0.95))
+                volatility = max(volatility, rng.uniform(0.16, 0.30))
+            elif archetype == "high_ridge":
+                elevation = max(elevation, rng.uniform(0.72, 1.0))
+                water = min(water, rng.uniform(0.0, 0.28))
+                sun = max(sun, rng.uniform(0.50, 1.0))
+                volatility = max(volatility, rng.uniform(0.12, 0.26))
+            elif archetype == "mineral_scree":
+                mineral = max(mineral, rng.uniform(0.72, 1.0))
+                elevation = max(elevation, rng.uniform(0.48, 0.92))
+                water = min(water, rng.uniform(0.02, 0.36))
+            elif archetype == "forest_edge":
+                water = max(water, rng.uniform(0.34, 0.74))
+                sun = max(sun, rng.uniform(0.40, 0.86))
+            elif archetype == "desert_glass":
+                water = min(water, rng.uniform(0.0, 0.18))
+                sun = max(sun, rng.uniform(0.72, 1.0))
+                mineral = max(mineral, rng.uniform(0.38, 0.88))
+                volatility = max(volatility, rng.uniform(0.12, 0.30))
+            elif archetype == "cavern":
+                sun = min(sun, rng.uniform(0.04, 0.28))
+                water = max(water, rng.uniform(0.18, 0.60))
+                mineral = max(mineral, rng.uniform(0.45, 0.95))
+                elevation = min(elevation, rng.uniform(0.08, 0.40))
             resources["radiant"] = 20.0 + sun * 70.0
             resources["chemical"] = rng.uniform(10.0, 40.0) + water * 15.0
             resources["biological_storage"] = rng.uniform(4.0, 20.0)
@@ -211,6 +273,21 @@ class World:
             resources["mechanical"] = water * 45.0 + rng.uniform(0.0, 8.0)
             resources["electrical"] = mineral * rng.uniform(0.0, 4.0)
             resources["high_density"] = mineral * geo * rng.uniform(0.0, 1.2)
+            if archetype in {"reef", "tidal_marsh", "forest_edge"}:
+                resources["biological_storage"] += rng.uniform(10.0, 36.0) * (0.55 + sun * water)
+            if archetype in {"trench", "hydrothermal_vent"}:
+                resources["thermal"] += rng.uniform(12.0, 52.0) * (0.40 + geo)
+                resources["chemical"] += rng.uniform(8.0, 28.0) * (0.40 + mineral)
+                resources["high_density"] += rng.uniform(0.5, 5.0) * geo * mineral
+            if archetype in {"pelagic", "tidal_marsh"}:
+                resources["mechanical"] += rng.uniform(8.0, 32.0) * water * volatility
+            if archetype in {"high_ridge", "desert_glass"}:
+                resources["radiant"] += rng.uniform(8.0, 28.0) * sun
+            if archetype in {"mineral_scree", "cavern"}:
+                resources["electrical"] += rng.uniform(0.5, 8.0) * mineral
+            locked_chemical = rng.uniform(8.0, 55.0) * (0.35 + mineral)
+            if archetype in {"trench", "hydrothermal_vent", "mineral_scree", "cavern"}:
+                locked_chemical *= rng.uniform(1.25, 2.15)
 
             materials = {name: 0 for name in MATERIALS}
             for name in MATERIALS:
@@ -221,6 +298,12 @@ class World:
                     abundance *= water + sun + 0.20
                 if name in {"shell", "bone"}:
                     abundance *= water + 0.15
+                if archetype in {"reef", "pelagic", "trench"} and name in {"shell", "bone"}:
+                    abundance *= 1.0 + water * 1.4
+                if archetype in {"hydrothermal_vent", "mineral_scree", "desert_glass", "cavern"} and name in {"stone", "crystal"}:
+                    abundance *= 1.0 + mineral * 1.2
+                if archetype in {"forest_edge", "tidal_marsh"} and name in {"branch", "fiber", "resin"}:
+                    abundance *= 1.0 + sun * water
                 materials[name] = int(abundance * rng.randint(1, 8))
             obstacles = {
                 "water": min(1.0, water * rng.uniform(0.15, 0.95)),
@@ -228,9 +311,23 @@ class World:
                 "height": min(1.0, rng.random() * rng.uniform(0.05, 0.70)),
                 "heat": min(1.0, geo * rng.uniform(0.15, 0.90)),
             }
+            if archetype in {"pelagic", "trench"}:
+                obstacles["water"] = max(obstacles["water"], rng.uniform(0.72, 1.0))
+            if archetype in {"high_ridge", "mineral_scree"}:
+                obstacles["height"] = max(obstacles["height"], rng.uniform(0.48, 0.92))
+            if archetype == "hydrothermal_vent":
+                obstacles["heat"] = max(obstacles["heat"], rng.uniform(0.45, 0.95))
+            if archetype in {"forest_edge", "tidal_marsh"}:
+                obstacles["thorn"] = max(obstacles["thorn"], rng.uniform(0.22, 0.72))
             aquatic = min(1.0, max(0.0, water * rng.uniform(0.15, 1.15)))
             depth = aquatic * rng.uniform(0.05, 1.0)
+            if archetype in {"pelagic", "trench"}:
+                depth = max(depth, rng.uniform(0.68, 1.0))
+            elif archetype in {"reef", "tidal_marsh"}:
+                depth = max(depth, rng.uniform(0.20, 0.56))
             salinity = aquatic * rng.random()
+            if archetype in {"pelagic", "reef", "trench"}:
+                salinity = max(salinity, rng.uniform(0.42, 0.96))
             humidity = min(1.0, water * 0.75 + sun * 0.10 + rng.random() * 0.15)
             habitat = {
                 "aquatic": aquatic,
@@ -254,7 +351,26 @@ class World:
                 "biological_activity": _clamp(water * 0.28 + sun * 0.16 + resources["biological_storage"] / 220.0),
                 "abrasion": _clamp(volatility * 0.34 + water * 0.14 + abs(elevation - 0.5) * 0.10),
                 "wet_dry_cycle": _clamp(water * (1.0 - water) * 0.70 + volatility * 0.22),
+                "resource_gradient": 0.0,
+                "terrain_richness": 0.0,
             }
+            if archetype == "trench":
+                physics["pressure"] = _clamp(physics["pressure"] + rng.uniform(0.22, 0.55), 0.0, 1.35)
+                physics["oxygen"] = _clamp(physics["oxygen"] - rng.uniform(0.05, 0.18))
+            elif archetype == "hydrothermal_vent":
+                physics["temperature"] = _clamp(physics["temperature"] + rng.uniform(0.18, 0.42), 0.0, 1.45)
+                physics["acidity"] = _clamp(physics["acidity"] + rng.uniform(0.10, 0.28))
+            elif archetype == "cavern":
+                physics["interiority"] = rng.uniform(0.36, 0.82)
+                physics["boundary_permeability"] = rng.uniform(0.08, 0.36)
+                physics["shelter"] = rng.uniform(0.08, 0.28)
+            physics["resource_gradient"] = _clamp(
+                resources["high_density"] / 8.0
+                + resources["thermal"] / 220.0
+                + resources["mechanical"] / 240.0
+                + locked_chemical / 160.0
+            )
+            physics["terrain_richness"] = _clamp(sum(materials.values()) / 65.0 + mineral * 0.35 + water * 0.12)
 
             places.append(
                 Place(
@@ -263,7 +379,7 @@ class World:
                     neighbors=[],
                     resources=resources,
                     materials=materials,
-                    locked_chemical=rng.uniform(8.0, 55.0) * (0.35 + mineral),
+                    locked_chemical=locked_chemical,
                     capacity=rng.randint(35, 95),
                     sun_exposure=sun,
                     water_flow=water,
@@ -273,6 +389,7 @@ class World:
                     obstacles=obstacles,
                     habitat=habitat,
                     physics=physics,
+                    archetype=archetype,
                 )
             )
             places[-1].causal_challenge = cls._make_causal_challenge(

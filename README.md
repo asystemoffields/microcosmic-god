@@ -33,7 +33,10 @@ The current implementation is Prototype 0: a runnable Python simulation designed
 - General artifact capacities for carrying, protection, and record surfaces, so backpack-like, protective, and portable-writing objects can emerge from material properties.
 - Inside/outside is modeled as boundary physics: `enclose`, `permeable`, and `shelter` are separate capabilities, so not every inside is protective.
 - Diversified habitats: aquatic/terrestrial balance, depth, salinity, humidity, heat, height, water, and thorn barriers.
+- Hostile-but-valuable environment archetypes such as pelagic water, reefs, trenches, vents, ridges, scree, desert glass, forest edges, marshes, and caverns. These bias fields and resources without creating quests.
 - Evolving habitat tolerances, so some organisms can drown, desiccate, or specialize for aquatic/dry niches.
+- Movement has real teeth: distance, load, slope, current, pressure, barriers, and relocation shock impose energy/health costs, while tools, memory, planning, and collaboration can mitigate them.
+- Collaboration can indirectly matter through active helper support for expeditions, tool use, causal unlocks, and pooled-material structures, without making cooperation a required objective.
 - Local signals with no fixed semantics.
 - Durable-but-decaying place marks, a primitive external memory channel analogous to writing.
 - Intentional lesson inscriptions are distinct from plain marks. Agents must have recent tool/problem experience and discover/use `inscribe`; readers improve through `interpret_mark`.
@@ -43,6 +46,7 @@ The current implementation is Prototype 0: a runnable Python simulation designed
 - Brain checkpoints include cognitive context: recent trace, event memory, lesson memory, signal associations, and place memory.
 - Garden mode supports logged interventions.
 - Reproduction failure telemetry, per-action energy accounting, and deaths split by organism kind.
+- Movement telemetry summarizes attempts, cost, relocation shock, support, motives, and routes.
 - Regression tests for locality, signal observability, crafting failure costs, and reproduction capacity contracts.
 
 ## Quick Start
