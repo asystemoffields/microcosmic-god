@@ -38,6 +38,7 @@ Promote richer event records when something becomes causally interesting:
 - unexpected death of a high-scoring learner/operator
 - cross-place knowledge movement, such as reading a mark then making/marking elsewhere
 - literacy-relevant reuse, such as a high-quality mark accumulating reads/value or feeding back to a present author
+- portable literacy, such as lesson traces stored on carried artifacts and read in another place
 - sharp shifts in prediction error, tool skill, reproductive success, or habitat mastery
 - events involving agents later saved as checkpoints
 
@@ -86,4 +87,4 @@ Runs now include `story_events.jsonl` alongside `events.jsonl`. Routine events s
 
 The observer keeps bounded recent context by subject (`organism:*`, `place:*`, `affordance:*`, etc.) and writes only compact payloads plus nearby context. It is descriptive only: story promotion does not alter fitness, action selection, reproduction, learning, or world physics.
 
-Plain marks remain cheap telemetry. Intentional lesson writes and successful reads can become story events because they may connect tool knowledge across agents, places, and time. Compact mark-read payloads include literacy fields such as `writing_quality`, `coherence`, and `reads`; aggregate summaries include mark read value and author feedback by affordance, which should be enough to spot promising proto-writing without drowning the run in inscription substrate.
+Plain marks remain cheap telemetry. Intentional lesson writes and successful reads can become story events because they may connect tool knowledge across agents, places, and time. Compact mark-read payloads include literacy fields such as `writing_quality`, `coherence`, `reads`, `portable`, and `self_read`; aggregate summaries include mark read value, portable mark counts, and author feedback by affordance, which should be enough to spot promising proto-writing without drowning the run in inscription substrate.

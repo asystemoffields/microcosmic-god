@@ -12,6 +12,7 @@ from .config import RunConfig
 from .debrief import build_debrief, population_counts, success_profile_summary, world_energy_summary, world_physics_summary
 from .energy import (
     AFFORDANCES,
+    Artifact,
     MATERIALS,
     artifact_capability,
     best_affordance,
@@ -29,7 +30,7 @@ from .interventions import Intervention, load_interventions
 from .observer import EventObserver
 from .organisms import ACTIONS, ACTION_INDEX, OBSERVATION_SIZE, Organism, organism_from_genome
 from .runlog import RunLogger
-from .world import Mark, Place, World
+from .world import Place, World
 
 
 class Simulation:
@@ -59,6 +60,8 @@ class Simulation:
         self.mark_lesson_packets: Counter[str] = Counter()
         self.mark_read_value: Counter[str] = Counter()
         self.mark_author_feedbacks: Counter[str] = Counter()
+        self.portable_marks_created: Counter[str] = Counter()
+        self.portable_mark_reads: Counter[str] = Counter()
         self.artifacts_created: Counter[str] = Counter()
         self.artifacts_broken: Counter[str] = Counter()
         self.structures_built: Counter[str] = Counter()
@@ -449,12 +452,27 @@ class Simulation:
 
     def _metabolize(self, organism: Organism) -> None:
         organism.age += 1
+        self._age_portable_inscriptions(organism)
         organism.energy -= organism.metabolic_cost()
         if organism.energy < 0.0:
             organism.health += organism.energy * 0.030
             organism.energy = 0.0
         if organism.health <= 0.0:
             self._kill(organism, "starvation")
+
+    def _age_portable_inscriptions(self, organism: Organism) -> None:
+        for artifact in organism.artifacts:
+            if not artifact.inscriptions:
+                continue
+            record_cap = artifact.capabilities.get("record", 0.0) * max(0.0, min(1.0, artifact.durability / 100.0))
+            kept: list[dict[str, Any]] = []
+            for inscription in artifact.inscriptions:
+                inscription["age"] = int(inscription.get("age", 0)) + 1
+                inscription["intensity"] = float(inscription.get("intensity", 0.0)) * (0.998 + record_cap * 0.001)
+                inscription["durability"] = float(inscription.get("durability", 0.0)) - (0.018 + max(0.0, 1.0 - record_cap) * 0.022)
+                if float(inscription.get("durability", 0.0)) > 0.0 and float(inscription.get("intensity", 0.0)) > 0.020:
+                    kept.append(inscription)
+            artifact.inscriptions = kept[-8:]
 
     def _habitat_stress(self, organism: Organism) -> None:
         place = self.world.places[organism.location]
@@ -470,16 +488,17 @@ class Simulation:
         interiority = max(physics.get("interiority", 0.0), structure_capability(place.structures, "enclose"))
         permeability = max(physics.get("boundary_permeability", 0.0), structure_capability(place.structures, "permeable"))
         insulation = max(artifact_capability(organism.artifacts, "insulate"), shelter * 0.55)
+        protection = artifact_capability(organism.artifacts, "protect")
         float_cap = artifact_capability(organism.artifacts, "float")
         anchor = max(artifact_capability(organism.artifacts, "anchor"), structure_capability(place.structures, "anchor") * 0.35)
         traverse = max(artifact_capability(organism.artifacts, "traverse"), structure_capability(place.structures, "support") * 0.25)
-        exposure_damping = 1.0 - shelter * 0.35
-        drowning = max(0.0, aquatic * depth - organism.genome.aquatic_affinity * 0.85 - organism.genome.mobility * 0.15 - float_cap * 0.20 - shelter * 0.08)
-        desiccation = max(0.0, organism.genome.aquatic_affinity * (1.0 - humidity) - organism.genome.desiccation_tolerance * 0.55 - shelter * 0.14)
-        salinity_stress = max(0.0, abs(salinity - organism.genome.salinity_tolerance) - 0.55)
-        heat_stress = max(0.0, temperature - (0.58 + organism.genome.thermal_tolerance * 0.42 + insulation * 0.25))
-        cold_stress = max(0.0, 0.18 - temperature - organism.genome.thermal_tolerance * 0.12 - insulation * 0.18)
-        pressure_stress = max(0.0, pressure - (organism.genome.pressure_tolerance * 1.05 + organism.genome.aquatic_affinity * 0.20 + organism.genome.armor * 0.12))
+        exposure_damping = max(0.45, 1.0 - shelter * 0.35 - protection * 0.16)
+        drowning = max(0.0, aquatic * depth - organism.genome.aquatic_affinity * 0.85 - organism.genome.mobility * 0.15 - float_cap * 0.20 - shelter * 0.08 - protection * 0.05)
+        desiccation = max(0.0, organism.genome.aquatic_affinity * (1.0 - humidity) - organism.genome.desiccation_tolerance * 0.55 - shelter * 0.14 - protection * 0.08)
+        salinity_stress = max(0.0, abs(salinity - organism.genome.salinity_tolerance) - 0.55 - protection * 0.06)
+        heat_stress = max(0.0, temperature - (0.58 + organism.genome.thermal_tolerance * 0.42 + insulation * 0.25 + protection * 0.06))
+        cold_stress = max(0.0, 0.18 - temperature - organism.genome.thermal_tolerance * 0.12 - insulation * 0.18 - protection * 0.05)
+        pressure_stress = max(0.0, pressure - (organism.genome.pressure_tolerance * 1.05 + organism.genome.aquatic_affinity * 0.20 + organism.genome.armor * 0.12 + protection * 0.14))
         current_stress = max(0.0, current * aquatic - max(organism.genome.buoyancy, float_cap, anchor * 0.80, traverse * 0.55, organism.genome.mobility * 0.25))
         stagnant_interior = max(0.0, interiority - shelter) * max(0.0, 1.0 - permeability) * max(0.0, pressure + temperature - 0.80)
         stress = (
@@ -494,6 +513,9 @@ class Simulation:
         )
         if stress <= 0.0:
             return
+        if protection > 0.0:
+            self._wear_artifacts(organism, "protect", amount=stress * (0.35 + protection * 0.20))
+            organism.tool_skill["protect"] = min(1.0, organism.tool_skill.get("protect", 0.0) + stress * 0.018)
         organism.energy -= stress * 2.0
         organism.health -= stress
         if organism.health <= 0.0:
@@ -790,6 +812,18 @@ class Simulation:
             "conduct": place.resources["electrical"] / 160.0 + place.resources["high_density"] / 90.0 + place.mineral_richness * place.geothermal * 0.55,
             "lever": place.locked_chemical / 230.0 + place.obstacles.get("height", 0.0) * 0.40,
             "filter": place.physics.get("current_exposure", 0.0) * 0.36 + place.physics.get("salinity", 0.0) * 0.18 + place.resources["chemical"] / 260.0,
+            "carry": max(0.0, organism.inventory_count() / max(1.0, organism.inventory_limit()) - 0.55) + organism.tool_skill.get("pickup", 0.0) * 0.04,
+            "protect": (
+                place.physics.get("pressure", 0.0) * 0.16
+                + place.physics.get("abrasion", 0.0) * 0.22
+                + place.physics.get("temperature", 0.5) * 0.08
+                + len(self._living_ids_at(place.id)) / max(1.0, place.capacity) * 0.14
+            ),
+            "record": (
+                min(1.0, len(organism.lesson_memory) / 4.0) * 0.42
+                + organism.tool_skill.get("inscribe", 0.0) * 0.28
+                + organism.genome.memory_budget / 45.0
+            ),
         }
         if organism.last_craft_target in scores:
             scores[organism.last_craft_target] += planning * 0.16
@@ -1120,7 +1154,12 @@ class Simulation:
             organism.last_tool_affordance = affordance
             feedback["tool"] = feedback.get("tool", 0.0) + 0.05
             if self.rng.random() < 0.10:
-                organism.health -= 0.015 + score * 0.030
+                protection = artifact_capability(organism.artifacts, "protect")
+                accident_damage = (0.015 + score * 0.030) * max(0.45, 1.0 - protection * 0.42)
+                organism.health -= accident_damage
+                if protection > 0.0:
+                    organism.tool_skill["protect"] = min(1.0, organism.tool_skill.get("protect", 0.0) + accident_damage * 0.030)
+                    self._wear_artifacts(organism, "protect", amount=accident_damage * 0.55)
             overmatch_penalty = max(0.0, resistance - score)
             self._wear_artifacts(organism, affordance, amount=0.35 + score * 0.18 + overmatch_penalty * 2.2)
             self.demonstrations[place.id].append((organism.id, affordance, False))
@@ -1327,10 +1366,15 @@ class Simulation:
             return
         target = min(local, key=lambda candidate: (candidate.health + candidate.genome.armor * 0.7, -candidate.energy))
         attack_power = organism.genome.mobility * 0.40 + organism.genome.manipulator * 0.35 + organism.genome.mechanical_use * 0.25
-        defense = target.genome.armor * 0.45 + target.genome.mobility * 0.25 + target.health * 0.20
+        protection = artifact_capability(target.artifacts, "protect")
+        defense = target.genome.armor * 0.45 + target.genome.mobility * 0.25 + target.health * 0.20 + protection * 0.34
         damage = max(0.005, attack_power - defense + self.rng.gauss(0.0, 0.05))
         organism.energy -= 0.10 + attack_power * 0.08
         if damage > 0.0:
+            if protection > 0.0:
+                damage *= max(0.35, 1.0 - protection * 0.38)
+                target.tool_skill["protect"] = min(1.0, target.tool_skill.get("protect", 0.0) + damage * 0.025)
+                self._wear_artifacts(target, "protect", amount=damage * (0.55 + protection * 0.35))
             target.health -= damage
         if target.health <= 0.0:
             gained = target.energy * (0.30 + organism.genome.digestion * 0.45)
@@ -1379,8 +1423,18 @@ class Simulation:
         trace = self._mark_trace(organism, inscription_help) if trace_intent else {}
         clarity = float(trace.get("inscription_quality", 0.0)) if trace else 0.0
         organism.energy -= 0.08 + intensity * 0.12 + durability * 0.0008 + clarity * 0.055
-        self.world.create_mark(organism.location, organism.id, token, intensity, durability, trace=trace)
-        self.marks_created[str(token)] += 1
+        portable_artifact = self._recording_artifact(organism)
+        portable_written = False
+        if trace and portable_artifact is not None:
+            artifact, record_cap = portable_artifact
+            planning = self._interaction_control(organism)
+            portable_chance = min(0.72, record_cap * 0.48 + planning * 0.18 + organism.tool_skill.get("inscribe", 0.0) * 0.18)
+            if self.rng.random() < portable_chance:
+                self._inscribe_portable_mark(organism, artifact, token, intensity, durability, trace)
+                portable_written = True
+        if not portable_written:
+            self.world.create_mark(organism.location, organism.id, token, intensity, durability, trace=trace)
+            self.marks_created[str(token)] += 1
         if trace:
             affordance = str(trace.get("affordance", "unknown"))
             writing_quality = float(trace.get("writing_quality", clarity))
@@ -1399,6 +1453,7 @@ class Simulation:
                     "clarity": clarity,
                     "writing_quality": writing_quality,
                     "coherence": trace.get("coherence"),
+                    "portable": portable_written,
                     "problem_kind": problem.get("kind") if isinstance(problem, dict) else None,
                     "lesson_kind": lesson.get("kind") if isinstance(lesson, dict) else None,
                 },
@@ -1407,6 +1462,66 @@ class Simulation:
                 rarity_key=f"mark_lesson_written:{affordance}",
             )
         feedback["social"] += 0.04 + intensity * 0.08 + clarity * 0.04
+
+    def _recording_artifact(self, organism: Organism) -> tuple[Artifact, float] | None:
+        candidates: list[tuple[Artifact, float]] = []
+        for artifact in organism.artifacts:
+            durability_factor = max(0.0, min(1.0, artifact.durability / 100.0))
+            record_cap = artifact.capabilities.get("record", 0.0) * durability_factor
+            if record_cap > 0.08:
+                candidates.append((artifact, record_cap))
+        if not candidates:
+            return None
+        return max(candidates, key=lambda item: item[1] + self.rng.random() * 0.02)
+
+    def _portable_inscription_limit(self, artifact: Artifact) -> int:
+        record_cap = artifact.capabilities.get("record", 0.0)
+        carry_cap = artifact.capabilities.get("carry", 0.0)
+        return max(1, min(8, int(1 + record_cap * 5.0 + carry_cap * 2.0)))
+
+    def _inscribe_portable_mark(
+        self,
+        organism: Organism,
+        artifact: Artifact,
+        token: int,
+        intensity: float,
+        durability: float,
+        trace: dict[str, Any],
+    ) -> None:
+        record_cap = artifact.capabilities.get("record", 0.0) * max(0.0, min(1.0, artifact.durability / 100.0))
+        packet = {
+            "source_id": organism.id,
+            "token": token % 8,
+            "intensity": max(0.0, intensity * (0.72 + record_cap * 0.24)),
+            "durability": max(1.0, durability * (0.62 + record_cap * 0.38)),
+            "age": 0,
+            "trace": dict(trace),
+            "reads": 0,
+            "value_transmitted": 0.0,
+            "last_read_tick": -1,
+        }
+        artifact.inscriptions.append(packet)
+        artifact.inscriptions = artifact.inscriptions[-self._portable_inscription_limit(artifact) :]
+        artifact.durability = max(0.0, artifact.durability - 0.08 - max(0.0, 1.0 - record_cap) * 0.12)
+        affordance = str(trace.get("affordance", "unknown"))
+        self.portable_marks_created[affordance] += 1
+        self.observer.observe(
+            self.tick,
+            "portable_mark_written",
+            {
+                "organism_id": organism.id,
+                "place": organism.location,
+                "artifact": artifact.name,
+                "token": token % 8,
+                "affordance": affordance,
+                "writing_quality": trace.get("writing_quality", trace.get("inscription_quality")),
+                "record_cap": record_cap,
+                "stored": len(artifact.inscriptions),
+            },
+            subjects=self._subjects(organism, extra=[f"affordance:{affordance}", f"mark_token:{token % 8}", f"artifact:{artifact.name}"]),
+            score=float(trace.get("writing_quality", trace.get("inscription_quality", 0.0))) * (1.0 + record_cap * 0.50),
+            rarity_key=f"portable_mark_written:{affordance}",
+        )
 
     def _trace_inscription_intent(self, organism: Organism, inscription_help: float) -> bool:
         if not organism.lesson_memory:
@@ -1729,29 +1844,69 @@ class Simulation:
             parent.offspring_count += 1
             parent.record_success("reproduction", 1.0)
 
+    def _readable_mark_candidates(self, organism: Organism, place: Place) -> list[dict[str, Any]]:
+        candidates: list[dict[str, Any]] = []
+        for mark in place.marks[-16:]:
+            if mark.trace and mark.trace.get("intentional") and mark.trace.get("schema") == "lesson_trace_v1":
+                candidates.append(
+                    {
+                        "kind": "place",
+                        "mark": mark,
+                        "source_id": mark.source_id,
+                        "holder_id": None,
+                        "token": mark.token,
+                        "intensity": mark.intensity,
+                        "durability": mark.durability,
+                        "trace": mark.trace,
+                        "reads": mark.reads,
+                        "value_transmitted": mark.value_transmitted,
+                    }
+                )
+        for holder_id in self._living_ids_at(place.id):
+            holder = self.organisms.get(holder_id)
+            if holder is None:
+                continue
+            for artifact in holder.artifacts:
+                if not artifact.inscriptions:
+                    continue
+                artifact_factor = max(0.0, min(1.0, artifact.durability / 100.0))
+                for inscription in artifact.inscriptions[-4:]:
+                    trace = inscription.get("trace", {}) if isinstance(inscription.get("trace"), dict) else {}
+                    if trace and trace.get("intentional") and trace.get("schema") == "lesson_trace_v1":
+                        candidates.append(
+                            {
+                                "kind": "portable",
+                                "artifact": artifact,
+                                "inscription": inscription,
+                                "source_id": int(inscription.get("source_id", holder.id)),
+                                "holder_id": holder.id,
+                                "token": int(inscription.get("token", 0)) % 8,
+                                "intensity": float(inscription.get("intensity", 0.0)) * (0.80 + artifact_factor * 0.20),
+                                "durability": min(float(inscription.get("durability", 0.0)), artifact.durability),
+                                "trace": trace,
+                                "reads": int(inscription.get("reads", 0)),
+                                "value_transmitted": float(inscription.get("value_transmitted", 0.0)),
+                            }
+                        )
+        return candidates
+
     def _read_mark_trace(self, organism: Organism, feedback: dict[str, float]) -> bool:
         place = self.world.places[organism.location]
-        readable = [
-            mark
-            for mark in place.marks
-            if mark.source_id != organism.id
-            and mark.trace
-            and mark.trace.get("intentional")
-            and mark.trace.get("schema") == "lesson_trace_v1"
-        ]
+        readable = self._readable_mark_candidates(organism, place)
         if not readable:
             return False
         planning = self._interaction_control(organism)
-        mark = max(
-            readable[-12:],
+        candidate = max(
+            readable,
             key=lambda item: (
-                item.intensity * min(1.0, item.durability / 140.0)
-                + float(item.trace.get("writing_quality", item.trace.get("inscription_quality", 0.0))) * 0.18
-                + min(0.25, item.reads * 0.025 + item.value_transmitted * 0.08)
+                float(item["intensity"]) * min(1.0, float(item["durability"]) / 140.0)
+                + float(item["trace"].get("writing_quality", item["trace"].get("inscription_quality", 0.0))) * 0.18
+                + min(0.25, int(item["reads"]) * 0.025 + float(item["value_transmitted"]) * 0.08)
+                + (0.05 if item["holder_id"] == organism.id else 0.0)
                 + self.rng.random() * 0.03
             ),
         )
-        trace = mark.trace
+        trace = candidate["trace"]
         lesson = trace.get("lesson", {}) if isinstance(trace.get("lesson"), dict) else {}
         affordance = str(trace.get("affordance") or lesson.get("affordance", ""))
         if affordance not in organism.tool_skill:
@@ -1763,13 +1918,14 @@ class Simulation:
         lesson_value = max(0.0, min(2.5, float(trace.get("lesson_value", self._lesson_value(lesson) if lesson else 0.0))))
         method_quality = max(0.0, min(1.0, float(trace.get("method_quality", 0.0))))
         tool_feedback = max(0.0, min(1.5, float(trace.get("tool_feedback", 0.0))))
-        token_bias = max(0.0, organism.signal_values[mark.token] if 0 <= mark.token < len(organism.signal_values) else 0.0)
+        token = int(candidate["token"])
+        token_bias = max(0.0, organism.signal_values[token] if 0 <= token < len(organism.signal_values) else 0.0)
         fidelity = max(
             0.0,
             min(
                 1.0,
-                mark.intensity
-                * min(1.0, mark.durability / 140.0)
+                float(candidate["intensity"])
+                * min(1.0, float(candidate["durability"]) / 140.0)
                 * (inscription_quality * 0.42 + writing_quality * 0.58)
                 * (0.44 + interpretation_skill * 0.34 + planning * 0.14 + coherence * 0.08),
             ),
@@ -1795,12 +1951,25 @@ class Simulation:
         )
         interpretation_gain = 0.0010 + fidelity * 0.002 + min(0.010, gain * 0.22)
         organism.tool_skill["interpret_mark"] = min(1.0, interpretation_skill + interpretation_gain)
-        mark.reads += 1
-        mark.last_read_tick = self.tick
+        if candidate["kind"] == "place":
+            mark = candidate["mark"]
+            mark.reads += 1
+            mark.last_read_tick = self.tick
+            reads = mark.reads
+        else:
+            inscription = candidate["inscription"]
+            inscription["reads"] = int(inscription.get("reads", 0)) + 1
+            inscription["last_read_tick"] = self.tick
+            reads = int(inscription["reads"])
         if gain <= 0.0005:
             organism.energy -= 0.006
             return True
-        mark.value_transmitted = min(100.0, mark.value_transmitted + gain)
+        if candidate["kind"] == "place":
+            candidate["mark"].value_transmitted = min(100.0, candidate["mark"].value_transmitted + gain)
+        else:
+            inscription = candidate["inscription"]
+            inscription["value_transmitted"] = min(100.0, float(inscription.get("value_transmitted", 0.0)) + gain)
+            self.portable_mark_reads[affordance] += 1
         organism.tool_skill[affordance] = min(1.0, organism.tool_skill.get(affordance, 0.0) + gain)
         if method_quality > 0.0 or lesson.get("components"):
             organism.tool_skill["craft"] = min(1.0, organism.tool_skill.get("craft", 0.0) + gain * 0.55)
@@ -1816,36 +1985,41 @@ class Simulation:
         organism.record_success("written_learning", gain * 12.0)
         self.mark_lessons[affordance] += 1
         self.mark_read_value[affordance] += gain
-        self._apply_mark_author_feedback(mark, organism.id, place.id, affordance, gain, fidelity, writing_quality)
+        self._apply_mark_author_feedback(int(candidate["source_id"]), organism.id, place.id, token, affordance, gain, fidelity, writing_quality, reads)
         feedback["social"] += 0.05 + fidelity * 0.04
         feedback["tool"] = feedback.get("tool", 0.0) + min(0.12, gain * 4.0)
         organism.energy -= 0.010 + (1.0 - attention) * 0.010
+        portable = candidate["kind"] == "portable"
         self.observer.observe(
             self.tick,
-            "mark_lesson_read",
+            "portable_mark_read" if portable else "mark_lesson_read",
             {
                 "organism_id": organism.id,
-                "source_id": mark.source_id,
+                "source_id": int(candidate["source_id"]),
+                "holder_id": candidate["holder_id"],
                 "place": place.id,
-                "token": mark.token,
+                "token": token,
                 "affordance": affordance,
                 "gain": gain,
                 "fidelity": fidelity,
                 "clarity": inscription_quality,
                 "writing_quality": writing_quality,
                 "coherence": coherence,
-                "reads": mark.reads,
+                "reads": reads,
+                "portable": portable,
+                "self_read": int(candidate["source_id"]) == organism.id,
+                "artifact": candidate.get("artifact").name if portable else None,
             },
-            subjects=self._subjects(organism, place.id, [f"organism:{mark.source_id}", f"affordance:{affordance}", f"mark_token:{mark.token}"]),
-            score=fidelity + writing_quality * 0.45 + gain * 18.0 + min(0.5, mark.reads * 0.04),
+            subjects=self._subjects(organism, place.id, [f"organism:{candidate['source_id']}", f"affordance:{affordance}", f"mark_token:{token}"]),
+            score=fidelity + writing_quality * 0.45 + gain * 18.0 + min(0.5, reads * 0.04),
             rarity_key=f"mark_lesson_read:{affordance}",
         )
         return True
 
-    def _apply_mark_author_feedback(self, mark: Mark, reader_id: int, place_id: int, affordance: str, gain: float, fidelity: float, writing_quality: float) -> None:
-        if mark.source_id == reader_id:
+    def _apply_mark_author_feedback(self, source_id: int, reader_id: int, place_id: int, token: int, affordance: str, gain: float, fidelity: float, writing_quality: float, reads: int) -> None:
+        if source_id == reader_id:
             return
-        author = self.organisms.get(mark.source_id)
+        author = self.organisms.get(source_id)
         if author is None or not author.alive:
             return
         # Feedback is local: the writer only learns when still present where the mark is used.
@@ -1855,7 +2029,7 @@ class Simulation:
             return
         feedback_gain = min(0.020, 0.0015 + gain * 0.14 + fidelity * 0.002 + writing_quality * 0.004)
         author.tool_skill["inscribe"] = min(1.0, author.tool_skill.get("inscribe", 0.0) + feedback_gain)
-        author.learn_signal_value(mark.token, gain * 6.0 + writing_quality)
+        author.learn_signal_value(token, gain * 6.0 + writing_quality)
         author.record_success("knowledge_transmitted", gain * 10.0)
         self.mark_author_feedbacks[affordance] += gain
         self.observer.observe(
@@ -1864,16 +2038,16 @@ class Simulation:
             {
                 "organism_id": author.id,
                 "place": place_id,
-                "token": mark.token,
+                "token": token,
                 "affordance": affordance,
                 "gain": gain,
                 "fidelity": fidelity,
                 "writing_quality": writing_quality,
-                "reads": mark.reads,
+                "reads": reads,
                 "skill_gain": feedback_gain,
             },
-            subjects=self._subjects(author, place_id, [f"affordance:{affordance}", f"mark_token:{mark.token}"]),
-            score=writing_quality * 0.65 + gain * 12.0 + min(0.35, mark.reads * 0.035),
+            subjects=self._subjects(author, place_id, [f"affordance:{affordance}", f"mark_token:{token}"]),
+            score=writing_quality * 0.65 + gain * 12.0 + min(0.35, reads * 0.035),
             rarity_key=f"mark_author_feedback:{affordance}",
         )
 
@@ -2155,6 +2329,8 @@ class Simulation:
             "mark_lesson_packets": dict(self.mark_lesson_packets),
             "mark_read_value": {key: round(value, 5) for key, value in self.mark_read_value.items()},
             "mark_author_feedbacks": {key: round(value, 5) for key, value in self.mark_author_feedbacks.items()},
+            "portable_marks_created": dict(self.portable_marks_created),
+            "portable_mark_reads": dict(self.portable_mark_reads),
             "artifacts_created": dict(self.artifacts_created),
             "artifacts_broken": dict(self.artifacts_broken),
             "structures_built": dict(self.structures_built),

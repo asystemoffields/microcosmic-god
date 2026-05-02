@@ -147,6 +147,8 @@ def build_debrief(sim: Any, reason: str, elapsed_seconds: float) -> dict[str, An
         "mark_lesson_packets": dict(getattr(sim, "mark_lesson_packets", {})),
         "mark_read_value": {key: round(value, 6) for key, value in getattr(sim, "mark_read_value", {}).items()},
         "mark_author_feedbacks": {key: round(value, 6) for key, value in getattr(sim, "mark_author_feedbacks", {}).items()},
+        "portable_marks_created": dict(getattr(sim, "portable_marks_created", {})),
+        "portable_mark_reads": dict(getattr(sim, "portable_mark_reads", {})),
         "artifacts_created": dict(sim.artifacts_created),
         "artifacts_broken": dict(sim.artifacts_broken),
         "structures_built": dict(getattr(sim, "structures_built", {})),

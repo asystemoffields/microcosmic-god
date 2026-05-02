@@ -20,6 +20,7 @@ The simulator gives writing a causal channel without promising that language exi
 - Marks remember cheap use history through `reads`, `last_read_tick`, and `value_transmitted`, so reused inscriptions become visible without saving every dull mark event forever.
 - Authors are not globally rewarded for writing. A living author only gets local feedback when a reader successfully uses the author's mark in the same place, making "teaching by writing" something that must be discovered and situated.
 - The reader's benefit flows through ordinary capabilities such as relevant tool skill, signal association, and future action outcomes. A clearer mark matters because it helps an action work, not because the simulator says literacy is intrinsically good.
+- Record-capable artifacts can carry decaying lesson traces across places. Self-reading counts as external memory, while cross-agent reading still uses the same local author-feedback rules as place marks.
 
 This keeps the door open for literacy-like behavior while preserving the core rule: symbols matter only when organisms make them useful in the world.
 
@@ -52,6 +53,7 @@ This keeps the door open for literacy-like behavior while preserving the core ru
    - tokens may become tied to action sequences or tool affordances
    - imitation and observation make communication more valuable
    - useful marks can theoretically be copied across places, allowing tool knowledge to move across space as well as time
+   - portable marks on record-capable artifacts can move with carriers, making tool knowledge spatially mobile without making it permanent
 
 6. Transfer experiments:
    - checkpoint a neural agent with interesting communication behavior

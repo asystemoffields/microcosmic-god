@@ -30,6 +30,7 @@ The current implementation is Prototype 0: a runnable Python simulation designed
 - Environmental degradation fields such as oxygen-like exposure, acidity, biological activity, abrasion, and wet/dry cycling are visible to agents.
 - Physics-driven effects such as heat/pressure/current stress, chemical advection, signal advection, mark erosion, current-assisted movement, and gravity falls.
 - Material-coupled artifact capabilities including filtering, floating, anchoring, traversal, insulation, conductivity, containment, cracking, cutting, levering, and heat concentration.
+- General artifact capacities for carrying, protection, and record surfaces, so backpack-like, protective, and portable-writing objects can emerge from material properties.
 - Inside/outside is modeled as boundary physics: `enclose`, `permeable`, and `shelter` are separate capabilities, so not every inside is protective.
 - Diversified habitats: aquatic/terrestrial balance, depth, salinity, humidity, heat, height, water, and thorn barriers.
 - Evolving habitat tolerances, so some organisms can drown, desiccate, or specialize for aquatic/dry niches.
@@ -172,6 +173,8 @@ Agents can learn associations between observed tokens and later internal valence
 Marks are plain tokens by default. Some marks can intentionally preserve a fuzzy trace of the maker's recent tool/craft/problem experience: action, affordance, rough success, method quality, components, and a coarse local problem frame when the inscription is clear enough. Writing that packet is not free or guaranteed; it requires useful recent experience, body/material capacity, attention, and the learnable `inscribe` skill. Observing it can slightly improve relevant skill only when the reader spends an observe action and has enough sensor/memory/attention plus `interpret_mark` ability to extract the trace. This is not language yet, but it gives durable writing-like behavior a physical channel to matter across time, and agents can theoretically copy useful traces elsewhere.
 
 The world now treats literacy as an action-mediated advantage, not a hidden score. A mark's `writing_quality` emerges from inscription clarity, lesson coherence, and the value of the underlying tool/problem experience. Good writing is rewarded only if another agent can use it: useful reads increase the reader's `interpret_mark` ability, record mark `reads` and `value_transmitted`, and can feed local feedback to the living, co-present author through `knowledge_transmitted`. Bad, irrelevant, or unread writing remains mostly cost and noise.
+
+Record-capable artifacts can now hold portable lesson traces. A self-read can serve as external memory and improve later action without counting as knowledge transmission; another agent reading that carried trace can still create the ordinary teaching feedback if the author is present. Carry-capable artifacts expand material/tool capacity, while protect-capable artifacts reduce environmental, accident, and predation damage through the same material-derived artifact system.
 
 Mark creation is summarized in aggregate/debrief counters rather than logged as one event per mark, so agents are free to mark obsessively if that behavior evolves. Intentional lesson writes and successful reads can be promoted to `story_events.jsonl`.
 

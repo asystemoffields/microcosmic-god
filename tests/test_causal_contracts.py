@@ -386,7 +386,7 @@ class CausalContractTests(unittest.TestCase):
         self.assertGreater(writer.success_profile["knowledge_transmitted"], 0.0)
         self.assertGreater(self.sim.mark_author_feedbacks["filter"], 0.0)
 
-    def test_self_reading_does_not_count_as_knowledge_transmission(self) -> None:
+    def test_self_reading_counts_as_memory_not_knowledge_transmission(self) -> None:
         self.sim = make_sim()
         genome = Genome.neural(self.sim.rng)
         genome.sensor_range = 1.0
@@ -431,13 +431,101 @@ class CausalContractTests(unittest.TestCase):
                 return tuple(values)[0]
 
         self.sim.rng = ZeroRng()  # type: ignore[assignment]
-        before = agent.tool_skill["inscribe"]
+        before_inscribe = agent.tool_skill["inscribe"]
+        before_filter = agent.tool_skill["filter"]
 
         self.sim._observe_others(agent, {"reproduction": 0.0, "social": 0.0, "tool": 0.0})
 
-        self.assertEqual(agent.tool_skill["inscribe"], before)
+        self.assertEqual(agent.tool_skill["inscribe"], before_inscribe)
+        self.assertGreater(agent.tool_skill["filter"], before_filter)
+        self.assertGreater(agent.success_profile["written_learning"], 0.0)
         self.assertEqual(agent.success_profile["knowledge_transmitted"], 0.0)
         self.assertEqual(self.sim.mark_author_feedbacks["filter"], 0.0)
+
+    def test_record_artifact_can_carry_lesson_trace_across_places(self) -> None:
+        self.sim = make_sim(places=4)
+        genome = Genome.neural(self.sim.rng)
+        genome.sensor_range = 1.0
+        genome.memory_budget = 12.0
+        agent = self.sim.add_organism("agent", genome, 0, 80.0)
+        assert agent is not None
+        artifact = build_artifact({"fiber": 1, "resin": 1}, method_quality=1.0, target_affordance="record")
+        agent.artifacts.append(artifact)
+        trace = {
+            "schema": "lesson_trace_v1",
+            "intentional": True,
+            "affordance": "filter",
+            "inscription_quality": 1.0,
+            "writing_quality": 0.95,
+            "coherence": 0.95,
+            "lesson_value": 1.2,
+            "method_quality": 0.8,
+            "tool_feedback": 1.0,
+            "lesson": {
+                "kind": "tool_use",
+                "affordance": "filter",
+                "success": True,
+                "gain": 1.0,
+                "score": 0.7,
+                "problem": {"kind": "resource", "required_affordance": "filter"},
+            },
+        }
+        self.sim._inscribe_portable_mark(agent, artifact, token=3, intensity=1.0, durability=160.0, trace=trace)
+        agent.location = 2
+
+        class ZeroRng:
+            def random(self) -> float:
+                return 0.0
+
+            def gauss(self, _mu: float, _sigma: float) -> float:
+                return 0.0
+
+            def choice(self, values):  # type: ignore[no-untyped-def]
+                return tuple(values)[0]
+
+        self.sim.rng = ZeroRng()  # type: ignore[assignment]
+        before = agent.tool_skill["filter"]
+
+        self.sim._observe_others(agent, {"reproduction": 0.0, "social": 0.0, "tool": 0.0})
+
+        self.assertGreater(agent.tool_skill["filter"], before)
+        self.assertEqual(artifact.inscriptions[0]["reads"], 1)
+        self.assertGreater(artifact.inscriptions[0]["value_transmitted"], 0.0)
+        self.assertGreater(self.sim.portable_mark_reads["filter"], 0)
+
+    def test_carry_artifact_expands_material_capacity(self) -> None:
+        self.sim = make_sim()
+        genome = Genome.neural(self.sim.rng)
+        genome.manipulator = 0.2
+        genome.developmental_complexity = 0.0
+        agent = self.sim.add_organism("agent", genome, 0, 80.0)
+        assert agent is not None
+        base_limit = agent.inventory_limit()
+        artifact = build_artifact({"fiber": 1, "shell": 1, "resin": 1}, method_quality=1.0, target_affordance="carry")
+
+        agent.artifacts.append(artifact)
+
+        self.assertGreater(artifact.capabilities["carry"], 0.0)
+        self.assertGreater(agent.inventory_limit(), base_limit)
+
+    def test_protective_artifact_reduces_environment_stress(self) -> None:
+        self.sim = make_sim()
+        place = self.sim.world.places[0]
+        place.physics["pressure"] = 1.0
+        place.physics["abrasion"] = 0.7
+        genome = Genome.neural(self.sim.rng)
+        genome.pressure_tolerance = 0.05
+        genome.armor = 0.0
+        unprotected = self.sim.add_organism("agent", genome, 0, 80.0)
+        protected = self.sim.add_organism("agent", genome, 0, 80.0)
+        assert unprotected is not None and protected is not None
+        protected.artifacts.append(build_artifact({"shell": 2, "fiber": 1}, method_quality=1.0, target_affordance="protect"))
+
+        self.sim._habitat_stress(unprotected)
+        self.sim._habitat_stress(protected)
+
+        self.assertLess(protected.health, 1.0)
+        self.assertGreater(protected.health, unprotected.health)
 
     def test_plain_marks_do_not_automatically_encode_recent_lessons(self) -> None:
         self.sim = make_sim()

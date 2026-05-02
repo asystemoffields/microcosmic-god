@@ -124,14 +124,24 @@ class Organism:
     def storage_limit(self) -> float:
         return 24.0 + self.genome.storage_capacity * 95.0 + self.genome.developmental_complexity * 25.0
 
+    def carried_capability(self, capability: str) -> float:
+        best = 0.0
+        for artifact in self.artifacts:
+            durability_factor = max(0.0, min(1.0, artifact.durability / 100.0))
+            best = max(best, artifact.capabilities.get(capability, 0.0) * durability_factor)
+        return best
+
     def inventory_limit(self) -> int:
-        return max(0, int(1 + self.genome.manipulator * 6.0 + self.genome.developmental_complexity * 3.0))
+        carry = self.carried_capability("carry")
+        carry_skill = self.tool_skill.get("carry", 0.0)
+        return max(0, int(1 + self.genome.manipulator * 6.0 + self.genome.developmental_complexity * 3.0 + carry * (3.0 + carry_skill * 3.0)))
 
     def inventory_count(self) -> int:
         return sum(max(0, qty) for qty in self.inventory.values())
 
     def artifact_limit(self) -> int:
-        return max(0, int(1 + self.genome.manipulator * 4.0 + self.genome.developmental_complexity * 2.0))
+        carry = self.carried_capability("carry")
+        return max(0, int(1 + self.genome.manipulator * 4.0 + self.genome.developmental_complexity * 2.0 + carry * 2.0))
 
     def metabolic_cost(self) -> float:
         base = 0.018

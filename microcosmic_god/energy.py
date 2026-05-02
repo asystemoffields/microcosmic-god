@@ -48,6 +48,7 @@ class Artifact:
     capabilities: dict[str, float]
     durability: float
     age: int = 0
+    inscriptions: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -57,6 +58,7 @@ class Artifact:
             "capabilities": {key: round(value, 6) for key, value in self.capabilities.items()},
             "durability": round(self.durability, 6),
             "age": self.age,
+            "inscriptions": [dict(inscription) for inscription in self.inscriptions[-8:]],
         }
 
     @classmethod
@@ -68,6 +70,7 @@ class Artifact:
             capabilities={str(k): float(v) for k, v in data["capabilities"].items()},
             durability=float(data["durability"]),
             age=int(data.get("age", 0)),
+            inscriptions=[dict(item) for item in data.get("inscriptions", [])],
         )
 
 
@@ -294,6 +297,9 @@ ARTIFACT_CAPABILITIES = (
     "filter",
     "float",
     "anchor",
+    "carry",
+    "protect",
+    "record",
 )
 STRUCTURE_CAPABILITIES = (
     *ARTIFACT_CAPABILITIES,
@@ -370,6 +376,9 @@ def derive_artifact_capabilities(properties: Mapping[str, float]) -> dict[str, f
     length = properties.get("length", 0.0)
     thermal_mass = properties.get("thermal_mass", 0.0)
     thermal_capacity = max(thermal_mass, properties.get("thermal_capacity", 0.0))
+    fatigue_resistance = properties.get("fatigue_resistance", 0.0)
+    abrasion_resistance = properties.get("abrasion_resistance", 0.0)
+    corrosion_resistance = properties.get("corrosion_resistance", 0.0)
     sticky = properties.get("sticky", 0.0)
     porous = properties.get("porous", 0.0)
     absorbent = properties.get("absorbent", 0.0)
@@ -377,6 +386,7 @@ def derive_artifact_capabilities(properties: Mapping[str, float]) -> dict[str, f
     density = properties.get("density", heavy)
     insulating = properties.get("insulating", 0.0)
     sealant = properties.get("sealant", 0.0)
+    lightness = max(0.0, 1.0 - max(density, heavy * 0.85))
     capabilities = dict(affordances)
     capabilities["traverse"] = min(1.0, length * 0.35 + hard * 0.20 + flexible * 0.15 + bindable * 0.15 + sticky * 0.15)
     capabilities["insulate"] = min(1.0, flexible * 0.20 + container * 0.18 + thermal_capacity * 0.20 + hard * 0.08 + sticky * 0.08 + insulating * 0.35 + porous * 0.08)
@@ -390,6 +400,38 @@ def derive_artifact_capabilities(properties: Mapping[str, float]) -> dict[str, f
     capabilities["conduct"] = min(1.0, capabilities["conduct"] + conductive * length * 0.25)
     capabilities["cut"] = min(1.0, capabilities["cut"] + sharp * hard * 0.15)
     capabilities["crack"] = min(1.0, capabilities["crack"] + hard * heavy * 0.15)
+    capabilities["carry"] = min(
+        1.0,
+        container * 0.38
+        + flexible * 0.22
+        + bindable * 0.20
+        + length * 0.08
+        + lightness * 0.10
+        + fatigue_resistance * 0.08
+        - heavy * 0.12,
+    )
+    capabilities["protect"] = min(
+        1.0,
+        hard * 0.24
+        + flexible * 0.12
+        + abrasion_resistance * 0.18
+        + thermal_capacity * 0.10
+        + insulating * 0.12
+        + sealant * 0.10
+        + corrosion_resistance * 0.08
+        + bindable * 0.06,
+    )
+    capabilities["record"] = min(
+        1.0,
+        porous * 0.20
+        + absorbent * 0.18
+        + flexible * 0.12
+        + hard * 0.10
+        + bindable * 0.12
+        + sealant * 0.08
+        + container * 0.06
+        + lightness * 0.08,
+    )
     return capabilities
 
 

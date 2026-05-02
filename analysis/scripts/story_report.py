@@ -101,6 +101,10 @@ def print_notes(summary: dict[str, Any], aggregates: list[dict[str, Any]]) -> No
     print(f"  deaths_by_kind_cause: {summary.get('deaths_by_kind_cause', {})}")
     print(f"  tool_successes: {summary['tool_successes']}")
     print(f"  marks_created: {summary.get('marks_created', {})}")
+    print(f"  mark_lessons: {summary.get('mark_lessons', {})}")
+    print(f"  mark_read_value: {summary.get('mark_read_value', {})}")
+    print(f"  portable_marks_created: {summary.get('portable_marks_created', {})}")
+    print(f"  portable_mark_reads: {summary.get('portable_mark_reads', {})}")
     print(f"  artifacts_created: {summary.get('artifacts_created', {})}")
     print(f"  artifacts_broken: {summary.get('artifacts_broken', {})}")
     print(f"  structures_built: {summary.get('structures_built', {})}")
@@ -110,7 +114,7 @@ def print_notes(summary: dict[str, Any], aggregates: list[dict[str, Any]]) -> No
     print(f"  reproduction_attempts: {summary.get('reproduction_attempts', {})}")
     print(f"  reproduction_failures: {summary.get('reproduction_failures', {})}")
     print(f"  action_avg_energy_delta: {summary.get('action_avg_energy_delta', {})}")
-    if "sexual" not in summary.get("births_by_mode", {}):
+    if "recombine" not in summary.get("births_by_mode", {}) and "sexual" not in summary.get("births_by_mode", {}):
         print("  observation: no sexual reproduction occurred in this run.")
     if summary["reason"] == "neural_extinction":
         print("  observation: neural agents vanished while non-neural ecology persisted.")
