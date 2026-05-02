@@ -1,0 +1,74 @@
+{
+  "source_run": "C:\\Users\\power\\Documents\\Codex\\2026-05-01\\i-have-an-exciting-and-fun\\microcosmic-god\\runs\\20260501_204018_seed63_minute",
+  "archived_reason": "Ten minute seed 63 run produced a neural-heavy ecology with strong recombination, broad tool use, causal unlocks, and several standout checkpointed ANNs.",
+  "run_summary": {
+    "seed": 63,
+    "profile": "minute",
+    "wall_seconds": 600,
+    "final_tick": 1689,
+    "final_population": {
+      "agent": 1640,
+      "fungus": 120,
+      "neural": 1634,
+      "plant": 853,
+      "total": 2613
+    },
+    "births": {
+      "clone_mutate": 3631,
+      "recombine": 6447
+    },
+    "tool_successes": {
+      "bind": 50509,
+      "build": 319,
+      "concentrate_heat": 20256,
+      "contain": 20352,
+      "crack": 22025,
+      "craft": 134,
+      "filter": 1030,
+      "lever": 69150
+    },
+    "portable_marks_created": 0,
+    "portable_mark_reads": 0
+  },
+  "preserved_files": [
+    {
+      "file": "brain_t00001689_o1958_final_overall_champion.json",
+      "organism_id": 1958,
+      "why": "Best overall candidate: age 1505, generation 2, 196 offspring, 905 successful tool uses, high energy, broad maxed tool-skill profile."
+    },
+    {
+      "file": "brain_t00001689_o3875_final_tool_champion.json",
+      "organism_id": 3875,
+      "why": "Late specialist tool champion: 709 successful tool uses and 46 offspring, useful contrast against overall champion."
+    },
+    {
+      "file": "brain_t00001689_o6677_final_causal_champion.json",
+      "organism_id": 6677,
+      "why": "Best final causal champion: 12 causal unlock score, 337 successful tool uses, 29 offspring."
+    },
+    {
+      "file": "brain_t00001689_o3174_final_learner_champion.json",
+      "organism_id": 3174,
+      "why": "Learner/literacy contrast case: strong social_learning and written_learning with very low direct tool count."
+    },
+    {
+      "file": "brain_t00001000_o411_interval_tool_champion.json",
+      "organism_id": 411,
+      "why": "Early high-capacity tool monster: hidden size 12, 583 successful tool uses, high prediction_weight, no offspring."
+    },
+    {
+      "file": "checkpoint_sae.npz",
+      "why": "Sparse autoencoder trained on the 31 checkpoints from this run for quick microscope-style comparison."
+    },
+    {
+      "file": "checkpoint_sae.report.json",
+      "why": "Human-readable SAE training and activation summary."
+    }
+  ],
+  "notes": [
+    "Organism 1958 is the first one to try if we want to export a high-performing generalist ANN.",
+    "Organism 6677 is the one to try if we care specifically about causal-chain behavior.",
+    "Organism 3174 is interesting because it looks more like a reader/learner than a direct tool-use winner.",
+    "Portable inscription machinery existed during this run but did not fire, so backpack/writing behavior needs more pressure or instrumentation."
+  ]
+}

@@ -1,0 +1,437 @@
+{
+  "checkpoint_activations": [
+    {
+      "active_units": 0,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000008_o466_first_lever_tool_success.json",
+      "top_units": []
+    },
+    {
+      "active_units": 0,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000018_o465_first_craft_tool_success.json",
+      "top_units": []
+    },
+    {
+      "active_units": 1,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000028_o483_death_predation.json",
+      "top_units": [
+        {
+          "activation": 20.869056701660156,
+          "unit": 3
+        }
+      ]
+    },
+    {
+      "active_units": 5,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000046_o411_first_contain_tool_success.json",
+      "top_units": [
+        {
+          "activation": 21.198192596435547,
+          "unit": 0
+        },
+        {
+          "activation": 17.002880096435547,
+          "unit": 1
+        },
+        {
+          "activation": 15.552704811096191,
+          "unit": 8
+        },
+        {
+          "activation": 5.404237270355225,
+          "unit": 5
+        },
+        {
+          "activation": 1.7098828554153442,
+          "unit": 7
+        }
+      ]
+    },
+    {
+      "active_units": 0,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000070_o480_death_predation.json",
+      "top_units": []
+    },
+    {
+      "active_units": 1,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000084_o478_death_predation.json",
+      "top_units": [
+        {
+          "activation": 31.51999282836914,
+          "unit": 10
+        }
+      ]
+    },
+    {
+      "active_units": 1,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000087_o456_death_predation.json",
+      "top_units": [
+        {
+          "activation": 3.5971806049346924,
+          "unit": 3
+        }
+      ]
+    },
+    {
+      "active_units": 0,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000094_o465_first_build_tool_success.json",
+      "top_units": []
+    },
+    {
+      "active_units": 0,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000100_o444_first_bind_tool_success.json",
+      "top_units": []
+    },
+    {
+      "active_units": 0,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000126_o487_first_concentrate_heat_tool_success.json",
+      "top_units": []
+    },
+    {
+      "active_units": 3,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000144_o423_death_starvation.json",
+      "top_units": [
+        {
+          "activation": 32.45953369140625,
+          "unit": 9
+        },
+        {
+          "activation": 0.8378432393074036,
+          "unit": 2
+        },
+        {
+          "activation": 0.7127136588096619,
+          "unit": 10
+        }
+      ]
+    },
+    {
+      "active_units": 3,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000150_o469_death_predation.json",
+      "top_units": [
+        {
+          "activation": 4.376317501068115,
+          "unit": 0
+        },
+        {
+          "activation": 0.6397531628608704,
+          "unit": 10
+        },
+        {
+          "activation": 0.0001140350941568613,
+          "unit": 9
+        }
+      ]
+    },
+    {
+      "active_units": 4,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000153_o473_death_predation.json",
+      "top_units": [
+        {
+          "activation": 32.05059814453125,
+          "unit": 11
+        },
+        {
+          "activation": 30.489356994628906,
+          "unit": 4
+        },
+        {
+          "activation": 25.328433990478516,
+          "unit": 6
+        },
+        {
+          "activation": 2.8054893016815186,
+          "unit": 1
+        }
+      ]
+    },
+    {
+      "active_units": 1,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000158_o1601_first_crack_tool_success.json",
+      "top_units": [
+        {
+          "activation": 21.950437545776367,
+          "unit": 7
+        }
+      ]
+    },
+    {
+      "active_units": 2,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000163_o445_death_predation.json",
+      "top_units": [
+        {
+          "activation": 0.024761486798524857,
+          "unit": 9
+        },
+        {
+          "activation": 6.252806633710861e-05,
+          "unit": 7
+        }
+      ]
+    },
+    {
+      "active_units": 2,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000167_o459_death_predation.json",
+      "top_units": [
+        {
+          "activation": 1.3951166868209839,
+          "unit": 3
+        },
+        {
+          "activation": 0.2982989251613617,
+          "unit": 9
+        }
+      ]
+    },
+    {
+      "active_units": 1,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000178_o1323_death_predation.json",
+      "top_units": [
+        {
+          "activation": 22.118839263916016,
+          "unit": 7
+        }
+      ]
+    },
+    {
+      "active_units": 1,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000179_o470_death_predation.json",
+      "top_units": [
+        {
+          "activation": 15.44568157196045,
+          "unit": 10
+        }
+      ]
+    },
+    {
+      "active_units": 0,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000196_o466_first_filter_tool_success.json",
+      "top_units": []
+    },
+    {
+      "active_units": 1,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001000_o1958_interval_overall_champion.json",
+      "top_units": [
+        {
+          "activation": 12.068099975585938,
+          "unit": 2
+        }
+      ]
+    },
+    {
+      "active_units": 1,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001000_o3148_interval_reproductive_champion.json",
+      "top_units": [
+        {
+          "activation": 12.077560424804688,
+          "unit": 2
+        }
+      ]
+    },
+    {
+      "active_units": 6,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001000_o411_interval_tool_champion.json",
+      "top_units": [
+        {
+          "activation": 21.377235412597656,
+          "unit": 0
+        },
+        {
+          "activation": 16.981124877929688,
+          "unit": 1
+        },
+        {
+          "activation": 15.511791229248047,
+          "unit": 8
+        },
+        {
+          "activation": 5.2955708503723145,
+          "unit": 5
+        },
+        {
+          "activation": 1.4042587280273438,
+          "unit": 7
+        }
+      ]
+    },
+    {
+      "active_units": 1,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001000_o4186_interval_causal_champion.json",
+      "top_units": [
+        {
+          "activation": 12.236943244934082,
+          "unit": 2
+        }
+      ]
+    },
+    {
+      "active_units": 1,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001000_o4564_interval_lineage_founder.json",
+      "top_units": [
+        {
+          "activation": 21.96034049987793,
+          "unit": 3
+        }
+      ]
+    },
+    {
+      "active_units": 1,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001000_o463_interval_learner_champion.json",
+      "top_units": [
+        {
+          "activation": 0.5968932509422302,
+          "unit": 9
+        }
+      ]
+    },
+    {
+      "active_units": 1,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001689_o1958_final_overall_champion.json",
+      "top_units": [
+        {
+          "activation": 12.341972351074219,
+          "unit": 2
+        }
+      ]
+    },
+    {
+      "active_units": 1,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001689_o3174_final_learner_champion.json",
+      "top_units": [
+        {
+          "activation": 0.5846202373504639,
+          "unit": 9
+        }
+      ]
+    },
+    {
+      "active_units": 1,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001689_o3875_final_tool_champion.json",
+      "top_units": [
+        {
+          "activation": 12.146434783935547,
+          "unit": 2
+        }
+      ]
+    },
+    {
+      "active_units": 1,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001689_o5686_final_reproductive_champion.json",
+      "top_units": [
+        {
+          "activation": 12.760252952575684,
+          "unit": 2
+        }
+      ]
+    },
+    {
+      "active_units": 1,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001689_o6677_final_causal_champion.json",
+      "top_units": [
+        {
+          "activation": 12.901657104492188,
+          "unit": 2
+        }
+      ]
+    },
+    {
+      "active_units": 1,
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001689_o9669_final_lineage_founder.json",
+      "top_units": [
+        {
+          "activation": 12.745843887329102,
+          "unit": 2
+        }
+      ]
+    }
+  ],
+  "loss_end": 0.436611213684082,
+  "loss_start": 1.0173090386390686,
+  "metadata": {
+    "checkpoint_count": 31,
+    "files": [
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000008_o466_first_lever_tool_success.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000018_o465_first_craft_tool_success.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000028_o483_death_predation.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000046_o411_first_contain_tool_success.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000070_o480_death_predation.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000084_o478_death_predation.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000087_o456_death_predation.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000094_o465_first_build_tool_success.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000100_o444_first_bind_tool_success.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000126_o487_first_concentrate_heat_tool_success.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000144_o423_death_starvation.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000150_o469_death_predation.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000153_o473_death_predation.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000158_o1601_first_crack_tool_success.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000163_o445_death_predation.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000167_o459_death_predation.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000178_o1323_death_predation.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000179_o470_death_predation.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000196_o466_first_filter_tool_success.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001000_o1958_interval_overall_champion.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001000_o3148_interval_reproductive_champion.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001000_o411_interval_tool_champion.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001000_o4186_interval_causal_champion.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001000_o4564_interval_lineage_founder.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001000_o463_interval_learner_champion.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001689_o1958_final_overall_champion.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001689_o3174_final_learner_champion.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001689_o3875_final_tool_champion.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001689_o5686_final_reproductive_champion.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001689_o6677_final_causal_champion.json",
+      "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001689_o9669_final_lineage_founder.json"
+    ],
+    "input_dim": 1200,
+    "l1": 0.02,
+    "latent": 12,
+    "lr": 0.08,
+    "seed": 63,
+    "segment_sizes": {
+      "bias_h": 13,
+      "bias_o": 15,
+      "hidden": 13,
+      "last_outputs": 15,
+      "prediction_weights": 13,
+      "weights_in": 936,
+      "weights_out": 195
+    },
+    "segments": [
+      "weights_in",
+      "weights_out",
+      "bias_h",
+      "bias_o",
+      "prediction_weights",
+      "hidden",
+      "last_outputs"
+    ],
+    "steps": 1200
+  },
+  "unit_active_rate": [
+    0.0967741935483871,
+    0.0967741935483871,
+    0.2903225806451613,
+    0.12903225806451613,
+    0.03225806451612903,
+    0.06451612903225806,
+    0.06451612903225806,
+    0.16129032258064516,
+    0.06451612903225806,
+    0.1935483870967742,
+    0.12903225806451613,
+    0.03225806451612903
+  ],
+  "unit_mean_activation": [
+    1.5145723819732666,
+    1.1867578029632568,
+    3.2295680046081543,
+    1.5426353216171265,
+    0.983527660369873,
+    0.34515509009361267,
+    0.8170526027679443,
+    1.522047758102417,
+    1.0020804405212402,
+    1.095620036125183,
+    1.5586497783660889,
+    1.0338902473449707
+  ]
+}
