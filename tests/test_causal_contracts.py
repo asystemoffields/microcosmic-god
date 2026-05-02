@@ -788,6 +788,91 @@ class CausalContractTests(unittest.TestCase):
         self.assertEqual(movement["events"]["assisted_success"], 1)
         self.assertGreater(movement["avg_relocation_shock"], 0.0)
         self.assertGreater(movement["avg_energy_cost"], 0.0)
+        self.assertLess(actor.energy, 120.0)
+        self.assertLess(helper.energy, 120.0)
+
+    def test_successful_movement_spends_energy_even_when_easy(self) -> None:
+        self.sim = make_sim(places=2)
+        genome = Genome.neural(self.sim.rng)
+        genome.mobility = 1.0
+        genome.sensor_range = 0.0
+        agent = self.sim.add_organism("agent", genome, 0, 100.0)
+        assert agent is not None
+        origin = self.sim.world.places[0]
+        destination = self.sim.world.places[1]
+        origin.physics.update({"temperature": 0.50, "fluid_level": 0.0, "pressure": 0.0, "humidity": 0.45, "salinity": 0.0, "elevation": 0.20, "oxygen": 0.40})
+        destination.physics.update({"temperature": 0.52, "fluid_level": 0.0, "pressure": 0.0, "humidity": 0.44, "salinity": 0.0, "elevation": 0.22, "oxygen": 0.41})
+        destination.obstacles.update({"water": 0.0, "height": 0.0, "thorn": 0.0, "heat": 0.0})
+        edge = self.sim.world.edge_between(0, 1)
+        assert edge is not None
+        edge.traversal_required = 0.0
+        edge.distance = 1.0
+        edge.danger = 0.0
+        edge.slope = 0.0
+        edge.current = 0.0
+
+        class EasyMoveRng:
+            def choice(self, values):  # type: ignore[no-untyped-def]
+                return tuple(values)[0]
+
+            def random(self) -> float:
+                return 0.0
+
+            def gauss(self, _mu: float, _sigma: float) -> float:
+                return 0.0
+
+        self.sim.rng = EasyMoveRng()  # type: ignore[assignment]
+        before = agent.energy
+
+        self.sim._move(agent, {"reproduction": 0.0, "social": 0.0, "tool": 0.0})
+
+        self.assertEqual(agent.location, 1)
+        self.assertLess(agent.energy, before)
+        self.assertGreater(self.sim._movement_summary()["avg_energy_cost"], 0.0)
+
+    def test_failed_movement_spends_energy(self) -> None:
+        self.sim = make_sim(places=2)
+        genome = Genome.neural(self.sim.rng)
+        genome.mobility = 0.02
+        genome.sensor_range = 0.0
+        genome.aquatic_affinity = 0.0
+        genome.thermal_tolerance = 0.0
+        genome.pressure_tolerance = 0.0
+        agent = self.sim.add_organism("agent", genome, 0, 100.0)
+        assert agent is not None
+        origin = self.sim.world.places[0]
+        destination = self.sim.world.places[1]
+        origin.physics.update({"temperature": 0.92, "fluid_level": 0.0, "pressure": 0.0, "humidity": 0.08, "salinity": 0.0, "elevation": 0.90, "oxygen": 0.45})
+        destination.physics.update({"temperature": 0.12, "fluid_level": 1.0, "pressure": 1.20, "humidity": 0.98, "salinity": 0.95, "elevation": 0.02, "oxygen": 0.12})
+        destination.obstacles.update({"water": 1.0, "height": 1.0, "thorn": 1.0, "heat": 1.0})
+        edge = self.sim.world.edge_between(0, 1)
+        assert edge is not None
+        edge.traversal_required = 1.0
+        edge.distance = 1.8
+        edge.danger = 1.0
+        edge.slope = 1.0
+        edge.current = -1.0
+
+        class HardMoveRng:
+            def choice(self, values):  # type: ignore[no-untyped-def]
+                return tuple(values)[0]
+
+            def random(self) -> float:
+                return 0.99
+
+            def gauss(self, _mu: float, _sigma: float) -> float:
+                return 0.0
+
+        self.sim.rng = HardMoveRng()  # type: ignore[assignment]
+        before = agent.energy
+
+        self.sim._move(agent, {"reproduction": 0.0, "social": 0.0, "tool": 0.0})
+
+        self.assertEqual(agent.location, 0)
+        self.assertLess(agent.energy, before)
+        movement = self.sim._movement_summary()
+        self.assertEqual(movement["events"]["failure"], 1)
+        self.assertGreater(movement["avg_energy_cost"], 0.0)
 
     def test_environment_generation_has_hostile_treasure_biomes(self) -> None:
         self.sim = make_sim(seed=55, places=10)
