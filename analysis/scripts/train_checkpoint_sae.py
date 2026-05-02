@@ -52,7 +52,7 @@ def relu(x: np.ndarray) -> np.ndarray:
     return np.maximum(x, 0.0)
 
 
-def train_sae(x_raw: np.ndarray, latent: int, steps: int, lr: float, l1: float, seed: int) -> dict[str, np.ndarray | list[float]]:
+def train_sae_numpy(x_raw: np.ndarray, latent: int, steps: int, lr: float, l1: float, seed: int) -> dict[str, Any]:
     rng = np.random.default_rng(seed)
     mean = x_raw.mean(axis=0, keepdims=True)
     std = x_raw.std(axis=0, keepdims=True)
@@ -98,10 +98,103 @@ def train_sae(x_raw: np.ndarray, latent: int, steps: int, lr: float, l1: float, 
         "w_dec": w_dec,
         "b_dec": b_dec,
         "losses": losses,
+        "backend": "numpy",
+        "device": "cpu",
     }
 
 
-def build_report(model: dict[str, np.ndarray | list[float]], x_raw: np.ndarray, files: list[Path], metadata: dict[str, Any]) -> dict[str, Any]:
+def train_sae_torch(
+    x_raw: np.ndarray,
+    latent: int,
+    steps: int,
+    lr: float,
+    l1: float,
+    seed: int,
+    device: str,
+) -> dict[str, Any]:
+    try:
+        import torch
+    except ImportError as exc:  # pragma: no cover - optional dependency
+        raise RuntimeError("PyTorch is required for --backend torch") from exc
+
+    if device == "auto":
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    if device.startswith("cuda") and not torch.cuda.is_available():
+        raise RuntimeError("CUDA was requested, but torch.cuda.is_available() is false")
+
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+    x_raw_t = torch.as_tensor(x_raw, dtype=torch.float32, device=device)
+    mean = x_raw_t.mean(dim=0, keepdim=True)
+    std = x_raw_t.std(dim=0, unbiased=False, keepdim=True)
+    std = torch.where(std < 1e-6, torch.ones_like(std), std)
+    x = (x_raw_t - mean) / std
+    n, dim = x.shape
+
+    w_enc = (torch.randn((dim, latent), dtype=torch.float32, device=device) * 0.03).requires_grad_(True)
+    b_enc = torch.zeros((latent,), dtype=torch.float32, device=device, requires_grad=True)
+    w_dec = (torch.randn((latent, dim), dtype=torch.float32, device=device) * 0.03).requires_grad_(True)
+    b_dec = torch.zeros((dim,), dtype=torch.float32, device=device, requires_grad=True)
+    params = (w_enc, b_enc, w_dec, b_dec)
+    losses: list[float] = []
+
+    for step in range(steps):
+        h = torch.relu(x @ w_enc + b_enc)
+        recon = h @ w_dec + b_dec
+        err = recon - x
+        loss = torch.mean(err * err) + l1 * torch.mean(torch.abs(h))
+        losses.append(float(loss.detach().cpu()))
+        if step > 10 and not torch.isfinite(loss):
+            raise RuntimeError("SAE loss became non-finite; lower --lr")
+
+        loss.backward()
+        with torch.no_grad():
+            for param in params:
+                assert param.grad is not None
+                param -= lr * param.grad
+                param.grad.zero_()
+
+    if device.startswith("cuda"):
+        torch.cuda.synchronize()
+
+    return {
+        "mean": mean.detach().cpu().numpy().astype(np.float32),
+        "std": std.detach().cpu().numpy().astype(np.float32),
+        "w_enc": w_enc.detach().cpu().numpy().astype(np.float32),
+        "b_enc": b_enc.detach().cpu().numpy().astype(np.float32),
+        "w_dec": w_dec.detach().cpu().numpy().astype(np.float32),
+        "b_dec": b_dec.detach().cpu().numpy().astype(np.float32),
+        "losses": losses,
+        "backend": "torch",
+        "device": device,
+    }
+
+
+def train_sae(x_raw: np.ndarray, latent: int, steps: int, lr: float, l1: float, seed: int) -> dict[str, Any]:
+    return train_sae_numpy(x_raw, latent, steps, lr, l1, seed)
+
+
+def torch_cuda_available() -> bool:
+    try:
+        import torch
+    except ImportError:
+        return False
+    return bool(torch.cuda.is_available())
+
+
+def resolve_backend(backend: str, device: str) -> tuple[str, str]:
+    if backend == "auto":
+        if device not in {"auto", "cpu"} or torch_cuda_available():
+            return "torch", device
+        return "numpy", "cpu"
+    if backend == "numpy":
+        return "numpy", "cpu"
+    return "torch", device
+
+
+def build_report(model: dict[str, Any], x_raw: np.ndarray, files: list[Path], metadata: dict[str, Any]) -> dict[str, Any]:
     mean = model["mean"]
     std = model["std"]
     w_enc = model["w_enc"]
@@ -141,6 +234,8 @@ def main() -> None:
     parser.add_argument("--lr", type=float, default=0.08)
     parser.add_argument("--l1", type=float, default=0.02)
     parser.add_argument("--seed", type=int, default=1)
+    parser.add_argument("--backend", choices=["auto", "numpy", "torch"], default="auto")
+    parser.add_argument("--device", default="auto", help="torch device for --backend torch, such as cuda, cuda:0, cpu, or auto")
     parser.add_argument("--out", default="analysis/sae_models/latest_sae.npz")
     args = parser.parse_args()
 
@@ -153,7 +248,11 @@ def main() -> None:
     if x_raw.shape[0] < 4:
         print("Warning: very few checkpoints; SAE will be a microscope scaffold, not a reliable feature model.")
 
-    model = train_sae(x_raw, args.latent, args.steps, args.lr, args.l1, args.seed)
+    backend, device = resolve_backend(args.backend, args.device)
+    if backend == "torch":
+        model = train_sae_torch(x_raw, args.latent, args.steps, args.lr, args.l1, args.seed, device)
+    else:
+        model = train_sae_numpy(x_raw, args.latent, args.steps, args.lr, args.l1, args.seed)
     metadata = {
         "files": [str(path) for path in files],
         "segments": SEGMENTS,
@@ -165,6 +264,8 @@ def main() -> None:
         "lr": args.lr,
         "l1": args.l1,
         "seed": args.seed,
+        "backend": model["backend"],
+        "device": model["device"],
     }
     report = build_report(model, x_raw, files, metadata)
 
@@ -182,7 +283,10 @@ def main() -> None:
     )
     report_path = out.with_suffix(".report.json")
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    print(f"trained SAE on {x_raw.shape[0]} checkpoints, input_dim={x_raw.shape[1]}, latent={args.latent}")
+    print(
+        f"trained SAE on {x_raw.shape[0]} checkpoints, input_dim={x_raw.shape[1]}, "
+        f"latent={args.latent}, backend={model['backend']}, device={model['device']}"
+    )
     print(f"model: {out}")
     print(f"report: {report_path}")
     print(f"loss_start={report['loss_start']:.6f} loss_end={report['loss_end']:.6f}")
@@ -190,4 +294,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
