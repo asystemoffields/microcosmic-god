@@ -11,6 +11,18 @@ Neither channel has fixed semantics. A token only matters if organisms learn or 
 
 Marks are plain tokens unless an agent intentionally inscribes a lesson trace. Intentional traces require useful recent tool/problem experience plus enough body/material capacity, attention, memory, and `inscribe` skill to encode anything beyond the token. This is not a built-in word. It is a costly, lossy residue that can be attended to, ignored, misread, copied, or made useful by later agents with enough `interpret_mark` skill.
 
+## Current Literacy Contract
+
+The simulator gives writing a causal channel without promising that language exists:
+
+- Writers can create higher-quality lesson traces when inscription clarity, lesson coherence, and underlying tool/problem value line up.
+- Readers gain more from marks when their sensors, memory, attention, and `interpret_mark` skill let them extract the trace with high fidelity.
+- Marks remember cheap use history through `reads`, `last_read_tick`, and `value_transmitted`, so reused inscriptions become visible without saving every dull mark event forever.
+- Authors are not globally rewarded for writing. A living author only gets local feedback when a reader successfully uses the author's mark in the same place, making "teaching by writing" something that must be discovered and situated.
+- The reader's benefit flows through ordinary capabilities such as relevant tool skill, signal association, and future action outcomes. A clearer mark matters because it helps an action work, not because the simulator says literacy is intrinsically good.
+
+This keeps the door open for literacy-like behavior while preserving the core rule: symbols matter only when organisms make them useful in the world.
+
 ## Possible Developmental Stages
 
 1. Bare signaling:

@@ -37,6 +37,7 @@ Promote richer event records when something becomes causally interesting:
 - sudden lineage expansion or collapse
 - unexpected death of a high-scoring learner/operator
 - cross-place knowledge movement, such as reading a mark then making/marking elsewhere
+- literacy-relevant reuse, such as a high-quality mark accumulating reads/value or feeding back to a present author
 - sharp shifts in prediction error, tool skill, reproductive success, or habitat mastery
 - events involving agents later saved as checkpoints
 
@@ -81,8 +82,8 @@ The goal is to find the stories without drowning in the substrate.
 
 ## Current Implementation
 
-Runs now include `story_events.jsonl` alongside `events.jsonl`. Routine events still flow into counters and aggregates, while an observer promotes rare or consequential records such as causal unlocks, first/strong tool events, structures, intentional lesson inscriptions, successful mark reads, notable births/deaths, and checkpoint saves.
+Runs now include `story_events.jsonl` alongside `events.jsonl`. Routine events still flow into counters and aggregates, while an observer promotes rare or consequential records such as causal unlocks, first/strong tool events, structures, intentional lesson inscriptions, successful mark reads, local author feedback from useful reads, notable births/deaths, and checkpoint saves.
 
 The observer keeps bounded recent context by subject (`organism:*`, `place:*`, `affordance:*`, etc.) and writes only compact payloads plus nearby context. It is descriptive only: story promotion does not alter fitness, action selection, reproduction, learning, or world physics.
 
-Plain marks remain cheap telemetry. Intentional lesson writes and successful reads can become story events because they may connect tool knowledge across agents, places, and time.
+Plain marks remain cheap telemetry. Intentional lesson writes and successful reads can become story events because they may connect tool knowledge across agents, places, and time. Compact mark-read payloads include literacy fields such as `writing_quality`, `coherence`, and `reads`; aggregate summaries include mark read value and author feedback by affordance, which should be enough to spot promising proto-writing without drowning the run in inscription substrate.

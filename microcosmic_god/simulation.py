@@ -29,7 +29,7 @@ from .interventions import Intervention, load_interventions
 from .observer import EventObserver
 from .organisms import ACTIONS, ACTION_INDEX, OBSERVATION_SIZE, Organism, organism_from_genome
 from .runlog import RunLogger
-from .world import Place, World
+from .world import Mark, Place, World
 
 
 class Simulation:
@@ -57,6 +57,8 @@ class Simulation:
         self.mark_lessons: Counter[str] = Counter()
         self.marks_created: Counter[str] = Counter()
         self.mark_lesson_packets: Counter[str] = Counter()
+        self.mark_read_value: Counter[str] = Counter()
+        self.mark_author_feedbacks: Counter[str] = Counter()
         self.artifacts_created: Counter[str] = Counter()
         self.artifacts_broken: Counter[str] = Counter()
         self.structures_built: Counter[str] = Counter()
@@ -1381,7 +1383,8 @@ class Simulation:
         self.marks_created[str(token)] += 1
         if trace:
             affordance = str(trace.get("affordance", "unknown"))
-            organism.tool_skill["inscribe"] = min(1.0, organism.tool_skill.get("inscribe", 0.0) + 0.004 + clarity * 0.010)
+            writing_quality = float(trace.get("writing_quality", clarity))
+            organism.tool_skill["inscribe"] = min(1.0, organism.tool_skill.get("inscribe", 0.0) + 0.003 + clarity * 0.006 + writing_quality * 0.008)
             self.mark_lesson_packets[affordance] += 1
             lesson = trace.get("lesson", {})
             problem = lesson.get("problem", {}) if isinstance(lesson, dict) else {}
@@ -1394,11 +1397,13 @@ class Simulation:
                     "token": token,
                     "affordance": affordance,
                     "clarity": clarity,
+                    "writing_quality": writing_quality,
+                    "coherence": trace.get("coherence"),
                     "problem_kind": problem.get("kind") if isinstance(problem, dict) else None,
                     "lesson_kind": lesson.get("kind") if isinstance(lesson, dict) else None,
                 },
                 subjects=self._subjects(organism, extra=[f"affordance:{affordance}", f"mark_token:{token}"]),
-                score=clarity * 1.2,
+                score=writing_quality * 1.35,
                 rarity_key=f"mark_lesson_written:{affordance}",
             )
         feedback["social"] += 0.04 + intensity * 0.08 + clarity * 0.04
@@ -1445,6 +1450,30 @@ class Simulation:
             ),
         )
 
+    def _lesson_coherence(self, lesson: dict[str, Any]) -> float:
+        affordance = str(lesson.get("affordance", ""))
+        problem = lesson.get("problem", {}) if isinstance(lesson.get("problem"), dict) else {}
+        required = str(problem.get("required_affordance", affordance))
+        sequence = lesson.get("sequence", []) if isinstance(lesson.get("sequence", []), list) else []
+        components = lesson.get("components", {}) if isinstance(lesson.get("components"), dict) else {}
+        score = float(lesson.get("score", 0.0) or 0.0)
+        gain = float(lesson.get("gain", 0.0) or 0.0)
+        method_quality = float(lesson.get("method_quality", 0.0) or 0.0)
+        coherence = 0.24
+        if affordance and required == affordance:
+            coherence += 0.30
+        if lesson.get("success"):
+            coherence += 0.12
+        if score > 0.0 or gain > 0.0:
+            coherence += min(0.18, score * 0.10 + gain / 80.0)
+        if method_quality > 0.0:
+            coherence += min(0.12, method_quality * 0.12)
+        if sequence:
+            coherence += min(0.10, len(sequence) * 0.035)
+        if components:
+            coherence += min(0.10, len(components) * 0.035)
+        return max(0.0, min(1.0, coherence))
+
     def _mark_trace(self, organism: Organism, inscription_help: float) -> dict[str, Any]:
         if not organism.lesson_memory:
             return {}
@@ -1470,6 +1499,9 @@ class Simulation:
         )
         if clarity < 0.12:
             return {}
+        lesson_value = self._lesson_value(lesson)
+        coherence = self._lesson_coherence(lesson)
+        writing_quality = max(0.0, min(1.0, clarity * (0.52 + coherence * 0.28 + min(1.0, lesson_value / 1.6) * 0.20)))
         encoded = self._encoded_mark_lesson(lesson, clarity)
         trace: dict[str, Any] = {
             "schema": "lesson_trace_v1",
@@ -1479,6 +1511,9 @@ class Simulation:
             "valence": round(organism.last_valence, 6),
             "energy_delta": round(organism.last_energy_delta, 6),
             "inscription_quality": round(clarity, 6),
+            "writing_quality": round(writing_quality, 6),
+            "lesson_value": round(lesson_value, 6),
+            "coherence": round(coherence, 6),
             "lesson": encoded,
         }
         trace["skill"] = round(float(lesson.get("skill", organism.tool_skill.get(affordance, 0.0))) * (0.55 + clarity * 0.45), 6)
@@ -1709,7 +1744,12 @@ class Simulation:
         planning = self._interaction_control(organism)
         mark = max(
             readable[-12:],
-            key=lambda item: item.intensity * min(1.0, item.durability / 140.0) + self.rng.random() * 0.03,
+            key=lambda item: (
+                item.intensity * min(1.0, item.durability / 140.0)
+                + float(item.trace.get("writing_quality", item.trace.get("inscription_quality", 0.0))) * 0.18
+                + min(0.25, item.reads * 0.025 + item.value_transmitted * 0.08)
+                + self.rng.random() * 0.03
+            ),
         )
         trace = mark.trace
         lesson = trace.get("lesson", {}) if isinstance(trace.get("lesson"), dict) else {}
@@ -1718,6 +1758,9 @@ class Simulation:
             return False
         interpretation_skill = organism.tool_skill.get("interpret_mark", 0.0)
         inscription_quality = max(0.0, min(1.0, float(trace.get("inscription_quality", 0.0))))
+        writing_quality = max(0.0, min(1.0, float(trace.get("writing_quality", inscription_quality))))
+        coherence = max(0.0, min(1.0, float(trace.get("coherence", 0.5))))
+        lesson_value = max(0.0, min(2.5, float(trace.get("lesson_value", self._lesson_value(lesson) if lesson else 0.0))))
         method_quality = max(0.0, min(1.0, float(trace.get("method_quality", 0.0))))
         tool_feedback = max(0.0, min(1.5, float(trace.get("tool_feedback", 0.0))))
         token_bias = max(0.0, organism.signal_values[mark.token] if 0 <= mark.token < len(organism.signal_values) else 0.0)
@@ -1727,8 +1770,8 @@ class Simulation:
                 1.0,
                 mark.intensity
                 * min(1.0, mark.durability / 140.0)
-                * inscription_quality
-                * (0.48 + interpretation_skill * 0.36 + planning * 0.16),
+                * (inscription_quality * 0.42 + writing_quality * 0.58)
+                * (0.44 + interpretation_skill * 0.34 + planning * 0.14 + coherence * 0.08),
             ),
         )
         attention = max(
@@ -1742,11 +1785,22 @@ class Simulation:
                 + token_bias * 0.10,
             ),
         )
-        gain = fidelity * attention * (0.0025 + tool_feedback * 0.014 + method_quality * 0.018 + interpretation_skill * 0.006)
-        organism.tool_skill["interpret_mark"] = min(1.0, interpretation_skill + 0.0015 + fidelity * 0.003)
+        gain = fidelity * attention * (
+            0.0025
+            + tool_feedback * 0.012
+            + method_quality * 0.016
+            + interpretation_skill * 0.006
+            + writing_quality * 0.006
+            + min(1.0, lesson_value / 1.5) * 0.007
+        )
+        interpretation_gain = 0.0010 + fidelity * 0.002 + min(0.010, gain * 0.22)
+        organism.tool_skill["interpret_mark"] = min(1.0, interpretation_skill + interpretation_gain)
+        mark.reads += 1
+        mark.last_read_tick = self.tick
         if gain <= 0.0005:
             organism.energy -= 0.006
             return True
+        mark.value_transmitted = min(100.0, mark.value_transmitted + gain)
         organism.tool_skill[affordance] = min(1.0, organism.tool_skill.get(affordance, 0.0) + gain)
         if method_quality > 0.0 or lesson.get("components"):
             organism.tool_skill["craft"] = min(1.0, organism.tool_skill.get("craft", 0.0) + gain * 0.55)
@@ -1761,6 +1815,8 @@ class Simulation:
             organism.record_lesson(copied_lesson)
         organism.record_success("written_learning", gain * 12.0)
         self.mark_lessons[affordance] += 1
+        self.mark_read_value[affordance] += gain
+        self._apply_mark_author_feedback(mark, organism.id, place.id, affordance, gain, fidelity, writing_quality)
         feedback["social"] += 0.05 + fidelity * 0.04
         feedback["tool"] = feedback.get("tool", 0.0) + min(0.12, gain * 4.0)
         organism.energy -= 0.010 + (1.0 - attention) * 0.010
@@ -1776,12 +1832,50 @@ class Simulation:
                 "gain": gain,
                 "fidelity": fidelity,
                 "clarity": inscription_quality,
+                "writing_quality": writing_quality,
+                "coherence": coherence,
+                "reads": mark.reads,
             },
             subjects=self._subjects(organism, place.id, [f"organism:{mark.source_id}", f"affordance:{affordance}", f"mark_token:{mark.token}"]),
-            score=fidelity + gain * 18.0,
+            score=fidelity + writing_quality * 0.45 + gain * 18.0 + min(0.5, mark.reads * 0.04),
             rarity_key=f"mark_lesson_read:{affordance}",
         )
         return True
+
+    def _apply_mark_author_feedback(self, mark: Mark, reader_id: int, place_id: int, affordance: str, gain: float, fidelity: float, writing_quality: float) -> None:
+        if mark.source_id == reader_id:
+            return
+        author = self.organisms.get(mark.source_id)
+        if author is None or not author.alive:
+            return
+        # Feedback is local: the writer only learns when still present where the mark is used.
+        if author.location != place_id:
+            return
+        if fidelity <= 0.0 or gain <= 0.0:
+            return
+        feedback_gain = min(0.020, 0.0015 + gain * 0.14 + fidelity * 0.002 + writing_quality * 0.004)
+        author.tool_skill["inscribe"] = min(1.0, author.tool_skill.get("inscribe", 0.0) + feedback_gain)
+        author.learn_signal_value(mark.token, gain * 6.0 + writing_quality)
+        author.record_success("knowledge_transmitted", gain * 10.0)
+        self.mark_author_feedbacks[affordance] += gain
+        self.observer.observe(
+            self.tick,
+            "mark_author_feedback",
+            {
+                "organism_id": author.id,
+                "place": place_id,
+                "token": mark.token,
+                "affordance": affordance,
+                "gain": gain,
+                "fidelity": fidelity,
+                "writing_quality": writing_quality,
+                "reads": mark.reads,
+                "skill_gain": feedback_gain,
+            },
+            subjects=self._subjects(author, place_id, [f"affordance:{affordance}", f"mark_token:{mark.token}"]),
+            score=writing_quality * 0.65 + gain * 12.0 + min(0.35, mark.reads * 0.035),
+            rarity_key=f"mark_author_feedback:{affordance}",
+        )
 
     def _observe_others(self, organism: Organism, feedback: dict[str, float]) -> None:
         demos = self.demonstrations.get(organism.location, [])
@@ -1840,6 +1934,7 @@ class Simulation:
             or organism.success_profile.get("causal_unlock", 0.0) > 0.0
             or organism.success_profile.get("prediction_fit", 0.0) >= 2.0
             or organism.success_profile.get("written_learning", 0.0) > 0.0
+            or organism.success_profile.get("knowledge_transmitted", 0.0) > 0.0
         )
         if organism.brain is not None and (
             notable
@@ -1931,6 +2026,7 @@ class Simulation:
             + math.log1p(profile.get("causal_unlock", 0.0)) * 2.4
             + math.log1p(profile.get("social_learning", 0.0)) * 1.0
             + math.log1p(profile.get("written_learning", 0.0)) * 1.1
+            + math.log1p(profile.get("knowledge_transmitted", 0.0)) * 1.0
             + math.log1p(profile.get("reproduction", 0.0)) * 1.6
         )
         return (
@@ -2057,6 +2153,8 @@ class Simulation:
             "marks_created": dict(self.marks_created),
             "mark_lessons": dict(self.mark_lessons),
             "mark_lesson_packets": dict(self.mark_lesson_packets),
+            "mark_read_value": {key: round(value, 5) for key, value in self.mark_read_value.items()},
+            "mark_author_feedbacks": {key: round(value, 5) for key, value in self.mark_author_feedbacks.items()},
             "artifacts_created": dict(self.artifacts_created),
             "artifacts_broken": dict(self.artifacts_broken),
             "structures_built": dict(self.structures_built),

@@ -33,6 +33,9 @@ class Mark:
     durability: float
     age: int = 0
     trace: dict[str, Any] = field(default_factory=dict)
+    reads: int = 0
+    value_transmitted: float = 0.0
+    last_read_tick: int = -1
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -42,6 +45,9 @@ class Mark:
             "durability": self.durability,
             "age": self.age,
             "trace": dict(self.trace),
+            "reads": self.reads,
+            "value_transmitted": round(self.value_transmitted, 6),
+            "last_read_tick": self.last_read_tick,
         }
 
 

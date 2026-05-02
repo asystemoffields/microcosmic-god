@@ -40,6 +40,7 @@ SUCCESS_PROFILE_LABELS = (
     "causal_unlock",
     "social_learning",
     "written_learning",
+    "knowledge_transmitted",
     "reproduction",
 )
 RECENT_TRACE_SIZE = len(RECENT_TRACE_LABELS)

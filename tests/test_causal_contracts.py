@@ -260,6 +260,184 @@ class CausalContractTests(unittest.TestCase):
         self.assertGreater(reader.success_profile["written_learning"], 0.0)
         self.assertGreater(reader.tool_skill["interpret_mark"], 0.0)
         self.assertEqual(reader.lesson_memory[-1]["affordance"], "filter")
+        self.assertEqual(self.sim.world.places[0].marks[0].reads, 1)
+        self.assertGreater(self.sim.world.places[0].marks[0].value_transmitted, 0.0)
+
+    def test_better_writing_transmits_more_literacy_value(self) -> None:
+        low = self._mark_read_gain_for_quality(quality=0.20)
+        high = self._mark_read_gain_for_quality(quality=0.95)
+
+        self.assertGreater(high["skill_gain"], low["skill_gain"])
+        self.assertGreater(high["interpret_gain"], low["interpret_gain"])
+        self.assertGreater(high["mark_value"], low["mark_value"])
+
+    def _mark_read_gain_for_quality(self, quality: float) -> dict[str, float]:
+        self.sim = make_sim(seed=int(100 + quality * 100))
+        agent_genome = Genome.neural(self.sim.rng)
+        agent_genome.sensor_range = 1.0
+        agent_genome.memory_budget = 12.0
+        reader = self.sim.add_organism("agent", agent_genome, 0, 80.0)
+        assert reader is not None
+        self.sim.world.create_mark(
+            0,
+            source_id=999,
+            token=3,
+            intensity=1.0,
+            durability=160.0,
+            trace={
+                "schema": "lesson_trace_v1",
+                "intentional": True,
+                "affordance": "filter",
+                "inscription_quality": 1.0,
+                "writing_quality": quality,
+                "coherence": quality,
+                "lesson_value": 1.2,
+                "method_quality": 0.8,
+                "tool_feedback": 1.0,
+                "lesson": {
+                    "kind": "tool_use",
+                    "affordance": "filter",
+                    "success": True,
+                    "gain": 1.0,
+                    "score": 0.7,
+                    "problem": {"kind": "resource", "required_affordance": "filter"},
+                },
+            },
+        )
+
+        class ZeroRng:
+            def random(self) -> float:
+                return 0.0
+
+            def gauss(self, _mu: float, _sigma: float) -> float:
+                return 0.0
+
+            def choice(self, values):  # type: ignore[no-untyped-def]
+                return tuple(values)[0]
+
+        self.sim.rng = ZeroRng()  # type: ignore[assignment]
+        before_skill = reader.tool_skill["filter"]
+        before_interpret = reader.tool_skill["interpret_mark"]
+
+        self.sim._observe_others(reader, {"reproduction": 0.0, "social": 0.0, "tool": 0.0})
+
+        mark = self.sim.world.places[0].marks[0]
+        self.sim.logger.close()
+        self.sim._tmpdir.cleanup()  # type: ignore[attr-defined]
+        self.sim = None  # type: ignore[assignment]
+        return {
+            "skill_gain": reader.tool_skill["filter"] - before_skill,
+            "interpret_gain": reader.tool_skill["interpret_mark"] - before_interpret,
+            "mark_value": mark.value_transmitted,
+        }
+
+    def test_useful_reads_feed_back_to_present_authors(self) -> None:
+        self.sim = make_sim()
+        writer_genome = Genome.neural(self.sim.rng)
+        reader_genome = Genome.neural(self.sim.rng)
+        reader_genome.sensor_range = 1.0
+        reader_genome.memory_budget = 12.0
+        writer = self.sim.add_organism("agent", writer_genome, 0, 80.0)
+        reader = self.sim.add_organism("agent", reader_genome, 0, 80.0)
+        assert writer is not None and reader is not None
+        self.sim.world.create_mark(
+            0,
+            source_id=writer.id,
+            token=3,
+            intensity=1.0,
+            durability=160.0,
+            trace={
+                "schema": "lesson_trace_v1",
+                "intentional": True,
+                "affordance": "filter",
+                "inscription_quality": 1.0,
+                "writing_quality": 0.95,
+                "coherence": 0.95,
+                "lesson_value": 1.2,
+                "method_quality": 0.8,
+                "tool_feedback": 1.0,
+                "lesson": {
+                    "kind": "tool_use",
+                    "affordance": "filter",
+                    "success": True,
+                    "gain": 1.0,
+                    "score": 0.7,
+                    "problem": {"kind": "resource", "required_affordance": "filter"},
+                },
+            },
+        )
+
+        class ZeroRng:
+            def random(self) -> float:
+                return 0.0
+
+            def gauss(self, _mu: float, _sigma: float) -> float:
+                return 0.0
+
+            def choice(self, values):  # type: ignore[no-untyped-def]
+                return tuple(values)[0]
+
+        self.sim.rng = ZeroRng()  # type: ignore[assignment]
+        before = writer.tool_skill["inscribe"]
+
+        self.sim._observe_others(reader, {"reproduction": 0.0, "social": 0.0, "tool": 0.0})
+
+        self.assertGreater(writer.tool_skill["inscribe"], before)
+        self.assertGreater(writer.success_profile["knowledge_transmitted"], 0.0)
+        self.assertGreater(self.sim.mark_author_feedbacks["filter"], 0.0)
+
+    def test_self_reading_does_not_count_as_knowledge_transmission(self) -> None:
+        self.sim = make_sim()
+        genome = Genome.neural(self.sim.rng)
+        genome.sensor_range = 1.0
+        genome.memory_budget = 12.0
+        agent = self.sim.add_organism("agent", genome, 0, 80.0)
+        assert agent is not None
+        self.sim.world.create_mark(
+            0,
+            source_id=agent.id,
+            token=3,
+            intensity=1.0,
+            durability=160.0,
+            trace={
+                "schema": "lesson_trace_v1",
+                "intentional": True,
+                "affordance": "filter",
+                "inscription_quality": 1.0,
+                "writing_quality": 0.95,
+                "coherence": 0.95,
+                "lesson_value": 1.2,
+                "method_quality": 0.8,
+                "tool_feedback": 1.0,
+                "lesson": {
+                    "kind": "tool_use",
+                    "affordance": "filter",
+                    "success": True,
+                    "gain": 1.0,
+                    "score": 0.7,
+                    "problem": {"kind": "resource", "required_affordance": "filter"},
+                },
+            },
+        )
+
+        class ZeroRng:
+            def random(self) -> float:
+                return 0.0
+
+            def gauss(self, _mu: float, _sigma: float) -> float:
+                return 0.0
+
+            def choice(self, values):  # type: ignore[no-untyped-def]
+                return tuple(values)[0]
+
+        self.sim.rng = ZeroRng()  # type: ignore[assignment]
+        before = agent.tool_skill["inscribe"]
+
+        self.sim._observe_others(agent, {"reproduction": 0.0, "social": 0.0, "tool": 0.0})
+
+        self.assertEqual(agent.tool_skill["inscribe"], before)
+        self.assertEqual(agent.success_profile["knowledge_transmitted"], 0.0)
+        self.assertEqual(self.sim.mark_author_feedbacks["filter"], 0.0)
 
     def test_plain_marks_do_not_automatically_encode_recent_lessons(self) -> None:
         self.sim = make_sim()

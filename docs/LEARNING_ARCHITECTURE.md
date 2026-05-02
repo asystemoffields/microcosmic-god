@@ -67,6 +67,7 @@ Implemented pressure should look like this:
 
 - Better prediction and memory make movement, foraging, tool use, construction, and social learning slightly more reliable or less wasteful.
 - Learned skill changes the outcome of future actions in the same physical channel.
+- Mark reading and writing improve only when they transmit useful causal traces into later action, so literacy is valuable through changed outcomes rather than direct reward.
 - Larger neural machinery costs metabolism, so unused capacity is a liability.
 - Selection can favor cognition through survival, energy control, tool success, and reproduction, not through a hidden intelligence score.
 
@@ -90,6 +91,7 @@ These are cheap enough to add before a major backend rewrite:
 - Done: add short event memory slots for "what changed after I acted" rather than only place value.
 - Done: add prediction heads for damage, reproduction opportunity, tool success, and movement hazard.
 - Done: add a cheap causal-challenge substrate where short affordance sequences can unlock finite local energy payoffs.
+- Done: make intentional marks carry quality/value signals that only matter when readers successfully extract and use them.
 - Let organisms attend to a subset of local materials/structures instead of seeing only aggregate place fields.
 - Partly done: save richer checkpoint context around standouts, including recent trace, event memory, signal values, place memory, local world summaries, and reason saved.
 - Keep increasing neural capacity only behind metabolic cost and successful reproduction.
