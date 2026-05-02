@@ -78,3 +78,11 @@ Each run should produce:
 - final summaries with enough context to explain extinctions, standouts, and world changes
 
 The goal is to find the stories without drowning in the substrate.
+
+## Current Implementation
+
+Runs now include `story_events.jsonl` alongside `events.jsonl`. Routine events still flow into counters and aggregates, while an observer promotes rare or consequential records such as causal unlocks, first/strong tool events, structures, intentional lesson inscriptions, successful mark reads, notable births/deaths, and checkpoint saves.
+
+The observer keeps bounded recent context by subject (`organism:*`, `place:*`, `affordance:*`, etc.) and writes only compact payloads plus nearby context. It is descriptive only: story promotion does not alter fitness, action selection, reproduction, learning, or world physics.
+
+Plain marks remain cheap telemetry. Intentional lesson writes and successful reads can become story events because they may connect tool knowledge across agents, places, and time.

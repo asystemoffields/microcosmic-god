@@ -9,7 +9,7 @@ The current communication substrate has two channels:
 
 Neither channel has fixed semantics. A token only matters if organisms learn or evolve useful associations between that token and later consequences.
 
-Marks also carry a faint physical trace of the maker's recent action context, such as a tool affordance, rough success, and method quality. This is not a built-in word. It is a durable residue that can be attended to, ignored, misread, copied, or made useful by later agents.
+Marks are plain tokens unless an agent intentionally inscribes a lesson trace. Intentional traces require useful recent tool/problem experience plus enough body/material capacity, attention, memory, and `inscribe` skill to encode anything beyond the token. This is not a built-in word. It is a costly, lossy residue that can be attended to, ignored, misread, copied, or made useful by later agents with enough `interpret_mark` skill.
 
 ## Possible Developmental Stages
 
@@ -31,7 +31,9 @@ Marks also carry a faint physical trace of the maker's recent action context, su
    - agents leave decaying place-local marks
    - marks can outlive the author
    - marks may support route memory, resource warnings, or tool-site cues
-   - observation can extract fuzzy tool traces when the reader has enough attention and memory
+   - plain marks do not automatically carry lessons
+   - intentional inscription can encode fuzzy problem/solution traces when that behavior is discovered
+   - observation can extract fuzzy tool traces when the reader has enough attention, memory, and interpretation skill
 
 5. Proto-symbol systems:
    - combinations of signals and marks become useful
@@ -56,5 +58,6 @@ Brain checkpoints should preserve:
 - tool skills
 - ecological context
 - observed communication/marking history when available
+- recent lesson-memory traces when available
 
 The first transfer experiments will probably fail. That is acceptable. The goal is to build the archive format and agent interface so a later successful communicator is not trapped inside its birth world.

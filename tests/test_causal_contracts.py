@@ -206,7 +206,7 @@ class CausalContractTests(unittest.TestCase):
         self.assertGreater(worked_conductor.durability, rough_conductor.durability)
         self.assertLess(bad_conductor.capabilities["conduct"], 0.08)
 
-    def test_marks_can_transmit_fuzzy_tool_traces_when_observed(self) -> None:
+    def test_only_intentional_marks_transmit_lesson_traces_when_observed(self) -> None:
         self.sim = make_sim()
         agent_genome = Genome.neural(self.sim.rng)
         agent_genome.sensor_range = 1.0
@@ -220,19 +220,124 @@ class CausalContractTests(unittest.TestCase):
             intensity=1.0,
             durability=160.0,
             trace={
+                "schema": "lesson_trace_v1",
+                "intentional": True,
                 "affordance": "filter",
                 "inscription_quality": 1.0,
                 "method_quality": 0.8,
                 "tool_feedback": 1.0,
+                "lesson": {
+                    "kind": "tool_use",
+                    "affordance": "filter",
+                    "success": True,
+                    "gain": 1.0,
+                    "score": 0.7,
+                    "problem": {"kind": "resource", "required_affordance": "filter"},
+                },
+            },
+        )
+        self.sim.world.create_mark(
+            0,
+            source_id=998,
+            token=4,
+            intensity=1.0,
+            durability=160.0,
+            trace={
+                "affordance": "conduct",
+                "inscription_quality": 1.0,
+                "method_quality": 1.0,
+                "tool_feedback": 1.0,
             },
         )
         before = reader.tool_skill["filter"]
+        before_conduct = reader.tool_skill["conduct"]
 
         self.sim._observe_others(reader, {"reproduction": 0.0, "social": 0.0, "tool": 0.0})
 
         self.assertGreater(reader.tool_skill["filter"], before)
+        self.assertEqual(reader.tool_skill["conduct"], before_conduct)
         self.assertEqual(self.sim.mark_lessons["filter"], 1)
         self.assertGreater(reader.success_profile["written_learning"], 0.0)
+        self.assertGreater(reader.tool_skill["interpret_mark"], 0.0)
+        self.assertEqual(reader.lesson_memory[-1]["affordance"], "filter")
+
+    def test_plain_marks_do_not_automatically_encode_recent_lessons(self) -> None:
+        self.sim = make_sim()
+        agent_genome = Genome.neural(self.sim.rng)
+        agent_genome.manipulator = 1.0
+        agent_genome.memory_budget = 18.0
+        agent_genome.signal_strength = 1.0
+        writer = self.sim.add_organism("agent", agent_genome, 0, 100.0)
+        assert writer is not None
+
+        class ZeroRng:
+            def random(self) -> float:
+                return 0.0
+
+            def gauss(self, _mu: float, _sigma: float) -> float:
+                return 0.0
+
+            def choice(self, values):  # type: ignore[no-untyped-def]
+                return tuple(values)[0]
+
+        self.sim.rng = ZeroRng()  # type: ignore[assignment]
+
+        self.sim._mark(writer, {"reproduction": 0.0, "social": 0.0, "tool": 0.0})
+
+        self.assertEqual(self.sim.world.places[0].marks[-1].trace, {})
+        self.assertEqual(dict(self.sim.mark_lesson_packets), {})
+
+    def test_agents_can_discover_intentional_lesson_inscription_as_a_skill(self) -> None:
+        self.sim = make_sim()
+        agent_genome = Genome.neural(self.sim.rng)
+        agent_genome.manipulator = 1.0
+        agent_genome.memory_budget = 18.0
+        agent_genome.signal_strength = 1.0
+        agent_genome.sensor_range = 1.0
+        writer = self.sim.add_organism("agent", agent_genome, 0, 100.0)
+        assert writer is not None
+        writer.inventory = {"fiber": 2, "resin": 1}
+        writer.record_lesson(
+            {
+                "kind": "tool_use",
+                "affordance": "filter",
+                "success": True,
+                "gain": 6.0,
+                "score": 0.8,
+                "method_quality": 0.6,
+                "components": {"fiber": 2, "resin": 1},
+                "problem": {
+                    "kind": "obstacle",
+                    "obstacle": "water",
+                    "severity": 0.8,
+                    "required_affordance": "filter",
+                    "required_capability": "filter",
+                },
+            }
+        )
+
+        class ZeroRng:
+            def random(self) -> float:
+                return 0.0
+
+            def gauss(self, _mu: float, _sigma: float) -> float:
+                return 0.0
+
+            def choice(self, values):  # type: ignore[no-untyped-def]
+                return tuple(values)[0]
+
+        self.sim.rng = ZeroRng()  # type: ignore[assignment]
+        before = writer.tool_skill["inscribe"]
+
+        self.sim._mark(writer, {"reproduction": 0.0, "social": 0.0, "tool": 0.0})
+
+        trace = self.sim.world.places[0].marks[-1].trace
+        self.assertTrue(trace["intentional"])
+        self.assertEqual(trace["schema"], "lesson_trace_v1")
+        self.assertEqual(trace["lesson"]["affordance"], "filter")
+        self.assertIn("problem", trace["lesson"])
+        self.assertGreater(writer.tool_skill["inscribe"], before)
+        self.assertEqual(self.sim.mark_lesson_packets["filter"], 1)
 
     def test_causal_challenge_unlocks_after_affordance_sequence(self) -> None:
         self.sim = make_sim()
@@ -256,6 +361,12 @@ class CausalContractTests(unittest.TestCase):
         self.assertGreater(place.resources["chemical"], before)
         self.assertEqual(self.sim.causal_unlocks["contain>filter"], 1)
         self.assertGreater(agent.success_profile["causal_unlock"], 0.0)
+        self.sim.logger.flush()
+        story_records = [
+            json.loads(line)
+            for line in self.sim.logger.story_path.read_text(encoding="utf-8").splitlines()
+        ]
+        self.assertTrue(any(record["kind"] == "causal_unlock" for record in story_records))
 
     def test_inside_boundary_is_distinct_from_shelter(self) -> None:
         structure = build_structure({"shell": 3, "resin": 2, "fiber": 1})

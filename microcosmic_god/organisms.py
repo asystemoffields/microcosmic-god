@@ -9,6 +9,7 @@ from .energy import AFFORDANCES, STRUCTURE_CAPABILITIES, Artifact
 from .genome import Genome
 
 SIGNAL_VALUE_SIZE = 8
+COMMUNICATION_SKILLS = ("inscribe", "interpret_mark")
 RECENT_TRACE_LABELS = (
     "action",
     "energy_delta",
@@ -86,7 +87,7 @@ class Organism:
     brain_template: TinyBrain | None = None
     inventory: dict[str, int] = field(default_factory=dict)
     artifacts: list[Artifact] = field(default_factory=list)
-    tool_skill: dict[str, float] = field(default_factory=lambda: {name: 0.0 for name in (*AFFORDANCES, *STRUCTURE_CAPABILITIES, "build", "craft")})
+    tool_skill: dict[str, float] = field(default_factory=lambda: {name: 0.0 for name in (*AFFORDANCES, *STRUCTURE_CAPABILITIES, *COMMUNICATION_SKILLS, "build", "craft")})
     signal_values: list[float] = field(default_factory=lambda: [0.0 for _ in range(SIGNAL_VALUE_SIZE)])
     place_memory: dict[int, float] = field(default_factory=dict)
     prediction_error_profile: list[float] = field(default_factory=lambda: [0.0 for _ in PREDICTION_HEADS])
@@ -110,6 +111,7 @@ class Organism:
     last_tool_affordance: str = ""
     last_craft_target: str = ""
     last_artifact_method: float = 0.0
+    lesson_memory: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def neural(self) -> bool:
@@ -259,6 +261,22 @@ class Organism:
             self.success_profile[label] = 0.0
         self.success_profile[label] = max(0.0, min(1_000_000.0, self.success_profile[label] + max(0.0, amount)))
 
+    def record_lesson(self, lesson: dict[str, Any]) -> None:
+        self.lesson_memory.append(self._lesson_safe(lesson))
+        if len(self.lesson_memory) > 5:
+            self.lesson_memory = self.lesson_memory[-5:]
+
+    def _lesson_safe(self, value: Any) -> Any:
+        if isinstance(value, dict):
+            return {str(key): self._lesson_safe(item) for key, item in value.items()}
+        if isinstance(value, (list, tuple)):
+            return [self._lesson_safe(item) for item in list(value)[:8]]
+        if isinstance(value, float):
+            return round(max(-1_000.0, min(1_000.0, value)), 6)
+        if isinstance(value, (int, str, bool)) or value is None:
+            return value
+        return str(value)
+
     def repair_or_decay(self) -> None:
         if self.energy > self.storage_limit():
             self.energy = self.storage_limit()
@@ -284,6 +302,7 @@ class Organism:
             "last_tool_affordance": self.last_tool_affordance,
             "last_craft_target": self.last_craft_target,
             "last_artifact_method": round(self.last_artifact_method, 4),
+            "last_lesson": self.lesson_memory[-1] if self.lesson_memory else {},
             "last_valence": round(self.last_valence, 4),
             "last_energy_delta": round(self.last_energy_delta, 4),
             "artifacts": [artifact.to_dict() for artifact in self.artifacts],
@@ -305,6 +324,7 @@ class Organism:
                 "last_craft_target": self.last_craft_target,
                 "last_artifact_method": round(self.last_artifact_method, 6),
             },
+            "lesson_memory": [dict(lesson) for lesson in self.lesson_memory[-5:]],
             "signal_values": [round(value, 6) for value in self.signal_values],
             "place_memory": [{"place_id": place_id, "value": round(value, 6)} for place_id, value in place_memory],
         }

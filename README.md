@@ -35,10 +35,11 @@ The current implementation is Prototype 0: a runnable Python simulation designed
 - Evolving habitat tolerances, so some organisms can drown, desiccate, or specialize for aquatic/dry niches.
 - Local signals with no fixed semantics.
 - Durable-but-decaying place marks, a primitive external memory channel analogous to writing.
+- Intentional lesson inscriptions are distinct from plain marks. Agents must have recent tool/problem experience and discover/use `inscribe`; readers improve through `interpret_mark`.
 - Predation and ecological collapse can happen.
 - Extinction or run-limit debriefs are written automatically.
 - Selective brain checkpoints are saved for notable neural agents.
-- Brain checkpoints include cognitive context: recent trace, event memory, signal associations, and place memory.
+- Brain checkpoints include cognitive context: recent trace, event memory, lesson memory, signal associations, and place memory.
 - Garden mode supports logged interventions.
 - Reproduction failure telemetry, per-action energy accounting, and deaths split by organism kind.
 - Regression tests for locality, signal observability, crafting failure costs, and reproduction capacity contracts.
@@ -57,6 +58,7 @@ Each run folder contains:
 
 - `config.json`
 - `events.jsonl`
+- `story_events.jsonl`
 - `summary.json`
 - `world_final.json`
 - `checkpoints/` for saved ANN snapshots
@@ -125,6 +127,7 @@ Checkpoint files include:
 - observer success profile
 - signal associations
 - recent action-result trace and event memory
+- recent lesson memory
 - place memory
 - ecological context
 - reason saved
@@ -166,9 +169,9 @@ Agents have two low-level channels, neither with built-in meaning:
 
 Agents can learn associations between observed tokens and later internal valence. A token only becomes useful if ecology makes it useful.
 
-Marks can also preserve a fuzzy trace of the maker's recent tool/craft experience: action, affordance, rough success, and method quality. Observing a mark can slightly improve relevant skill only when the reader spends an observe action and has enough sensor/memory/attention to extract the trace. This is not language yet, but it gives durable writing-like behavior a physical channel to matter across time, and agents can theoretically copy useful traces elsewhere.
+Marks are plain tokens by default. Some marks can intentionally preserve a fuzzy trace of the maker's recent tool/craft/problem experience: action, affordance, rough success, method quality, components, and a coarse local problem frame when the inscription is clear enough. Writing that packet is not free or guaranteed; it requires useful recent experience, body/material capacity, attention, and the learnable `inscribe` skill. Observing it can slightly improve relevant skill only when the reader spends an observe action and has enough sensor/memory/attention plus `interpret_mark` ability to extract the trace. This is not language yet, but it gives durable writing-like behavior a physical channel to matter across time, and agents can theoretically copy useful traces elsewhere.
 
-Mark creation is summarized in aggregate/debrief counters rather than logged as one event per mark, so agents are free to mark obsessively if that behavior evolves.
+Mark creation is summarized in aggregate/debrief counters rather than logged as one event per mark, so agents are free to mark obsessively if that behavior evolves. Intentional lesson writes and successful reads can be promoted to `story_events.jsonl`.
 
 See [docs/LANGUAGE_RUNWAY.md](docs/LANGUAGE_RUNWAY.md) for the longer path from meaningless signals to possible future language-transfer experiments.
 

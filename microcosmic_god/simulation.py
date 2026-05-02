@@ -26,6 +26,7 @@ from .energy import (
 from .evolution import EvolutionEngine, OffspringPlan
 from .genome import MEMORY_BUDGET_MAX, NEURAL_BUDGET_MAX, Genome
 from .interventions import Intervention, load_interventions
+from .observer import EventObserver
 from .organisms import ACTIONS, ACTION_INDEX, OBSERVATION_SIZE, Organism, organism_from_genome
 from .runlog import RunLogger
 from .world import Place, World
@@ -37,6 +38,7 @@ class Simulation:
         self.rng = Random(config.seed)
         self.world = World.generate(self.rng, config)
         self.logger = RunLogger(config)
+        self.observer = EventObserver(self.logger)
         self.checkpoints = CheckpointManager(self.logger.checkpoint_dir, config.neural_checkpoint_limit)
         self.evolution = EvolutionEngine(self.rng, config)
         self.interventions = load_interventions(config.interventions_path) if config.run_mode == "garden" else {}
@@ -54,6 +56,7 @@ class Simulation:
         self.causal_unlocks: Counter[str] = Counter()
         self.mark_lessons: Counter[str] = Counter()
         self.marks_created: Counter[str] = Counter()
+        self.mark_lesson_packets: Counter[str] = Counter()
         self.artifacts_created: Counter[str] = Counter()
         self.artifacts_broken: Counter[str] = Counter()
         self.structures_built: Counter[str] = Counter()
@@ -255,6 +258,19 @@ class Simulation:
                 rosters[organism.location].append(organism.id)
         return rosters
 
+    def _subjects(self, organism: Organism | None = None, place_id: int | None = None, extra: list[str] | None = None) -> list[str]:
+        subjects: list[str] = []
+        if organism is not None:
+            subjects.append(f"organism:{organism.id}")
+            subjects.append(f"place:{organism.location}")
+        if place_id is not None:
+            subject = f"place:{place_id}"
+            if subject not in subjects:
+                subjects.append(subject)
+        if extra:
+            subjects.extend(extra)
+        return subjects
+
     def _living_ids_at(self, place_id: int) -> list[int]:
         return [organism.id for organism in self.organisms.values() if organism.alive and organism.location == place_id]
 
@@ -278,6 +294,97 @@ class Simulation:
         learned_skill = max(organism.tool_skill.values(), default=0.0)
         place_knowledge = min(1.0, len(organism.place_memory) / max(1.0, organism.genome.memory_budget * 2.0))
         return max(0.0, min(1.0, prediction_fit * 0.38 + memory_signal * 0.24 + learned_skill * 0.24 + place_knowledge * 0.14))
+
+    def _salient_problem(self, organism: Organism, place: Place, target_affordance: str = "") -> dict[str, Any]:
+        target_affordance = target_affordance if target_affordance in AFFORDANCES else ""
+        challenge = place.causal_challenge
+        if challenge is not None and challenge.payoff_remaining > 0.0:
+            expected = challenge.expected_affordance()
+            return {
+                "kind": "causal_challenge",
+                "place": place.id,
+                "required_affordance": expected or target_affordance,
+                "sequence": list(challenge.sequence),
+                "payoff_energy": challenge.payoff_energy,
+                "remaining": challenge.payoff_remaining,
+                "difficulty": challenge.difficulty,
+            }
+
+        obstacle_options = [
+            (place.obstacles.get("height", 0.0), "height", "lever", "traverse"),
+            (place.obstacles.get("water", 0.0) + place.physics.get("current_exposure", 0.0) * 0.35, "water", "contain", "float"),
+            (place.obstacles.get("thorn", 0.0), "thorn", "cut", "cut"),
+            (place.obstacles.get("heat", 0.0), "heat", "concentrate_heat", "insulate"),
+            (place.physics.get("salinity", 0.0), "salinity", "filter", "filter"),
+            (place.physics.get("pressure", 0.0), "pressure", "contain", "anchor"),
+        ]
+        severity, obstacle, required_affordance, required_capability = max(
+            obstacle_options,
+            key=lambda item: item[0],
+        )
+        if target_affordance:
+            required_affordance = target_affordance
+        if severity > 0.16:
+            return {
+                "kind": "obstacle",
+                "place": place.id,
+                "obstacle": obstacle,
+                "severity": severity,
+                "required_affordance": required_affordance,
+                "required_capability": required_capability,
+            }
+
+        resource_options = [
+            (place.locked_chemical / 180.0, "locked_chemical", "crack", "chemical"),
+            (place.resources.get("mechanical", 0.0) / 180.0 + place.physics.get("current_exposure", 0.0) * 0.18, "mechanical_gradient", "contain", "mechanical"),
+            (place.resources.get("electrical", 0.0) / 140.0 + place.resources.get("high_density", 0.0) / 80.0, "electrical_source", "conduct", "electrical"),
+            (place.resources.get("radiant", 0.0) / 220.0 + place.resources.get("thermal", 0.0) / 240.0, "heat_source", "concentrate_heat", "thermal"),
+            (place.resources.get("chemical", 0.0) / 220.0 + place.resources.get("biological_storage", 0.0) / 220.0, "surface_food", "filter", "chemical"),
+        ]
+        value, resource, required_affordance, energy = max(resource_options, key=lambda item: item[0])
+        if target_affordance:
+            required_affordance = target_affordance
+        return {
+            "kind": "resource",
+            "place": place.id,
+            "resource": resource,
+            "value": value,
+            "required_affordance": required_affordance,
+            "payoff_energy": energy,
+        }
+
+    def _record_tool_lesson(
+        self,
+        organism: Organism,
+        place: Place,
+        *,
+        kind: str,
+        affordance: str,
+        success: bool,
+        gain: float = 0.0,
+        score: float = 0.0,
+        method_quality: float = 0.0,
+        components: dict[str, int] | None = None,
+        sequence: list[str] | tuple[str, ...] | None = None,
+    ) -> None:
+        if affordance not in organism.tool_skill and affordance not in {"build", "craft"}:
+            return
+        lesson: dict[str, Any] = {
+            "kind": kind,
+            "place": place.id,
+            "affordance": affordance,
+            "success": bool(success),
+            "gain": gain,
+            "score": score,
+            "method_quality": method_quality,
+            "skill": organism.tool_skill.get(affordance, 0.0),
+            "problem": self._salient_problem(organism, place, affordance),
+        }
+        if components:
+            lesson["components"] = {name: int(qty) for name, qty in components.items() if qty > 0}
+        if sequence:
+            lesson["sequence"] = list(sequence)
+        organism.record_lesson(lesson)
 
     def _apply_physics_transport(self) -> None:
         for organism in list(self.organisms.values()):
@@ -767,6 +874,16 @@ class Simulation:
             organism.tool_skill["bind"] = min(1.0, organism.tool_skill.get("bind", 0.0) + skill_gain)
             organism.tool_skill["craft"] = min(1.0, craft_skill + skill_gain * 0.80)
             feedback["tool"] = feedback.get("tool", 0.0) + skill_gain
+            self._record_tool_lesson(
+                organism,
+                self.world.places[organism.location],
+                kind="craft",
+                affordance=target,
+                success=False,
+                score=target_fit,
+                method_quality=method_quality,
+                components=components,
+            )
             return
         for name, qty in components.items():
             organism.inventory[name] -= qty
@@ -785,9 +902,36 @@ class Simulation:
         organism.last_craft_target = target
         organism.last_tool_affordance = target
         organism.last_artifact_method = method_quality
+        self._record_tool_lesson(
+            organism,
+            self.world.places[organism.location],
+            kind="craft",
+            affordance=target,
+            success=True,
+            gain=feedback.get("tool", 0.0),
+            score=artifact.capabilities.get(target, 0.0),
+            method_quality=method_quality,
+            components=components,
+        )
         for capability, value in artifact.capabilities.items():
             if capability in organism.tool_skill:
                 organism.tool_skill[capability] = min(1.0, organism.tool_skill.get(capability, 0.0) + value * 0.010)
+        self.observer.observe(
+            self.tick,
+            "crafted_tool",
+            {
+                "organism_id": organism.id,
+                "place": organism.location,
+                "artifact": artifact.name,
+                "target": target,
+                "method_quality": method_quality,
+                "target_fit": artifact.capabilities.get(target, 0.0),
+                "components": dict(components),
+            },
+            subjects=self._subjects(organism, extra=[f"affordance:{target}"]),
+            score=method_quality * 1.1 + artifact.capabilities.get(target, 0.0) * 0.8,
+            rarity_key=f"crafted_tool:{target}",
+        )
         self.checkpoints.save_first_tool(self.tick, organism, "craft", {"place": self.world.places[organism.location].to_summary(), "artifact": artifact.to_dict()})
 
     def _build_structure(self, organism: Organism, feedback: dict[str, float]) -> None:
@@ -834,6 +978,15 @@ class Simulation:
             organism.tool_skill["bind"] = min(1.0, organism.tool_skill.get("bind", 0.0) + 0.0015 + lost * 0.002)
             feedback["tool"] = feedback.get("tool", 0.0) + 0.04 + lost * 0.01
             self.demonstrations[organism.location].append((organism.id, "build", False))
+            self._record_tool_lesson(
+                organism,
+                self.world.places[organism.location],
+                kind="build",
+                affordance="build",
+                success=False,
+                score=bind_help,
+                components=components,
+            )
             return
 
         for name, qty in components.items():
@@ -848,12 +1001,14 @@ class Simulation:
             built_name = target.name
             self.structures_extended[built_name] += 1
             structure_summary = target.to_dict()
+            extended_action = True
         else:
             structure = build_structure(components, builder_id=organism.id)
             place.structures.append(structure)
             built_name = structure.name
             self.structures_built[built_name] += 1
             structure_summary = structure.to_dict()
+            extended_action = False
 
         organism.successful_tools += 1
         organism.record_success("structure", 1.0 + min(1.5, structure_summary["scale"] / 8.0))
@@ -865,6 +1020,32 @@ class Simulation:
         feedback["social"] += 0.10
         feedback["tool"] = feedback.get("tool", 0.0) + 0.75
         self.demonstrations[place.id].append((organism.id, "build", True))
+        self._record_tool_lesson(
+            organism,
+            place,
+            kind="build",
+            affordance="build",
+            success=True,
+            gain=structure_summary["scale"] / 4.0,
+            score=max((float(value) for value in structure_summary["capabilities"].values()), default=0.0),
+            components=components,
+        )
+        best_structure_capability = max((float(value) for value in structure_summary["capabilities"].values()), default=0.0)
+        self.observer.observe(
+            self.tick,
+            "structure_built",
+            {
+                "organism_id": organism.id,
+                "place": place.id,
+                "structure": built_name,
+                "scale": structure_summary["scale"],
+                "best_capability": best_structure_capability,
+                "extended": extended_action,
+            },
+            subjects=self._subjects(organism),
+            score=min(2.5, structure_summary["scale"] / 6.0 + best_structure_capability),
+            rarity_key=f"structure:{built_name}",
+        )
         if self.config.event_detail:
             self.logger.event(
                 self.tick,
@@ -900,6 +1081,31 @@ class Simulation:
             feedback["social"] += 0.2
             feedback["tool"] = feedback.get("tool", 0.0) + 1.0
             self.demonstrations[place.id].append((organism.id, affordance, True))
+            self._record_tool_lesson(
+                organism,
+                place,
+                kind="tool_use",
+                affordance=affordance,
+                success=True,
+                gain=gain,
+                score=score,
+                method_quality=organism.last_artifact_method,
+            )
+            self.observer.observe(
+                self.tick,
+                "tool_success",
+                {
+                    "organism_id": organism.id,
+                    "place": place.id,
+                    "affordance": affordance,
+                    "gain": gain,
+                    "score": score,
+                    "skill": organism.tool_skill[affordance],
+                },
+                subjects=self._subjects(organism, extra=[f"affordance:{affordance}"]),
+                score=min(3.0, max(0.0, gain) / 6.0 + score * 0.45),
+                rarity_key=f"tool_success:{affordance}",
+            )
             if self.config.event_detail:
                 self.logger.event(
                     self.tick,
@@ -916,6 +1122,15 @@ class Simulation:
             overmatch_penalty = max(0.0, resistance - score)
             self._wear_artifacts(organism, affordance, amount=0.35 + score * 0.18 + overmatch_penalty * 2.2)
             self.demonstrations[place.id].append((organism.id, affordance, False))
+            self._record_tool_lesson(
+                organism,
+                place,
+                kind="tool_use",
+                affordance=affordance,
+                success=False,
+                score=score,
+                method_quality=organism.last_artifact_method,
+            )
             if organism.health <= 0.0:
                 self._kill(organism, "tool_accident")
 
@@ -1014,6 +1229,16 @@ class Simulation:
         organism.record_success("causal_step", 1.0)
         feedback["tool"] = feedback.get("tool", 0.0) + 0.10
         if challenge.progress < len(challenge.sequence):
+            self._record_tool_lesson(
+                organism,
+                place,
+                kind="causal_step",
+                affordance=affordance,
+                success=True,
+                gain=0.05 + planning * 0.08,
+                score=competence,
+                sequence=challenge.sequence[:challenge.progress],
+            )
             return 0.05 + planning * 0.08
 
         challenge.progress = 0
@@ -1025,6 +1250,31 @@ class Simulation:
         self.causal_unlocks[signature] += 1
         organism.record_success("causal_unlock", 1.0 + min(2.0, release / 8.0))
         feedback["tool"] = feedback.get("tool", 0.0) + 0.70
+        self._record_tool_lesson(
+            organism,
+            place,
+            kind="causal_unlock",
+            affordance=affordance,
+            success=True,
+            gain=release,
+            score=competence,
+            sequence=challenge.sequence,
+        )
+        self.observer.force_promote(
+            self.tick,
+            "causal_unlock",
+            {
+                "organism_id": organism.id,
+                "place": place.id,
+                "sequence": list(challenge.sequence),
+                "energy": challenge.payoff_energy,
+                "released": release,
+                "remaining": challenge.payoff_remaining,
+            },
+            subjects=self._subjects(organism, place.id, [f"challenge:{signature}"]),
+            score=1.0 + min(4.0, release / 6.0),
+            rarity_key=f"causal_unlock:{signature}",
+        )
         if self.config.event_detail:
             self.logger.event(
                 self.tick,
@@ -1123,25 +1373,153 @@ class Simulation:
         inscription_help = max(affordances.get("cut", 0.0), affordances.get("bind", 0.0), affordances.get("concentrate_heat", 0.0))
         intensity = 0.20 + organism.genome.signal_strength * 0.35 + organism.genome.memory_budget / 40.0
         durability = 45.0 + organism.genome.manipulator * 90.0 + organism.genome.memory_budget * 12.0 + inscription_help * 180.0
-        organism.energy -= 0.08 + intensity * 0.12 + durability * 0.0008
-        self.world.create_mark(organism.location, organism.id, token, intensity, durability, trace=self._mark_trace(organism, inscription_help))
+        trace_intent = self._trace_inscription_intent(organism, inscription_help)
+        trace = self._mark_trace(organism, inscription_help) if trace_intent else {}
+        clarity = float(trace.get("inscription_quality", 0.0)) if trace else 0.0
+        organism.energy -= 0.08 + intensity * 0.12 + durability * 0.0008 + clarity * 0.055
+        self.world.create_mark(organism.location, organism.id, token, intensity, durability, trace=trace)
         self.marks_created[str(token)] += 1
-        feedback["social"] += 0.08
+        if trace:
+            affordance = str(trace.get("affordance", "unknown"))
+            organism.tool_skill["inscribe"] = min(1.0, organism.tool_skill.get("inscribe", 0.0) + 0.004 + clarity * 0.010)
+            self.mark_lesson_packets[affordance] += 1
+            lesson = trace.get("lesson", {})
+            problem = lesson.get("problem", {}) if isinstance(lesson, dict) else {}
+            self.observer.observe(
+                self.tick,
+                "mark_lesson_written",
+                {
+                    "organism_id": organism.id,
+                    "place": organism.location,
+                    "token": token,
+                    "affordance": affordance,
+                    "clarity": clarity,
+                    "problem_kind": problem.get("kind") if isinstance(problem, dict) else None,
+                    "lesson_kind": lesson.get("kind") if isinstance(lesson, dict) else None,
+                },
+                subjects=self._subjects(organism, extra=[f"affordance:{affordance}", f"mark_token:{token}"]),
+                score=clarity * 1.2,
+                rarity_key=f"mark_lesson_written:{affordance}",
+            )
+        feedback["social"] += 0.04 + intensity * 0.08 + clarity * 0.04
+
+    def _trace_inscription_intent(self, organism: Organism, inscription_help: float) -> bool:
+        if not organism.lesson_memory:
+            return False
+        planning = self._interaction_control(organism)
+        skill = organism.tool_skill.get("inscribe", 0.0)
+        memory = min(1.0, organism.genome.memory_budget / 14.0)
+        lesson_value = self._lesson_value(self._select_mark_lesson(organism))
+        capacity = (
+            organism.genome.manipulator * 0.20
+            + organism.genome.signal_strength * 0.10
+            + organism.genome.sensor_range * 0.10
+            + memory * 0.18
+            + min(1.0, inscription_help) * 0.14
+        )
+        chance = capacity + planning * 0.16 + skill * 0.42 + lesson_value * 0.08 - 0.24
+        if skill < 0.04:
+            chance *= 0.45
+        return self.rng.random() < max(0.0, min(0.82, chance))
+
+    def _select_mark_lesson(self, organism: Organism) -> dict[str, Any]:
+        return max(organism.lesson_memory[-5:], key=self._lesson_value)
+
+    def _lesson_value(self, lesson: dict[str, Any]) -> float:
+        problem = lesson.get("problem", {}) if isinstance(lesson.get("problem"), dict) else {}
+        problem_value = max(
+            float(problem.get("severity", 0.0) or 0.0),
+            float(problem.get("value", 0.0) or 0.0),
+            min(1.0, float(problem.get("remaining", 0.0) or 0.0) / 30.0),
+        )
+        return max(
+            0.0,
+            min(
+                2.5,
+                (0.35 if lesson.get("success") else 0.08)
+                + float(lesson.get("gain", 0.0) or 0.0) / 10.0
+                + float(lesson.get("score", 0.0) or 0.0) * 0.35
+                + float(lesson.get("method_quality", 0.0) or 0.0) * 0.35
+                + problem_value * 0.30
+                + len(lesson.get("sequence", []) or []) * 0.12,
+            ),
+        )
 
     def _mark_trace(self, organism: Organism, inscription_help: float) -> dict[str, Any]:
-        affordance = organism.last_tool_affordance or organism.last_craft_target
+        if not organism.lesson_memory:
+            return {}
+        lesson = self._select_mark_lesson(organism)
+        affordance = str(lesson.get("affordance") or organism.last_tool_affordance or organism.last_craft_target)
+        if affordance not in organism.tool_skill:
+            return {}
+        planning = self._interaction_control(organism)
+        inscribe_skill = organism.tool_skill.get("inscribe", 0.0)
+        clarity = max(
+            0.0,
+            min(
+                1.0,
+                organism.genome.memory_budget / 18.0 * 0.22
+                + organism.genome.sensor_range * 0.14
+                + organism.genome.manipulator * 0.15
+                + organism.genome.signal_strength * 0.08
+                + min(1.0, inscription_help) * 0.16
+                + planning * 0.12
+                + inscribe_skill * 0.33
+                + self.rng.gauss(0.0, 0.025),
+            ),
+        )
+        if clarity < 0.12:
+            return {}
+        encoded = self._encoded_mark_lesson(lesson, clarity)
         trace: dict[str, Any] = {
+            "schema": "lesson_trace_v1",
+            "intentional": True,
             "action": organism.last_action,
+            "affordance": affordance,
             "valence": round(organism.last_valence, 6),
             "energy_delta": round(organism.last_energy_delta, 6),
-            "inscription_quality": round(max(0.0, min(1.0, inscription_help + organism.genome.memory_budget / 20.0)), 6),
+            "inscription_quality": round(clarity, 6),
+            "lesson": encoded,
         }
-        if affordance in organism.tool_skill:
-            trace["affordance"] = affordance
-            trace["skill"] = round(organism.tool_skill.get(affordance, 0.0), 6)
-            trace["method_quality"] = round(organism.last_artifact_method, 6)
-            trace["tool_feedback"] = round(organism.recent_tool_feedback, 6)
+        trace["skill"] = round(float(lesson.get("skill", organism.tool_skill.get(affordance, 0.0))) * (0.55 + clarity * 0.45), 6)
+        trace["method_quality"] = round(float(lesson.get("method_quality", 0.0) or 0.0) * (0.50 + clarity * 0.50), 6)
+        trace["tool_feedback"] = round(max(float(lesson.get("gain", 0.0) or 0.0), float(lesson.get("score", 0.0) or 0.0)) * clarity, 6)
         return trace
+
+    def _encoded_mark_lesson(self, lesson: dict[str, Any], clarity: float) -> dict[str, Any]:
+        affordance = str(lesson.get("affordance", ""))
+        encoded: dict[str, Any] = {
+            "kind": lesson.get("kind", "tool"),
+            "affordance": affordance,
+            "success": bool(lesson.get("success", False)),
+        }
+        if clarity >= 0.24:
+            problem = lesson.get("problem", {}) if isinstance(lesson.get("problem"), dict) else {}
+            encoded_problem: dict[str, Any] = {
+                "kind": problem.get("kind", "unknown"),
+                "required_affordance": problem.get("required_affordance", affordance),
+            }
+            for key in ("obstacle", "resource", "payoff_energy", "required_capability"):
+                if key in problem and clarity >= 0.34:
+                    encoded_problem[key] = problem[key]
+            for key in ("severity", "value", "remaining", "difficulty"):
+                if key in problem and clarity >= 0.42:
+                    encoded_problem[key] = round(float(problem[key]), 6)
+            if "sequence" in problem and clarity >= 0.62:
+                encoded_problem["sequence"] = list(problem["sequence"])[:4]
+            encoded["problem"] = encoded_problem
+        if clarity >= 0.36:
+            encoded["score"] = round(float(lesson.get("score", 0.0) or 0.0), 6)
+            encoded["gain"] = round(float(lesson.get("gain", 0.0) or 0.0), 6)
+        if clarity >= 0.48 and isinstance(lesson.get("components"), dict):
+            components = lesson["components"]
+            limit = 1 + int(clarity * 4.0)
+            encoded["components"] = dict(sorted(components.items(), key=lambda item: item[1], reverse=True)[:limit])
+        if clarity >= 0.58 and lesson.get("sequence"):
+            encoded["sequence"] = list(lesson["sequence"])[:5]
+        if clarity >= 0.68:
+            encoded["method_quality"] = round(float(lesson.get("method_quality", 0.0) or 0.0), 6)
+        return encoded
 
     def _clone_mutate(self, organism: Organism, feedback: dict[str, float]) -> None:
         self.reproduction_attempts["clone_mutate"] += 1
@@ -1164,6 +1542,22 @@ class Simulation:
             self._apply_parent_costs_and_counts(decision.plan)
             self.births_by_mode[decision.plan.operator] += 1
             feedback["reproduction"] += 1.0
+            self.observer.observe(
+                self.tick,
+                "birth",
+                {
+                    "mode": decision.plan.operator,
+                    "child_id": child.id,
+                    "parent_ids": list(decision.plan.parent_ids),
+                    "kind": child.kind,
+                    "place": child.location,
+                    "generation": child.generation,
+                    "complexity": child.genome.complexity(),
+                },
+                subjects=self._subjects(child, extra=[f"organism:{organism.id}", f"lineage:{organism.id}", "mode:clone_mutate"]),
+                score=0.35 + child.generation * 0.08 + child.genome.complexity() * 0.08,
+                rarity_key=f"birth:{decision.plan.operator}:{child.kind}",
+            )
             if self.config.event_detail:
                 self.logger.event(
                     self.tick,
@@ -1260,6 +1654,22 @@ class Simulation:
         if child:
             self._apply_parent_costs_and_counts(decision.plan)
             self.births_by_mode[decision.plan.operator] += 1
+            self.observer.observe(
+                self.tick,
+                "birth",
+                {
+                    "mode": decision.plan.operator,
+                    "child_id": child.id,
+                    "parent_ids": [a.id, b.id],
+                    "kind": child.kind,
+                    "place": child.location,
+                    "generation": child.generation,
+                    "complexity": child.genome.complexity(),
+                },
+                subjects=self._subjects(child, extra=[f"organism:{a.id}", f"organism:{b.id}", f"lineage:{a.id}", f"lineage:{b.id}", "mode:recombine"]),
+                score=0.55 + child.generation * 0.09 + child.genome.complexity() * 0.10,
+                rarity_key=f"birth:{decision.plan.operator}:{child.kind}",
+            )
         else:
             self.reproduction_failures["recombine_add_failed"] += 1
         return child
@@ -1286,7 +1696,14 @@ class Simulation:
 
     def _read_mark_trace(self, organism: Organism, feedback: dict[str, float]) -> bool:
         place = self.world.places[organism.location]
-        readable = [mark for mark in place.marks if mark.source_id != organism.id and mark.trace]
+        readable = [
+            mark
+            for mark in place.marks
+            if mark.source_id != organism.id
+            and mark.trace
+            and mark.trace.get("intentional")
+            and mark.trace.get("schema") == "lesson_trace_v1"
+        ]
         if not readable:
             return False
         planning = self._interaction_control(organism)
@@ -1295,39 +1712,75 @@ class Simulation:
             key=lambda item: item.intensity * min(1.0, item.durability / 140.0) + self.rng.random() * 0.03,
         )
         trace = mark.trace
-        affordance = str(trace.get("affordance", ""))
+        lesson = trace.get("lesson", {}) if isinstance(trace.get("lesson"), dict) else {}
+        affordance = str(trace.get("affordance") or lesson.get("affordance", ""))
         if affordance not in organism.tool_skill:
             return False
+        interpretation_skill = organism.tool_skill.get("interpret_mark", 0.0)
         inscription_quality = max(0.0, min(1.0, float(trace.get("inscription_quality", 0.0))))
         method_quality = max(0.0, min(1.0, float(trace.get("method_quality", 0.0))))
         tool_feedback = max(0.0, min(1.5, float(trace.get("tool_feedback", 0.0))))
         token_bias = max(0.0, organism.signal_values[mark.token] if 0 <= mark.token < len(organism.signal_values) else 0.0)
-        fidelity = max(0.0, min(1.0, mark.intensity * min(1.0, mark.durability / 140.0) * (0.55 + inscription_quality * 0.45)))
+        fidelity = max(
+            0.0,
+            min(
+                1.0,
+                mark.intensity
+                * min(1.0, mark.durability / 140.0)
+                * inscription_quality
+                * (0.48 + interpretation_skill * 0.36 + planning * 0.16),
+            ),
+        )
         attention = max(
             0.0,
             min(
                 1.0,
                 organism.genome.sensor_range * 0.34
                 + organism.genome.memory_budget / 22.0
-                + planning * 0.34
+                + planning * 0.24
+                + interpretation_skill * 0.26
                 + token_bias * 0.10,
             ),
         )
-        gain = fidelity * attention * (0.004 + tool_feedback * 0.014 + method_quality * 0.018)
+        gain = fidelity * attention * (0.0025 + tool_feedback * 0.014 + method_quality * 0.018 + interpretation_skill * 0.006)
+        organism.tool_skill["interpret_mark"] = min(1.0, interpretation_skill + 0.0015 + fidelity * 0.003)
         if gain <= 0.0005:
             organism.energy -= 0.006
             return True
         organism.tool_skill[affordance] = min(1.0, organism.tool_skill.get(affordance, 0.0) + gain)
-        if method_quality > 0.0:
+        if method_quality > 0.0 or lesson.get("components"):
             organism.tool_skill["craft"] = min(1.0, organism.tool_skill.get("craft", 0.0) + gain * 0.55)
             organism.last_craft_target = affordance
             organism.last_artifact_method = max(organism.last_artifact_method, method_quality * fidelity)
         organism.last_tool_affordance = affordance
+        if lesson:
+            copied_lesson = dict(lesson)
+            copied_lesson["kind"] = f"read_{copied_lesson.get('kind', 'lesson')}"
+            copied_lesson["gain"] = gain
+            copied_lesson["score"] = max(float(copied_lesson.get("score", 0.0) or 0.0), fidelity)
+            organism.record_lesson(copied_lesson)
         organism.record_success("written_learning", gain * 12.0)
         self.mark_lessons[affordance] += 1
         feedback["social"] += 0.05 + fidelity * 0.04
         feedback["tool"] = feedback.get("tool", 0.0) + min(0.12, gain * 4.0)
         organism.energy -= 0.010 + (1.0 - attention) * 0.010
+        self.observer.observe(
+            self.tick,
+            "mark_lesson_read",
+            {
+                "organism_id": organism.id,
+                "source_id": mark.source_id,
+                "place": place.id,
+                "token": mark.token,
+                "affordance": affordance,
+                "gain": gain,
+                "fidelity": fidelity,
+                "clarity": inscription_quality,
+            },
+            subjects=self._subjects(organism, place.id, [f"organism:{mark.source_id}", f"affordance:{affordance}", f"mark_token:{mark.token}"]),
+            score=fidelity + gain * 18.0,
+            rarity_key=f"mark_lesson_read:{affordance}",
+        )
         return True
 
     def _observe_others(self, organism: Organism, feedback: dict[str, float]) -> None:
@@ -1380,11 +1833,16 @@ class Simulation:
         place.resources["biological_storage"] = min(180.0, place.resources["biological_storage"] + max(0.0, organism.energy) * 0.35 + 2.0)
         if cause in {"predation", "senescence", "starvation"}:
             place.materials["bone"] = min(99, place.materials.get("bone", 0) + 1)
-        if organism.brain is not None and (
+        checkpoint_score = self._checkpoint_score(organism) if organism.brain is not None else 0.0
+        notable = (
             organism.offspring_count >= 3
             or organism.successful_tools >= 2
             or organism.success_profile.get("causal_unlock", 0.0) > 0.0
             or organism.success_profile.get("prediction_fit", 0.0) >= 2.0
+            or organism.success_profile.get("written_learning", 0.0) > 0.0
+        )
+        if organism.brain is not None and (
+            notable
         ):
             self.checkpoints.save_brain(
                 self.tick,
@@ -1392,7 +1850,25 @@ class Simulation:
                 f"death_{cause}",
                 {"place": place.to_summary()},
                 bucket="notable_death",
-                score=self._checkpoint_score(organism),
+                score=checkpoint_score,
+            )
+        if notable:
+            self.observer.observe(
+                self.tick,
+                "notable_death",
+                {
+                    "organism_id": organism.id,
+                    "kind": organism.kind,
+                    "cause": cause,
+                    "place": place.id,
+                    "offspring_count": organism.offspring_count,
+                    "successful_tools": organism.successful_tools,
+                    "score": checkpoint_score,
+                    "success_profile": dict(organism.success_profile),
+                },
+                subjects=self._subjects(organism, place.id, [f"cause:{cause}"]),
+                score=0.75 + min(4.0, checkpoint_score / 8.0),
+                rarity_key=f"death:{cause}",
             )
         if self.config.event_detail:
             self.logger.event(self.tick, "death", {"organism_id": organism.id, "cause": cause, "kind": organism.kind})
@@ -1477,14 +1953,30 @@ class Simulation:
         }
 
     def _save_checkpoint_candidate(self, organism: Organism, label: str, criterion: str, bucket: str) -> None:
-        self.checkpoints.save_brain(
+        score = self._checkpoint_score(organism)
+        saved = self.checkpoints.save_brain(
             self.tick,
             organism,
             f"{label}_{criterion}",
             self._checkpoint_context(label, criterion),
             bucket=bucket,
-            score=self._checkpoint_score(organism),
+            score=score,
         )
+        if saved:
+            self.observer.observe(
+                self.tick,
+                "checkpoint_saved",
+                {
+                    "organism_id": organism.id,
+                    "place": organism.location,
+                    "criterion": criterion,
+                    "bucket": bucket,
+                    "score": score,
+                },
+                subjects=self._subjects(organism, extra=[f"checkpoint:{bucket}"]),
+                score=1.1 + min(3.0, score / 10.0),
+                rarity_key=f"checkpoint:{bucket}:{criterion}",
+            )
 
     def _best_checkpoint_candidate(self, candidates: list[Organism], excluded_ids: set[int], key: Any) -> Organism | None:
         available = [organism for organism in candidates if organism.id not in excluded_ids]
@@ -1564,6 +2056,7 @@ class Simulation:
             "success_profile": success_profile_summary(self.organisms),
             "marks_created": dict(self.marks_created),
             "mark_lessons": dict(self.mark_lessons),
+            "mark_lesson_packets": dict(self.mark_lesson_packets),
             "artifacts_created": dict(self.artifacts_created),
             "artifacts_broken": dict(self.artifacts_broken),
             "structures_built": dict(self.structures_built),
@@ -1579,6 +2072,7 @@ class Simulation:
             },
             "world_energy": world_energy_summary(self.world),
             "world_physics": world_physics_summary(self.world),
+            "observer": self.observer.to_summary(),
         }
         self.aggregate_history.append(aggregate)
         if len(self.aggregate_history) > 500:
