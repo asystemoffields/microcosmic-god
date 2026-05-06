@@ -489,7 +489,22 @@ class World:
             }.get(payoff_energy, "bind")
             if extra_step not in sequence:
                 sequence = (*sequence, extra_step)
-        difficulty = _clamp(0.18 + score * 0.42 + volatility * 0.18)
+        prep_steps: list[str] = []
+        if physics.get("temperature", 0.5) < 0.25:
+            prep_steps.append("concentrate_heat")
+        if physics.get("fluid_level", 0.0) > 0.45 and obstacles.get("water", 0.0) > 0.30:
+            if "contain" not in prep_steps:
+                prep_steps.append("contain")
+        if physics.get("abrasion", 0.0) > 0.30:
+            if "bind" not in prep_steps:
+                prep_steps.append("bind")
+        if physics.get("pressure", 0.0) > 0.40:
+            if "contain" not in prep_steps:
+                prep_steps.append("contain")
+        prep_steps = [s for s in prep_steps if s not in sequence]
+        if prep_steps:
+            sequence = (*prep_steps, *sequence)
+        difficulty = _clamp(0.18 + score * 0.42 + volatility * 0.18 + len(prep_steps) * 0.06)
         payoff = 14.0 + score * 68.0 + min(locked_chemical, 120.0) * 0.16 + max(0, len(sequence) - 2) * 18.0
         return CausalChallenge(
             sequence=sequence,

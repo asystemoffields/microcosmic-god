@@ -1449,5 +1449,98 @@ class CausalContractTests(unittest.TestCase):
         self.assertEqual(self.sim.config.compute_backend, "torch")
 
 
+class TexturedHarshnessTests(unittest.TestCase):
+    """Causal challenges should pick up physics-conditional prep steps so the
+    same global rule produces different sequences in different physics regimes,
+    selecting against rote memorization."""
+
+    BASELINE_PHYSICS = {
+        "temperature": 0.5,
+        "fluid_level": 0.1,
+        "pressure": 0.1,
+        "abrasion": 0.1,
+        "current_exposure": 0.1,
+        "salinity": 0.1,
+    }
+    BASELINE_OBSTACLES = {"water": 0.1, "thorn": 0.1, "height": 0.1, "heat": 0.1}
+    BASELINE_RESOURCES = {"biological_storage": 30.0}
+
+    def _make(self, **overrides) -> "CausalChallenge | None":
+        from microcosmic_god.world import World
+
+        physics = dict(self.BASELINE_PHYSICS)
+        obstacles = dict(self.BASELINE_OBSTACLES)
+        resources = dict(self.BASELINE_RESOURCES)
+        physics.update(overrides.pop("physics", {}))
+        obstacles.update(overrides.pop("obstacles", {}))
+        resources.update(overrides.pop("resources", {}))
+        params = dict(
+            locked_chemical=40.0,
+            water=0.4,
+            sun=0.3,
+            geo=0.3,
+            mineral=0.7,
+            volatility=0.05,
+            obstacles=obstacles,
+            physics=physics,
+        )
+        params.update(overrides)
+        # Use a fixed RNG seed so the candidate scoring is deterministic.
+        return World._make_causal_challenge(Random(7), resources, **params)
+
+    def test_temperate_dry_place_skips_prep(self) -> None:
+        challenge = self._make()
+        self.assertIsNotNone(challenge)
+        # In a temperate, dry, low-pressure place the sequence should not be
+        # prefixed with concentrate_heat / contain / bind.
+        self.assertNotIn(challenge.sequence[0], {"concentrate_heat", "contain", "bind"})
+
+    def test_cold_place_prepends_concentrate_heat(self) -> None:
+        challenge = self._make(physics={"temperature": 0.10})
+        self.assertIsNotNone(challenge)
+        self.assertEqual(challenge.sequence[0], "concentrate_heat")
+
+    def test_flooded_place_prepends_contain(self) -> None:
+        challenge = self._make(
+            physics={"fluid_level": 0.55},
+            obstacles={"water": 0.50},
+        )
+        self.assertIsNotNone(challenge)
+        # contain may collide with the base sequence (contain, filter); in that
+        # case the dedup keeps the sequence unchanged. Either contain is in
+        # position 0 or the original sequence already starts with it.
+        self.assertEqual(challenge.sequence[0], "contain")
+
+    def test_high_pressure_place_prepends_contain(self) -> None:
+        challenge = self._make(physics={"pressure": 0.55})
+        self.assertIsNotNone(challenge)
+        self.assertEqual(challenge.sequence[0], "contain")
+
+    def test_unstable_place_prepends_bind(self) -> None:
+        challenge = self._make(physics={"abrasion": 0.45})
+        self.assertIsNotNone(challenge)
+        self.assertEqual(challenge.sequence[0], "bind")
+
+    def test_cold_and_flooded_stacks_two_prep_steps(self) -> None:
+        challenge = self._make(
+            physics={"temperature": 0.10, "fluid_level": 0.55},
+            obstacles={"water": 0.50},
+        )
+        self.assertIsNotNone(challenge)
+        self.assertEqual(challenge.sequence[0], "concentrate_heat")
+        self.assertEqual(challenge.sequence[1], "contain")
+
+    def test_prep_step_not_duplicated_when_base_sequence_already_contains_it(self) -> None:
+        # A water-flow place whose base sequence is (contain, filter) and which
+        # is also high-pressure: prep "contain" should be dropped since it's
+        # already in the base sequence.
+        challenge = self._make(
+            water=0.95,
+            physics={"pressure": 0.55, "current_exposure": 0.45},
+        )
+        self.assertIsNotNone(challenge)
+        self.assertEqual(challenge.sequence.count("contain"), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
