@@ -102,6 +102,9 @@ class Simulation:
         self.demonstrations: dict[int, list[tuple[int, str, bool]]] = defaultdict(list)
         self._seed_initial_life()
 
+    def _environment_harshness(self) -> float:
+        return max(0.2, float(getattr(self.config, "environment_harshness", 1.0)))
+
     def _seed_initial_life(self) -> None:
         for _ in range(self.config.initial_plants):
             self.add_organism("plant", Genome.plant(self.rng), self.rng.randrange(len(self.world.places)), self.rng.uniform(10.0, 35.0))
@@ -138,6 +141,16 @@ class Simulation:
             parent_ids=parent_ids,
             brain_template=brain_template,
         )
+        parent_lineages = tuple(
+            self.organisms[parent_id].lineage_root_id or parent_id
+            for parent_id in parent_ids
+            if parent_id in self.organisms
+        )
+        if parent_ids:
+            organism.parent_lineage_ids = parent_lineages or parent_ids
+            organism.lineage_root_id = organism.parent_lineage_ids[0]
+        else:
+            organism.lineage_root_id = organism.id
         self.organisms[organism.id] = organism
         self.next_id += 1
         self.living_total += 1
@@ -330,6 +343,9 @@ class Simulation:
         if organism is not None:
             subjects.append(f"organism:{organism.id}")
             subjects.append(f"place:{organism.location}")
+            lineage_root_id = getattr(organism, "lineage_root_id", 0)
+            if lineage_root_id:
+                subjects.append(f"lineage:{lineage_root_id}")
         if place_id is not None:
             subject = f"place:{place_id}"
             if subject not in subjects:
@@ -445,6 +461,29 @@ class Simulation:
             "raw": raw,
         }
 
+    def _agent_defense_context(self, target: Organism, attack_power: float) -> dict[str, Any]:
+        if target.kind != "agent":
+            return {"bonus": 0.0, "support": 0.0, "structure": 0.0, "shelter": 0.0, "collaboration": None}
+        place = self.world.places[target.location]
+        shelter = max(place.physics.get("shelter", 0.0), structure_capability(place.structures, "shelter"))
+        structure = max(
+            structure_capability(place.structures, "protect"),
+            structure_capability(place.structures, "support") * 0.35,
+            structure_capability(place.structures, "enclose") * 0.25,
+            structure_capability(place.structures, "anchor") * 0.18,
+        )
+        guarded = 0.05 if target.last_action in {"observe", "signal", "coordinate", "build"} else 0.0
+        collaboration = self._collective_support(target, "protect", attack_power)
+        support = float(collaboration.get("support", 0.0))
+        bonus = shelter * 0.16 + structure * 0.24 + support * 0.30 + guarded
+        return {
+            "bonus": bonus,
+            "support": support,
+            "structure": structure,
+            "shelter": shelter,
+            "collaboration": collaboration,
+        }
+
     def _apply_collaboration_effects(self, organism: Organism, focus: str, context: str, collaboration: dict[str, Any], score: float) -> None:
         support = float(collaboration.get("support", 0.0))
         helper_ids = list(collaboration.get("helpers", []))
@@ -476,6 +515,60 @@ class Simulation:
             rarity_key=f"collaboration:{context}:{focus}",
         )
 
+    def _place_exposure_pressure(self, place: Place) -> dict[str, Any]:
+        physics = place.physics
+        temperature = physics.get("temperature", 0.5)
+        humidity = physics.get("humidity", place.habitat.get("humidity", 0.5))
+        fluid = physics.get("fluid_level", place.habitat.get("aquatic", 0.0))
+        current = physics.get("current_exposure", 0.0)
+        elevation = physics.get("elevation", 0.5)
+        abrasion = physics.get("abrasion", 0.0)
+        wet_dry = physics.get("wet_dry_cycle", 0.0)
+        shelter = physics.get("shelter", 0.0)
+        cold = max(
+            0.0,
+            0.34
+            - temperature
+            + humidity * 0.07
+            + current * 0.05
+            + max(0.0, elevation - 0.45) * 0.05
+            + place.volatility * 0.16
+            - place.geothermal * 0.08
+            - place.resources.get("thermal", 0.0) / 460.0,
+        )
+        heat = max(0.0, temperature - 0.72 + place.obstacles.get("heat", 0.0) * 0.12 + place.volatility * 0.06)
+        wet = max(0.0, fluid * 0.18 + humidity * 0.08 + wet_dry * 0.20 + current * 0.18 - shelter * 0.05)
+        abrasion_pressure = max(0.0, abrasion * 0.20 + max(0.0, elevation - 0.55) * 0.07 + place.volatility * 0.05)
+        components = {
+            "cold": cold,
+            "heat": heat,
+            "wet": wet,
+            "abrasion": abrasion_pressure,
+        }
+        primary = max(components, key=components.get)
+        if primary == "cold":
+            required_affordance = "concentrate_heat"
+            required_capability = "insulate"
+        elif primary == "heat":
+            required_affordance = "concentrate_heat"
+            required_capability = "shelter"
+        elif primary == "wet":
+            required_affordance = "contain"
+            required_capability = "enclose"
+        else:
+            required_affordance = "bind"
+            required_capability = "protect"
+        score = max(0.0, min(1.5, cold * 0.72 + heat * 0.54 + wet * 0.42 + abrasion_pressure * 0.36))
+        return {
+            "kind": "exposure",
+            "place": place.id,
+            "severity": round(score, 6),
+            "primary": primary,
+            "required_affordance": required_affordance,
+            "required_capability": required_capability,
+            "components": {key: round(value, 6) for key, value in components.items() if value > 0.0},
+        }
+
     def _place_hazard_pressure(self, place: Place) -> float:
         physics = place.physics
         obstacles = place.obstacles
@@ -490,6 +583,7 @@ class Simulation:
                 + physics.get("pressure", 0.0) * 0.12
                 + physics.get("salinity", 0.0) * 0.08
                 + physics.get("current_exposure", 0.0) * 0.10
+                + self._place_exposure_pressure(place)["severity"] * 0.16
                 + max(0.0, physics.get("interiority", 0.0) - physics.get("boundary_permeability", 0.0)) * 0.10,
             ),
         )
@@ -664,6 +758,7 @@ class Simulation:
                 "payoff_energy": challenge.payoff_energy,
                 "remaining": challenge.payoff_remaining,
                 "difficulty": challenge.difficulty,
+                "progress": challenge.progress,
             }
 
         obstacle_options = [
@@ -674,6 +769,15 @@ class Simulation:
             (place.physics.get("salinity", 0.0), "salinity", "filter", "filter"),
             (place.physics.get("pressure", 0.0), "pressure", "contain", "anchor"),
         ]
+        exposure = self._place_exposure_pressure(place)
+        obstacle_options.append(
+            (
+                float(exposure["severity"]),
+                str(exposure["primary"]),
+                str(exposure["required_affordance"]),
+                str(exposure["required_capability"]),
+            )
+        )
         severity, obstacle, required_affordance, required_capability = max(
             obstacle_options,
             key=lambda item: item[0],
@@ -734,13 +838,162 @@ class Simulation:
             "score": score,
             "method_quality": method_quality,
             "skill": organism.tool_skill.get(affordance, 0.0),
-            "problem": self._salient_problem(organism, place, affordance),
+            "problem": self._salient_problem(organism, place),
+            "attempted_affordance": affordance,
         }
         if components:
             lesson["components"] = {name: int(qty) for name, qty in components.items() if qty > 0}
         if sequence:
             lesson["sequence"] = list(sequence)
         organism.record_lesson(lesson)
+
+    def _affordance_score(self, organism: Organism, affordance: str) -> float:
+        if affordance not in AFFORDANCES:
+            return 0.0
+        potentials = derive_affordances(organism.inventory)
+        potential = max(potentials.get(affordance, 0.0), artifact_capability(organism.artifacts, affordance))
+        return potential * (0.65 + 0.35 * organism.tool_skill.get(affordance, 0.0))
+
+    def _problem_affordance_fit(self, problem: dict[str, Any], affordance: str) -> float:
+        if affordance not in AFFORDANCES:
+            return 0.0
+        required = str(problem.get("required_affordance") or "")
+        fit = 0.0
+        if affordance == required:
+            fit += 0.46
+
+        kind = str(problem.get("kind") or "")
+        if kind == "causal_challenge":
+            sequence = [str(item) for item in problem.get("sequence", []) if str(item) in AFFORDANCES]
+            if affordance == required:
+                progress = float(problem.get("progress", 0.0) or 0.0)
+                fit += 0.20 + min(0.18, progress * 0.05)
+            elif affordance in sequence:
+                fit += 0.16
+        elif kind == "obstacle":
+            obstacle = str(problem.get("obstacle") or "")
+            alternatives = {
+                "height": {"lever": 0.24, "crack": 0.08, "bind": 0.06},
+                "water": {"contain": 0.25, "filter": 0.16, "bind": 0.06},
+                "thorn": {"cut": 0.26, "bind": 0.08},
+                "heat": {"concentrate_heat": 0.20, "contain": 0.07, "filter": 0.05},
+                "salinity": {"filter": 0.28, "contain": 0.10},
+                "pressure": {"contain": 0.20, "bind": 0.07, "lever": 0.06},
+            }
+            fit += alternatives.get(obstacle, {}).get(affordance, 0.0)
+            fit *= 0.78 + min(0.40, float(problem.get("severity", 0.0) or 0.0))
+        elif kind == "resource":
+            resource = str(problem.get("resource") or "")
+            alternatives = {
+                "locked_chemical": {"crack": 0.26, "lever": 0.17, "conduct": 0.04},
+                "mechanical_gradient": {"contain": 0.20, "lever": 0.12, "bind": 0.08},
+                "electrical_source": {"conduct": 0.30, "contain": 0.05},
+                "heat_source": {"concentrate_heat": 0.24, "conduct": 0.08},
+                "surface_food": {"filter": 0.24, "cut": 0.10, "contain": 0.06},
+            }
+            fit += alternatives.get(resource, {}).get(affordance, 0.0)
+            fit *= 0.78 + min(0.36, float(problem.get("value", 0.0) or 0.0))
+        return max(0.0, min(1.0, fit))
+
+    def _problem_match(self, current: dict[str, Any], remembered: dict[str, Any]) -> float:
+        if not current or not remembered:
+            return 0.0
+        match = 0.0
+        if current.get("kind") == remembered.get("kind"):
+            match += 0.24
+        if current.get("required_affordance") and current.get("required_affordance") == remembered.get("required_affordance"):
+            match += 0.24
+        for key in ("obstacle", "resource", "payoff_energy"):
+            if current.get(key) and current.get(key) == remembered.get(key):
+                match += 0.18
+        current_sequence = {str(item) for item in current.get("sequence", []) if str(item) in AFFORDANCES}
+        remembered_sequence = {str(item) for item in remembered.get("sequence", []) if str(item) in AFFORDANCES}
+        if current_sequence and remembered_sequence:
+            overlap = len(current_sequence & remembered_sequence) / max(1, len(current_sequence | remembered_sequence))
+            match += overlap * 0.16
+        for key in ("severity", "value", "difficulty"):
+            if key in current and key in remembered:
+                distance = abs(float(current.get(key, 0.0) or 0.0) - float(remembered.get(key, 0.0) or 0.0))
+                match += max(0.0, 0.08 - distance * 0.05)
+        return max(0.0, min(1.0, match))
+
+    def _memory_affordance_bias(self, organism: Organism, problem: dict[str, Any], affordance: str) -> tuple[float, float]:
+        if not organism.lesson_memory:
+            return 0.0, 0.0
+        total = 0.0
+        strongest_match = 0.0
+        for lesson in organism.lesson_memory[-5:]:
+            if str(lesson.get("affordance") or lesson.get("attempted_affordance") or "") != affordance:
+                continue
+            remembered = lesson.get("problem", {}) if isinstance(lesson.get("problem"), dict) else {}
+            match = self._problem_match(problem, remembered)
+            if match <= 0.0:
+                continue
+            strongest_match = max(strongest_match, match)
+            gain = max(0.0, float(lesson.get("gain", 0.0) or 0.0))
+            score = max(0.0, float(lesson.get("score", 0.0) or 0.0))
+            method = max(0.0, float(lesson.get("method_quality", 0.0) or 0.0))
+            value = (0.22 if lesson.get("success") else -0.12) + min(0.24, gain / 18.0) + score * 0.12 + method * 0.08
+            total += match * value
+        return max(-0.24, min(0.42, total)), strongest_match
+
+    def _situation_affordance_choice(self, organism: Organism, place: Place, base_affordance: str, base_score: float) -> tuple[str, float, bool, dict[str, Any]]:
+        problem = self._salient_problem(organism, place)
+        planning = self._interaction_control(organism)
+        capability_floor = 0.055
+        best_affordance_name = base_affordance
+        best_score = base_score
+        best_value = base_score
+        best_fit = self._problem_affordance_fit(problem, base_affordance)
+        best_memory, best_recognition = self._memory_affordance_bias(organism, problem, base_affordance)
+        best_reason = "capability"
+        candidates = 0
+        for affordance in AFFORDANCES:
+            raw_score = self._affordance_score(organism, affordance)
+            if raw_score < capability_floor and affordance != base_affordance:
+                continue
+            candidates += 1
+            situation_fit = self._problem_affordance_fit(problem, affordance)
+            memory_bias, recognition = self._memory_affordance_bias(organism, problem, affordance)
+            skill = max(0.0, organism.tool_skill.get(affordance, 0.0))
+            continuity = 0.030 if affordance == organism.last_tool_affordance else 0.0
+            problem_weight = 0.27 + planning * 0.22
+            memory_weight = 0.23 + planning * 0.20
+            uncertainty = self.rng.random() * max(0.006, 0.028 - planning * 0.016)
+            value = (
+                raw_score
+                + situation_fit * problem_weight * max(0.50, raw_score)
+                + memory_bias * memory_weight * max(0.50, raw_score)
+                + recognition * skill * 0.035
+                + continuity
+                + uncertainty
+            )
+            if value > best_value:
+                best_affordance_name = affordance
+                best_score = raw_score
+                best_value = value
+                best_fit = situation_fit
+                best_memory = memory_bias
+                best_recognition = recognition
+                best_reason = "memory" if memory_bias > situation_fit * 0.45 else "situation" if situation_fit > 0.0 else "capability"
+
+        context = {
+            "problem": problem,
+            "base_affordance": base_affordance,
+            "base_score": round(base_score, 6),
+            "choice_value": round(best_value, 6),
+            "situation_fit": round(best_fit, 6),
+            "memory_bias": round(best_memory, 6),
+            "recognition": round(best_recognition, 6),
+            "reason": best_reason,
+            "candidates": candidates,
+        }
+        situation_directed = best_affordance_name != base_affordance or best_fit > 0.28 or best_memory > 0.08
+        return best_affordance_name, best_score, situation_directed, context
+
+    def _environmental_affordance_choice(self, organism: Organism, place: Place, base_affordance: str, base_score: float) -> tuple[str, float, bool]:
+        affordance, score, directed, _context = self._situation_affordance_choice(organism, place, base_affordance, base_score)
+        return affordance, score, directed
 
     def _apply_physics_transport(self) -> None:
         for organism in list(self.organisms.values()):
@@ -804,7 +1057,9 @@ class Simulation:
     def _metabolize(self, organism: Organism) -> None:
         organism.age += 1
         self._age_portable_inscriptions(organism)
-        organism.energy -= organism.metabolic_cost()
+        hardship = max(0.0, self._environment_harshness() - 1.0)
+        hardship_multiplier = 1.0 + hardship * (0.16 if organism.kind == "agent" else 0.08)
+        organism.energy -= organism.metabolic_cost() * hardship_multiplier
         if organism.energy < 0.0:
             organism.health += organism.energy * 0.030
             organism.energy = 0.0
@@ -835,46 +1090,100 @@ class Simulation:
         temperature = physics.get("temperature", 0.5)
         pressure = physics.get("pressure", depth)
         current = physics.get("current_exposure", 0.0)
-        shelter = max(physics.get("shelter", 0.0), structure_capability(place.structures, "shelter"))
+        structure_shelter = structure_capability(place.structures, "shelter")
+        shelter = max(physics.get("shelter", 0.0), structure_shelter)
         interiority = max(physics.get("interiority", 0.0), structure_capability(place.structures, "enclose"))
         permeability = max(physics.get("boundary_permeability", 0.0), structure_capability(place.structures, "permeable"))
-        insulation = max(artifact_capability(organism.artifacts, "insulate"), shelter * 0.55)
+        artifact_insulation = artifact_capability(organism.artifacts, "insulate")
+        insulation = max(artifact_insulation, shelter * 0.55)
         protection = artifact_capability(organism.artifacts, "protect")
         float_cap = artifact_capability(organism.artifacts, "float")
         anchor = max(artifact_capability(organism.artifacts, "anchor"), structure_capability(place.structures, "anchor") * 0.35)
         traverse = max(artifact_capability(organism.artifacts, "traverse"), structure_capability(place.structures, "support") * 0.25)
+        heat_control = max(
+            artifact_capability(organism.artifacts, "concentrate_heat"),
+            structure_capability(place.structures, "concentrate_heat") * 0.45,
+            structure_capability(place.structures, "gradient_harvest") * 0.24,
+            structure_capability(place.structures, "energy_storage") * 0.20,
+        )
+        containment = max(
+            artifact_capability(organism.artifacts, "contain"),
+            structure_capability(place.structures, "enclose") * 0.42,
+            structure_capability(place.structures, "channel") * 0.22,
+        )
+        hardship = max(0.0, self._environment_harshness() - 1.0)
+        exposure = self._place_exposure_pressure(place)
+        exposure_severity = float(exposure["severity"]) * (1.0 + hardship * 0.50)
+        exposure_collaboration = self._collective_support(organism, "protect", exposure_severity) if organism.kind == "agent" and exposure_severity > 0.12 else {"support": 0.0, "helpers": [], "raw": 0.0}
+        exposure_support = float(exposure_collaboration.get("support", 0.0))
         exposure_damping = max(0.45, 1.0 - shelter * 0.35 - protection * 0.16)
         drowning = max(0.0, aquatic * depth - organism.genome.aquatic_affinity * 0.85 - organism.genome.mobility * 0.15 - float_cap * 0.20 - shelter * 0.08 - protection * 0.05)
         desiccation = max(0.0, organism.genome.aquatic_affinity * (1.0 - humidity) - organism.genome.desiccation_tolerance * 0.55 - shelter * 0.14 - protection * 0.08)
         salinity_stress = max(0.0, abs(salinity - organism.genome.salinity_tolerance) - 0.55 - protection * 0.06)
         heat_stress = max(0.0, temperature - (0.58 + organism.genome.thermal_tolerance * 0.42 + insulation * 0.25 + protection * 0.06))
-        cold_stress = max(0.0, 0.18 - temperature - organism.genome.thermal_tolerance * 0.12 - insulation * 0.18 - protection * 0.05)
+        cold_stress = max(0.0, 0.24 - temperature - organism.genome.thermal_tolerance * 0.14 - insulation * 0.20 - heat_control * 0.12 - protection * 0.05)
         pressure_stress = max(0.0, pressure - (organism.genome.pressure_tolerance * 1.05 + organism.genome.aquatic_affinity * 0.20 + organism.genome.armor * 0.12 + protection * 0.14))
         current_stress = max(0.0, current * aquatic - max(organism.genome.buoyancy, float_cap, anchor * 0.80, traverse * 0.55, organism.genome.mobility * 0.25))
         stagnant_interior = max(0.0, interiority - shelter) * max(0.0, 1.0 - permeability) * max(0.0, pressure + temperature - 0.80)
+        tool_exposure_buffer = artifact_insulation * 0.24 + heat_control * 0.22 + protection * 0.13 + containment * 0.09 + structure_shelter * 0.12
+        tool_synergy = min(1.0, tool_exposure_buffer * 2.5)
+        social_exposure_buffer = exposure_support * (0.14 + tool_synergy * 0.08)
+        exposure_buffer = (
+            insulation * 0.24
+            + heat_control * 0.22
+            + protection * 0.13
+            + shelter * 0.16
+            + containment * 0.09
+            + social_exposure_buffer
+            + organism.genome.thermal_tolerance * 0.10
+            + organism.genome.armor * 0.05
+        )
+        exposure_stress = max(0.0, exposure_severity - exposure_buffer)
+        buffered_exposure = max(0.0, exposure_severity - exposure_stress)
+        agent_pressure = 1.0 if organism.kind == "agent" else 0.35
         stress = (
             drowning * 0.020 * exposure_damping
             + desiccation * 0.015 * exposure_damping
             + salinity_stress * 0.010
             + heat_stress * 0.018
             + cold_stress * 0.012
-            + pressure_stress * 0.012
+            + pressure_stress * (0.012 + hardship * 0.003)
             + current_stress * 0.009 * exposure_damping
             + stagnant_interior * 0.006
+            + exposure_stress * (0.014 + hardship * 0.010) * agent_pressure
         )
-        if stress <= 0.0:
-            return
+        if exposure_severity > 0.12:
+            self.physics_events["exposure_pressure"] += 1
+            self.physics_events[f"exposure_{exposure['primary']}"] += 1
+        if hardship > 0.0 and exposure_stress > 0.05:
+            self.physics_events["harsh_exposure_pressure"] += 1
+        if exposure_support > 0.01:
+            self.physics_events["collaborative_exposure_buffer"] += 1
+            self._apply_collaboration_effects(organism, "protect", "exposure", exposure_collaboration, exposure_severity)
         if protection > 0.0:
             self._wear_artifacts(organism, "protect", amount=stress * (0.35 + protection * 0.20))
             self._increase_skill(organism, "protect", stress * 0.018, transfer=0.06)
-        organism.energy -= stress * 2.0
+        if insulation > 0.0 and exposure_severity > 0.08:
+            self._wear_artifacts(organism, "insulate", amount=exposure_severity * (0.08 + insulation * 0.10))
+            self._increase_skill(organism, "insulate", exposure_severity * 0.006, transfer=0.05)
+        if heat_control > 0.0 and exposure_severity > 0.08:
+            self._wear_artifacts(organism, "concentrate_heat", amount=exposure_severity * (0.05 + heat_control * 0.08))
+            self._increase_skill(organism, "concentrate_heat", exposure_severity * 0.005, transfer=0.05)
+        if tool_exposure_buffer > 0.05 and buffered_exposure > 0.05:
+            self.physics_events["tool_buffered_exposure"] += 1
+            organism.record_success("tool_use", min(0.12, min(buffered_exposure, tool_exposure_buffer) * 0.03))
+        if stress <= 0.0:
+            return
+        organism.energy -= stress * (2.0 + hardship * 0.70)
         organism.health -= stress
         if organism.health <= 0.0:
-            if pressure_stress > max(drowning, desiccation, salinity_stress, heat_stress, cold_stress):
+            if exposure_stress > max(drowning, desiccation, salinity_stress, heat_stress, cold_stress, pressure_stress, current_stress):
+                self._kill(organism, "exposure_stress")
+            elif pressure_stress > max(drowning, desiccation, salinity_stress, heat_stress, cold_stress, exposure_stress):
                 self._kill(organism, "pressure_stress")
-            elif heat_stress > max(drowning, desiccation, salinity_stress, pressure_stress, cold_stress):
+            elif heat_stress > max(drowning, desiccation, salinity_stress, pressure_stress, cold_stress, exposure_stress):
                 self._kill(organism, "thermal_stress")
-            elif current_stress > max(drowning, desiccation, salinity_stress, pressure_stress, heat_stress):
+            elif current_stress > max(drowning, desiccation, salinity_stress, pressure_stress, heat_stress, exposure_stress):
                 self._kill(organism, "current_exposure")
             else:
                 self._kill(organism, "habitat_mismatch")
@@ -1094,7 +1403,7 @@ class Simulation:
             + against_current * (1.0 - max(traverse, float_cap, aquatic_fit, anchor * 0.55))
             + downhill * (1.0 - max(traverse, anchor, organism.genome.mobility)) * 0.35
             + boundary * (1.0 - max(traverse, organism.genome.manipulator * 0.35, cut * 0.25))
-        ) / 8.35
+        ) / 6.10
         solo_success = (
             organism.genome.mobility
             + traverse * 0.65
@@ -1104,23 +1413,25 @@ class Simulation:
             + anchor * 0.04
             + self.rng.gauss(0.0, 0.04)
         )
-        voyage_difficulty = barrier + edge_required * 0.35 + destination.physics.get("pressure", 0.0) * 0.08 + (edge.danger if edge else 0.0) * 0.20
+        edge_danger = edge.danger if edge else 0.0
+        voyage_difficulty = barrier + edge_required * 0.45 + destination.physics.get("pressure", 0.0) * 0.12 + edge_danger * 0.35 + distance * 0.04
         collaboration = self._collective_support(organism, "traverse", voyage_difficulty)
         support = float(collaboration["support"])
         relocation_shock = self._relocation_shock(organism, place, destination, planning)
-        success = solo_success + support * 0.48
-        effective_barrier = max(0.0, barrier + relocation_shock * 0.18 - support * 0.16)
+        success = solo_success + support * 0.36
+        effective_barrier = max(0.0, barrier + relocation_shock * 0.22 + edge_danger * 0.12 - support * 0.12)
         if success >= effective_barrier:
             organism.location = destination_id
             organism.energy -= (
-                effective_barrier * 0.080
-                + distance * 0.018
-                + uphill * 0.028
-                + destination.physics.get("pressure", 0.0) * 0.010
-                + relocation_shock * 0.48
+                effective_barrier * 0.125
+                + distance * 0.026
+                + uphill * 0.040
+                + destination.physics.get("pressure", 0.0) * 0.016
+                + edge_danger * 0.035
+                + relocation_shock * 0.58
                 + load_ratio * 0.025
             ) * efficiency
-            organism.health -= relocation_shock * max(0.0, 0.020 - support * 0.006)
+            organism.health -= relocation_shock * max(0.0, 0.030 + edge_danger * 0.012 - support * 0.006)
             if relocation_shock > 0.12:
                 self._increase_skill(organism, "traverse", relocation_shock * 0.004, transfer=0.10)
                 self._increase_skill(organism, "protect", relocation_shock * 0.002, transfer=0.05)
@@ -1152,10 +1463,10 @@ class Simulation:
             if organism.health <= 0.0:
                 self._kill(organism, "relocation_shock")
         else:
-            organism.energy -= (effective_barrier * 0.240 + distance * 0.022 + relocation_shock * 0.24 + load_ratio * 0.030) * efficiency
+            organism.energy -= (effective_barrier * 0.340 + distance * 0.032 + edge_danger * 0.060 + relocation_shock * 0.32 + load_ratio * 0.030) * efficiency
             organism.health -= (
-                max(0.0, effective_barrier - success) * (0.035 + downhill * 0.015) * (1.0 - planning * 0.18) * max(0.45, 1.0 - support * 0.35)
-                + relocation_shock * 0.008
+                max(0.0, effective_barrier - success) * (0.052 + downhill * 0.018 + edge_danger * 0.020) * (1.0 - planning * 0.14) * max(0.42, 1.0 - support * 0.32)
+                + relocation_shock * 0.012
             )
             if support > 0.04:
                 self._apply_collaboration_effects(organism, "traverse", "failed_expedition", collaboration, voyage_difficulty * 0.4)
@@ -1295,20 +1606,25 @@ class Simulation:
             expected = challenge.expected_affordance()
             if expected in AFFORDANCES and self.rng.random() < 0.45 + planning * 0.45:
                 return expected
+        exposure = self._place_exposure_pressure(place)
+        exposure_severity = float(exposure["severity"])
+        cold_exposure = float(exposure["components"].get("cold", 0.0)) if isinstance(exposure.get("components"), dict) else 0.0
         scores = {
             "crack": place.locked_chemical / 180.0 + place.mineral_richness * 0.25,
             "cut": place.obstacles.get("thorn", 0.0) * 0.62 + place.resources["biological_storage"] / 220.0,
             "bind": organism.tool_skill.get("craft", 0.0) * 0.35 + organism.inventory_count() / max(1.0, organism.inventory_limit()) * 0.16,
             "contain": place.obstacles.get("water", 0.0) * 0.30 + place.physics.get("current_exposure", 0.0) * 0.34 + place.resources["mechanical"] / 240.0,
-            "concentrate_heat": place.resources["radiant"] / 220.0 + place.resources["thermal"] / 260.0 + place.obstacles.get("heat", 0.0) * 0.12,
+            "concentrate_heat": place.resources["radiant"] / 220.0 + place.resources["thermal"] / 260.0 + place.obstacles.get("heat", 0.0) * 0.12 + cold_exposure * 0.42,
             "conduct": place.resources["electrical"] / 160.0 + place.resources["high_density"] / 90.0 + place.mineral_richness * place.geothermal * 0.55,
             "lever": place.locked_chemical / 230.0 + place.obstacles.get("height", 0.0) * 0.40,
             "filter": place.physics.get("current_exposure", 0.0) * 0.36 + place.physics.get("salinity", 0.0) * 0.18 + place.resources["chemical"] / 260.0,
             "carry": max(0.0, organism.inventory_count() / max(1.0, organism.inventory_limit()) - 0.55) + organism.tool_skill.get("pickup", 0.0) * 0.04,
+            "insulate": exposure_severity * 0.56 + cold_exposure * 0.35 + max(0.0, 0.42 - place.physics.get("temperature", 0.5)) * 0.20,
             "protect": (
                 place.physics.get("pressure", 0.0) * 0.16
                 + place.physics.get("abrasion", 0.0) * 0.22
                 + place.physics.get("temperature", 0.5) * 0.08
+                + exposure_severity * 0.26
                 + len(self._living_ids_at(place.id)) / max(1.0, place.capacity) * 0.14
             ),
             "record": (
@@ -1601,7 +1917,8 @@ class Simulation:
 
     def _use_tool(self, organism: Organism, feedback: dict[str, float]) -> None:
         place = self.world.places[organism.location]
-        affordance, score = best_affordance(organism.inventory, organism.tool_skill, organism.artifacts)
+        base_affordance, base_score = best_affordance(organism.inventory, organism.tool_skill, organism.artifacts)
+        affordance, score, situation_directed, situation_context = self._situation_affordance_choice(organism, place, base_affordance, base_score)
         if score < 0.08:
             organism.energy -= 0.05
             return
@@ -1651,16 +1968,31 @@ class Simulation:
                     "gain": gain,
                     "score": score,
                     "skill": organism.tool_skill[affordance],
+                    "environment_directed": situation_directed,
+                    "situation_kind": situation_context["problem"].get("kind"),
+                    "situation_reason": situation_context["reason"],
+                    "situation_fit": situation_context["situation_fit"],
+                    "memory_bias": situation_context["memory_bias"],
+                    "recognition": situation_context["recognition"],
+                    "base_affordance": situation_context["base_affordance"],
                 },
                 subjects=self._subjects(organism, extra=[f"affordance:{affordance}"]),
-                score=min(3.0, max(0.0, gain) / 6.0 + score * 0.45),
+                score=min(3.0, max(0.0, gain) / 6.0 + score * 0.45 + (0.12 if situation_directed else 0.0)),
                 rarity_key=f"tool_success:{affordance}",
             )
             if self.config.event_detail:
                 self.logger.event(
                     self.tick,
                     "tool_success",
-                    {"organism_id": organism.id, "affordance": affordance, "gain": round(gain, 5), "place": place.id, "support": round(support, 5)},
+                    {
+                        "organism_id": organism.id,
+                        "affordance": affordance,
+                        "gain": round(gain, 5),
+                        "place": place.id,
+                        "support": round(support, 5),
+                        "situation": situation_context["problem"].get("kind"),
+                        "reason": situation_context["reason"],
+                    },
                 )
             self.checkpoints.save_first_tool(self.tick, organism, affordance, {"place": place.to_summary(), "gain": gain})
         else:
@@ -1777,7 +2109,8 @@ class Simulation:
         threshold = challenge.difficulty * (0.76 + challenge.progress * 0.14)
         margin = competence + organism.tool_skill.get(affordance, 0.0) * 0.12 + planning * 0.30 + support * 0.18 + self.rng.gauss(0.0, 0.025)
         if affordance != expected or margin < threshold:
-            if affordance in challenge.sequence and self.rng.random() < 0.35:
+            reset_chance = max(0.08, 0.26 + challenge.progress * 0.04 - planning * 0.10 - support * 0.06)
+            if affordance in challenge.sequence and self.rng.random() < reset_chance:
                 challenge.progress = 0
             return 0.0
 
@@ -1888,16 +2221,39 @@ class Simulation:
         target = min(local, key=lambda candidate: (candidate.health + candidate.genome.armor * 0.7, -candidate.energy))
         attack_power = organism.genome.mobility * 0.40 + organism.genome.manipulator * 0.35 + organism.genome.mechanical_use * 0.25
         protection = artifact_capability(target.artifacts, "protect")
-        defense = target.genome.armor * 0.45 + target.genome.mobility * 0.25 + target.health * 0.20 + protection * 0.34
-        damage = max(0.005, attack_power - defense + self.rng.gauss(0.0, 0.05))
+        defense_context = self._agent_defense_context(target, attack_power)
+        defense = target.genome.armor * 0.45 + target.genome.mobility * 0.25 + target.health * 0.20 + protection * 0.34 + float(defense_context["bonus"])
+        damage = max(0.0, attack_power - defense + self.rng.gauss(0.0, 0.05))
         organism.energy -= 0.10 + attack_power * 0.08
+        if target.kind == "agent" and float(defense_context["support"]) > 0.01 and defense_context["collaboration"] is not None:
+            self._apply_collaboration_effects(target, "protect", "defense", defense_context["collaboration"], attack_power)
         if damage > 0.0:
             if protection > 0.0:
                 damage *= max(0.35, 1.0 - protection * 0.38)
                 self._increase_skill(target, "protect", damage * 0.025, transfer=0.06)
                 self._wear_artifacts(target, "protect", amount=damage * (0.55 + protection * 0.35))
             target.health -= damage
-        if target.health <= 0.0:
+        elif target.kind == "agent":
+            self._increase_skill(target, "protect", 0.002 + max(0.0, defense - attack_power) * 0.006, transfer=0.05)
+        if target.kind == "agent" and target.health > 0.0:
+            counter_base = (
+                target.genome.armor * 0.16
+                + target.genome.mobility * 0.14
+                + target.genome.manipulator * 0.10
+                + protection * 0.22
+                + float(defense_context["structure"]) * 0.12
+                + float(defense_context["support"]) * 0.18
+            )
+            counter_window = counter_base - attack_power * 0.38 + self.rng.gauss(0.0, 0.035)
+            if counter_window > 0.12:
+                counter_damage = min(0.32, (counter_window - 0.12) * 0.42)
+                organism.health -= counter_damage
+                target.energy -= 0.025 + counter_damage * 0.05
+                target.record_success("collaboration", float(defense_context["support"]) * 0.25)
+                self._increase_skill(target, "protect", 0.003 + counter_damage * 0.030, transfer=0.07)
+                if organism.health <= 0.0:
+                    self._kill(organism, "counterattack")
+        if target.health <= 0.0 and organism.alive:
             gained = target.energy * (0.30 + organism.genome.digestion * 0.45)
             organism.energy += max(0.0, gained)
             self._kill(target, "predation")
@@ -2223,9 +2579,19 @@ class Simulation:
                     "kind": child.kind,
                     "place": child.location,
                     "generation": child.generation,
+                    "lineage_root_id": child.lineage_root_id,
+                    "parent_lineage_ids": list(child.parent_lineage_ids),
+                    "inherited_brain_template": child.inherited_brain_template,
                     "complexity": child.genome.complexity(),
                 },
-                subjects=self._subjects(child, extra=[f"organism:{organism.id}", f"lineage:{organism.id}", "mode:clone_mutate"]),
+                subjects=self._subjects(
+                    child,
+                    extra=[
+                        f"organism:{organism.id}",
+                        f"lineage:{organism.lineage_root_id or organism.id}",
+                        "mode:clone_mutate",
+                    ],
+                ),
                 score=0.35 + child.generation * 0.08 + child.genome.complexity() * 0.08,
                 rarity_key=f"birth:{decision.plan.operator}:{child.kind}",
             )
@@ -2233,7 +2599,15 @@ class Simulation:
                 self.logger.event(
                     self.tick,
                     "birth",
-                    {"mode": decision.plan.operator, "child_id": child.id, "parent_ids": list(decision.plan.parent_ids), "kind": child.kind},
+                    {
+                        "mode": decision.plan.operator,
+                        "child_id": child.id,
+                        "parent_ids": list(decision.plan.parent_ids),
+                        "kind": child.kind,
+                        "lineage_root_id": child.lineage_root_id,
+                        "parent_lineage_ids": list(child.parent_lineage_ids),
+                        "inherited_brain_template": child.inherited_brain_template,
+                    },
                 )
         else:
             self.reproduction_failures["clone_mutate_add_failed"] += 1
@@ -2295,7 +2669,15 @@ class Simulation:
                         self.logger.event(
                             self.tick,
                             "birth",
-                            {"mode": "recombine", "child_id": child.id, "parent_ids": [organism.id, partner.id], "kind": child.kind},
+                            {
+                                "mode": "recombine",
+                                "child_id": child.id,
+                                "parent_ids": [organism.id, partner.id],
+                                "kind": child.kind,
+                                "lineage_root_id": child.lineage_root_id,
+                                "parent_lineage_ids": list(child.parent_lineage_ids),
+                                "inherited_brain_template": child.inherited_brain_template,
+                            },
                         )
 
     def _partner_score(self, chooser: Organism, candidate: Organism) -> float:
@@ -2335,9 +2717,21 @@ class Simulation:
                     "kind": child.kind,
                     "place": child.location,
                     "generation": child.generation,
+                    "lineage_root_id": child.lineage_root_id,
+                    "parent_lineage_ids": list(child.parent_lineage_ids),
+                    "inherited_brain_template": child.inherited_brain_template,
                     "complexity": child.genome.complexity(),
                 },
-                subjects=self._subjects(child, extra=[f"organism:{a.id}", f"organism:{b.id}", f"lineage:{a.id}", f"lineage:{b.id}", "mode:recombine"]),
+                subjects=self._subjects(
+                    child,
+                    extra=[
+                        f"organism:{a.id}",
+                        f"organism:{b.id}",
+                        f"lineage:{a.lineage_root_id or a.id}",
+                        f"lineage:{b.lineage_root_id or b.id}",
+                        "mode:recombine",
+                    ],
+                ),
                 score=0.55 + child.generation * 0.09 + child.genome.complexity() * 0.10,
                 rarity_key=f"birth:{decision.plan.operator}:{child.kind}",
             )
@@ -2651,6 +3045,7 @@ class Simulation:
                     "kind": organism.kind,
                     "cause": cause,
                     "place": place.id,
+                    "lineage_root_id": organism.lineage_root_id,
                     "offspring_count": organism.offspring_count,
                     "successful_tools": organism.successful_tools,
                     "score": checkpoint_score,
@@ -2741,6 +3136,7 @@ class Simulation:
             "population": population_counts(self.organisms),
             "world_energy": world_energy_summary(self.world),
             "world_physics": world_physics_summary(self.world),
+            "lineages": self._lineage_summary(limit=5),
         }
 
     def _save_checkpoint_candidate(self, organism: Organism, label: str, criterion: str, bucket: str) -> None:
@@ -2827,6 +3223,125 @@ class Simulation:
         if lineage is not None and (lineage.generation > 0 or lineage.offspring_count > 0):
             self._save_checkpoint_candidate(lineage, label, "lineage_founder", "lineage_founder")
 
+    def _lineage_summary(self, limit: int = 8) -> dict[str, Any]:
+        profile_keys = (
+            "energy_gain",
+            "prediction_fit",
+            "tool_make",
+            "tool_use",
+            "structure",
+            "causal_step",
+            "causal_unlock",
+            "collaboration",
+            "social_learning",
+            "written_learning",
+            "knowledge_transmitted",
+            "reproduction",
+        )
+        rows: dict[int, dict[str, Any]] = {}
+        members: dict[int, list[Organism]] = defaultdict(list)
+        for organism in self.organisms.values():
+            if organism.kind != "agent":
+                continue
+            root = organism.lineage_root_id or organism.id
+            if root not in rows:
+                rows[root] = {
+                    "lineage_root_id": root,
+                    "born": 0,
+                    "living": 0,
+                    "living_neural": 0,
+                    "dead": 0,
+                    "max_generation": 0,
+                    "offspring_total": 0,
+                    "successful_tools_total": 0,
+                    "tool_users": 0,
+                    "inherited_template_count": 0,
+                    "profile": Counter(),
+                    "tool_use_counts": Counter(),
+                    "energy_total": 0.0,
+                    "health_total": 0.0,
+                }
+            row = rows[root]
+            row["born"] += 1
+            row["max_generation"] = max(row["max_generation"], organism.generation)
+            row["offspring_total"] += organism.offspring_count
+            row["successful_tools_total"] += organism.successful_tools
+            row["tool_users"] += int(organism.successful_tools > 0 or any(count > 0 for count in organism.tool_use_counts.values()))
+            row["inherited_template_count"] += int(organism.inherited_brain_template)
+            for key in profile_keys:
+                row["profile"][key] += organism.success_profile.get(key, 0.0)
+            for key, value in organism.tool_use_counts.items():
+                row["tool_use_counts"][key] += value
+            if organism.alive:
+                row["living"] += 1
+                row["living_neural"] += int(organism.neural)
+                row["energy_total"] += organism.energy
+                row["health_total"] += organism.health
+            else:
+                row["dead"] += 1
+            members[root].append(organism)
+
+        def member_score(organism: Organism) -> float:
+            return (
+                organism.offspring_count * 4.0
+                + organism.successful_tools * 1.8
+                + organism.success_profile.get("prediction_fit", 0.0) * 1.1
+                + organism.success_profile.get("collaboration", 0.0) * 0.8
+                + organism.success_profile.get("tool_use", 0.0) * 1.0
+                + organism.success_profile.get("structure", 0.0) * 1.0
+                + organism.success_profile.get("reproduction", 0.0) * 1.2
+                + organism.energy / max(1.0, organism.storage_limit())
+            )
+
+        summaries: list[dict[str, Any]] = []
+        for root, row in rows.items():
+            living_members = [organism for organism in members[root] if organism.alive]
+            top_members = sorted(living_members, key=member_score, reverse=True)[:5]
+            living = int(row["living"])
+            profile = row["profile"]
+            lineage_score = (
+                living * 6.0
+                + int(row["max_generation"]) * 1.8
+                + int(row["offspring_total"]) * 1.2
+                + int(row["successful_tools_total"]) * 1.6
+                + float(profile.get("prediction_fit", 0.0)) * 0.9
+                + float(profile.get("collaboration", 0.0)) * 0.7
+                + float(profile.get("tool_use", 0.0)) * 1.0
+                + float(profile.get("structure", 0.0)) * 1.0
+            )
+            summaries.append(
+                {
+                    "lineage_root_id": root,
+                    "born": int(row["born"]),
+                    "living": living,
+                    "living_neural": int(row["living_neural"]),
+                    "dead": int(row["dead"]),
+                    "max_generation": int(row["max_generation"]),
+                    "offspring_total": int(row["offspring_total"]),
+                    "successful_tools_total": int(row["successful_tools_total"]),
+                    "tool_users": int(row["tool_users"]),
+                    "inherited_template_count": int(row["inherited_template_count"]),
+                    "avg_living_energy": round(float(row["energy_total"]) / max(1, living), 5),
+                    "avg_living_health": round(float(row["health_total"]) / max(1, living), 5),
+                    "score": round(lineage_score, 5),
+                    "top_living_ids": [organism.id for organism in top_members],
+                    "profile": {key: round(value, 5) for key, value in sorted(profile.items()) if value > 0.0},
+                    "tool_use_counts": dict(row["tool_use_counts"].most_common(8)),
+                }
+            )
+        top_living = sorted(
+            (row for row in summaries if row["living"] > 0),
+            key=lambda row: (row["living"], row["max_generation"], row["offspring_total"], row["successful_tools_total"], row["score"]),
+            reverse=True,
+        )[:limit]
+        top_all_time = sorted(summaries, key=lambda row: row["score"], reverse=True)[:limit]
+        return {
+            "agent_lineages_total": len(summaries),
+            "living_agent_lineages": sum(1 for row in summaries if row["living"] > 0),
+            "top_living": top_living,
+            "top_all_time": top_all_time,
+        }
+
     def _log_aggregate(self) -> None:
         living = [organism for organism in self.organisms.values() if organism.alive]
         neural = [organism for organism in living if organism.neural]
@@ -2847,6 +3362,7 @@ class Simulation:
             "collaboration_events": dict(self.collaboration_events),
             "movement": self._movement_summary(),
             "success_profile": success_profile_summary(self.organisms),
+            "lineages": self._lineage_summary(),
             "marks_created": dict(self.marks_created),
             "mark_lessons": dict(self.mark_lessons),
             "mark_lesson_packets": dict(self.mark_lesson_packets),

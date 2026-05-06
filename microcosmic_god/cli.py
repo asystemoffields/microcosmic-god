@@ -28,6 +28,14 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--log-every", type=int, default=None)
     run.add_argument("--checkpoint-every", type=int, default=None)
     run.add_argument("--checkpoint-limit", type=int, default=None)
+    run.add_argument(
+        "--harshness",
+        "--environment-harshness",
+        dest="environment_harshness",
+        type=float,
+        default=None,
+        help="environment pressure multiplier; 1.0 is baseline, higher values reduce easy survival",
+    )
     run.add_argument("--backend", choices=["cpu", "torch"], default=None, help="brain compute backend")
     run.add_argument("--device", default=None, help="compute device for --backend torch, such as auto, cpu, cuda, or cuda:0")
     run.add_argument("--garden", action="store_true", help="allow logged interventions")
@@ -56,6 +64,7 @@ def config_from_args(args: argparse.Namespace) -> RunConfig:
         "log_every": args.log_every,
         "checkpoint_every": args.checkpoint_every,
         "neural_checkpoint_limit": args.checkpoint_limit,
+        "environment_harshness": args.environment_harshness,
         "compute_backend": args.backend,
         "device": args.device,
         "run_mode": "garden" if args.garden else "sealed",
@@ -106,6 +115,7 @@ def print_run_card(config: RunConfig) -> None:
     print(f"  log every: {config.log_every} ticks")
     print(f"  checkpoint every: {config.checkpoint_every} ticks")
     print(f"  checkpoint limit: {config.neural_checkpoint_limit}")
+    print(f"  environment harshness: {config.environment_harshness:.2f}")
     print(f"  compute backend: {config.compute_backend}")
     print(f"  device: {config.device}")
     print(f"  output dir: {config.output_dir}")

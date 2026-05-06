@@ -15,7 +15,7 @@ from microcosmic_god.simulation import Simulation
 from microcosmic_god.world import CausalChallenge
 
 
-def make_sim(seed: int = 101, places: int = 3) -> Simulation:
+def make_sim(seed: int = 101, places: int = 3, environment_harshness: float = 1.0) -> Simulation:
     tmp = tempfile.TemporaryDirectory()
     config = RunConfig(
         seed=seed,
@@ -29,10 +29,16 @@ def make_sim(seed: int = 101, places: int = 3) -> Simulation:
         max_population=50,
         output_dir=tmp.name,
         event_detail=False,
+        environment_harshness=environment_harshness,
     )
     sim = Simulation(config)
     sim._tmpdir = tmp  # type: ignore[attr-defined]
     return sim
+
+
+def close_sim(sim: Simulation) -> None:
+    sim.logger.close()
+    sim._tmpdir.cleanup()  # type: ignore[attr-defined]
 
 
 class CausalContractTests(unittest.TestCase):
@@ -41,6 +47,75 @@ class CausalContractTests(unittest.TestCase):
         if sim is not None:
             sim.logger.close()
             sim._tmpdir.cleanup()  # type: ignore[attr-defined]
+
+    def test_minute_profile_defaults_to_harsher_environment(self) -> None:
+        self.assertEqual(RunConfig.from_profile("smoke").environment_harshness, 1.0)
+        self.assertGreater(RunConfig.from_profile("minute").environment_harshness, 1.0)
+        self.assertGreaterEqual(RunConfig.from_profile("modal").environment_harshness, RunConfig.from_profile("minute").environment_harshness)
+
+    def test_environment_harshness_reduces_easy_survival_budget(self) -> None:
+        mild = make_sim(seed=909, places=12, environment_harshness=1.0)
+        harsh = make_sim(seed=909, places=12, environment_harshness=1.6)
+        try:
+            mild_capacity = sum(place.capacity for place in mild.world.places)
+            harsh_capacity = sum(place.capacity for place in harsh.world.places)
+            mild_easy_energy = sum(place.resources["chemical"] + place.resources["biological_storage"] for place in mild.world.places)
+            harsh_easy_energy = sum(place.resources["chemical"] + place.resources["biological_storage"] for place in harsh.world.places)
+            mild_toolable_energy = sum(place.locked_chemical + place.resources["mechanical"] for place in mild.world.places)
+            harsh_toolable_energy = sum(place.locked_chemical + place.resources["mechanical"] for place in harsh.world.places)
+            mild_exposure = sum(float(mild._place_exposure_pressure(place)["severity"]) for place in mild.world.places)
+            harsh_exposure = sum(float(harsh._place_exposure_pressure(place)["severity"]) for place in harsh.world.places)
+
+            self.assertLess(harsh_capacity, mild_capacity)
+            self.assertLess(harsh_easy_energy, mild_easy_energy)
+            self.assertGreater(harsh_toolable_energy, mild_toolable_energy)
+            self.assertGreater(harsh_exposure, mild_exposure)
+            self.assertEqual(harsh.world.to_summary()["environment_harshness"], 1.6)
+        finally:
+            close_sim(mild)
+            close_sim(harsh)
+
+    def test_harshness_amplifies_unbuffered_exposure_damage(self) -> None:
+        mild = make_sim(seed=919, places=1, environment_harshness=1.0)
+        harsh = make_sim(seed=919, places=1, environment_harshness=1.6)
+        try:
+            losses: list[float] = []
+            for sim in (mild, harsh):
+                place = sim.world.places[0]
+                place.volatility = 0.32
+                place.geothermal = 0.0
+                place.resources["thermal"] = 0.0
+                place.physics.update(
+                    {
+                        "temperature": 0.08,
+                        "humidity": 0.95,
+                        "fluid_level": 0.12,
+                        "pressure": 0.0,
+                        "current_exposure": 0.58,
+                        "elevation": 0.86,
+                        "abrasion": 0.65,
+                        "wet_dry_cycle": 0.76,
+                        "shelter": 0.0,
+                        "salinity": 0.0,
+                    }
+                )
+                place.habitat.update({"aquatic": 0.0, "depth": 0.0, "humidity": 0.95, "salinity": 0.0})
+                genome = Genome.neural(sim.rng)
+                genome.thermal_tolerance = 0.0
+                genome.armor = 0.0
+                agent = sim.add_organism("agent", genome, 0, 80.0)
+                assert agent is not None
+
+                sim._habitat_stress(agent)
+
+                losses.append(1.0 - agent.health)
+
+            self.assertGreater(losses[0], 0.0)
+            self.assertGreater(losses[1], losses[0] * 1.25)
+            self.assertGreater(harsh.physics_events["harsh_exposure_pressure"], 0)
+        finally:
+            close_sim(mild)
+            close_sim(harsh)
 
     def test_all_signal_tokens_are_observed(self) -> None:
         self.sim = make_sim()
@@ -93,6 +168,34 @@ class CausalContractTests(unittest.TestCase):
         self.assertIn("prediction_errors", payload["cognition"])
         self.assertGreater(payload["cognition"]["event_memory"]["tool"], 0.0)
 
+    def test_lineage_metadata_tracks_inherited_agent_templates(self) -> None:
+        self.sim = make_sim(places=1)
+        parent = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        assert parent is not None and parent.brain_template is not None
+
+        child = self.sim.add_organism(
+            "agent",
+            Genome.neural(self.sim.rng),
+            0,
+            40.0,
+            generation=parent.generation + 1,
+            parent_ids=(parent.id,),
+            brain_template=parent.brain_template,
+        )
+        assert child is not None
+
+        self.assertEqual(parent.lineage_root_id, parent.id)
+        self.assertEqual(child.lineage_root_id, parent.id)
+        self.assertEqual(child.parent_lineage_ids, (parent.id,))
+        self.assertTrue(child.inherited_brain_template)
+        self.assertEqual(child.to_summary()["lineage_root_id"], parent.id)
+        self.assertEqual(child.cognitive_snapshot()["lineage"]["root_id"], parent.id)
+
+        lineage_summary = self.sim._lineage_summary()
+        self.assertEqual(lineage_summary["agent_lineages_total"], 1)
+        self.assertEqual(lineage_summary["top_living"][0]["living"], 2)
+        self.assertEqual(lineage_summary["top_living"][0]["inherited_template_count"], 1)
+
     def test_attack_uses_current_location_not_tick_start_roster(self) -> None:
         self.sim = make_sim(places=2)
         attacker = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 80.0)
@@ -106,6 +209,125 @@ class CausalContractTests(unittest.TestCase):
 
         self.assertEqual(target.health, before_health)
         self.assertEqual(target.location, 1)
+
+    def test_agent_defense_can_block_and_counter_predation(self) -> None:
+        self.sim = make_sim(places=1)
+        attacker_genome = Genome.neural(self.sim.rng)
+        attacker_genome.mobility = 0.20
+        attacker_genome.manipulator = 0.20
+        attacker_genome.mechanical_use = 0.20
+        target_genome = Genome.neural(self.sim.rng)
+        target_genome.armor = 0.30
+        target_genome.mobility = 0.40
+        target_genome.manipulator = 1.00
+        helper_genome = Genome.neural(self.sim.rng)
+        helper_genome.armor = 1.00
+        helper_genome.mobility = 1.00
+        helper_genome.manipulator = 1.00
+        helper_genome.sensor_range = 1.00
+        helper_genome.signal_strength = 1.00
+        attacker = self.sim.add_organism("agent", attacker_genome, 0, 80.0)
+        target = self.sim.add_organism("agent", target_genome, 0, 80.0)
+        helper = self.sim.add_organism("agent", helper_genome, 0, 80.0)
+        assert attacker is not None and target is not None and helper is not None
+        attacker.health = 0.03
+        target.health = 0.45
+        target.last_action = "observe"
+        helper.health = 1.0
+        helper.last_action = "signal"
+        helper.tool_skill["protect"] = 1.0
+        helper.tool_skill["support"] = 1.0
+        self.sim.world.places[0].physics["shelter"] = 0.8
+
+        class ZeroRng:
+            def gauss(self, _mu: float, _sigma: float) -> float:
+                return 0.0
+
+        self.sim.rng = ZeroRng()  # type: ignore[assignment]
+        before_target_health = target.health
+        before_attacker_health = attacker.health
+        before_protect = target.tool_skill["protect"]
+
+        self.sim._attack(attacker)
+
+        self.assertAlmostEqual(target.health, before_target_health)
+        self.assertLess(attacker.health, before_attacker_health)
+        self.assertGreater(target.tool_skill["protect"], before_protect)
+        self.assertGreater(self.sim.collaboration_events["defense"], 0)
+
+    def test_tool_choice_uses_recognized_situation_without_magic(self) -> None:
+        self.sim = make_sim(places=1)
+        agent = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        assert agent is not None
+        agent.inventory = {"stone": 1, "shell": 1}
+        place = self.sim.world.places[0]
+        place.causal_challenge = None
+        place.obstacles["water"] = 1.0
+        place.physics["current_exposure"] = 0.5
+
+        class ZeroRng:
+            def random(self) -> float:
+                return 0.0
+
+        self.sim.rng = ZeroRng()  # type: ignore[assignment]
+        base_affordance = "crack"
+        base_score = self.sim._affordance_score(agent, base_affordance)
+
+        affordance, _score, directed, context = self.sim._situation_affordance_choice(agent, place, base_affordance, base_score)
+        self.assertEqual(affordance, "crack")
+        self.assertFalse(directed)
+        self.assertEqual(context["problem"]["required_affordance"], "contain")
+
+        agent.record_lesson(
+            {
+                "kind": "tool_use",
+                "affordance": "contain",
+                "success": True,
+                "gain": 5.0,
+                "score": 0.4,
+                "problem": {
+                    "kind": "obstacle",
+                    "obstacle": "water",
+                    "severity": 0.8,
+                    "required_affordance": "contain",
+                },
+            }
+        )
+
+        affordance, score, directed, context = self.sim._situation_affordance_choice(agent, place, base_affordance, base_score)
+        self.assertEqual(affordance, "contain")
+        self.assertGreaterEqual(score, 0.08)
+        self.assertTrue(directed)
+        self.assertGreater(context["recognition"], 0.5)
+        self.assertGreater(context["memory_bias"], 0.0)
+
+        place.causal_challenge = CausalChallenge(sequence=("conduct",), payoff_energy="electrical", payoff_remaining=10.0, difficulty=0.4)
+        affordance, _score, directed, context = self.sim._situation_affordance_choice(agent, place, base_affordance, base_score)
+        self.assertEqual(affordance, "crack")
+        self.assertFalse(directed)
+        self.assertEqual(context["problem"]["required_affordance"], "conduct")
+
+    def test_tool_lessons_store_situation_separately_from_attempt(self) -> None:
+        self.sim = make_sim(places=1)
+        agent = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        assert agent is not None
+        place = self.sim.world.places[0]
+        place.causal_challenge = None
+        place.obstacles["water"] = 1.0
+        place.physics["current_exposure"] = 0.5
+
+        self.sim._record_tool_lesson(
+            agent,
+            place,
+            kind="tool_use",
+            affordance="crack",
+            success=False,
+            score=0.4,
+        )
+
+        lesson = agent.lesson_memory[-1]
+        self.assertEqual(lesson["attempted_affordance"], "crack")
+        self.assertEqual(lesson["problem"]["required_affordance"], "contain")
 
     def test_clone_mutate_capacity_uses_current_local_population(self) -> None:
         self.sim = make_sim(places=2)
@@ -528,6 +750,88 @@ class CausalContractTests(unittest.TestCase):
         self.assertLess(protected.health, 1.0)
         self.assertGreater(protected.health, unprotected.health)
 
+    def test_exposure_pressure_favors_insulation_and_heat_control(self) -> None:
+        self.sim = make_sim(places=1)
+        place = self.sim.world.places[0]
+        place.volatility = 0.30
+        place.geothermal = 0.0
+        place.resources["thermal"] = 0.0
+        place.physics.update(
+            {
+                "temperature": 0.07,
+                "humidity": 0.95,
+                "fluid_level": 0.12,
+                "pressure": 0.0,
+                "current_exposure": 0.55,
+                "elevation": 0.86,
+                "abrasion": 0.62,
+                "wet_dry_cycle": 0.74,
+                "shelter": 0.0,
+                "salinity": 0.0,
+            }
+        )
+        place.habitat.update({"aquatic": 0.0, "depth": 0.0, "humidity": 0.95, "salinity": 0.0})
+        fragile = Genome.neural(self.sim.rng)
+        fragile.thermal_tolerance = 0.0
+        fragile.armor = 0.0
+        unprotected = self.sim.add_organism("agent", fragile, 0, 80.0)
+        protected = self.sim.add_organism("agent", fragile, 0, 80.0)
+        assert unprotected is not None and protected is not None
+        protected.artifacts.append(build_artifact({"fiber": 2, "resin": 1}, method_quality=1.0, target_affordance="insulate"))
+        protected.artifacts.append(build_artifact({"crystal": 1, "stone": 1}, method_quality=1.0, target_affordance="concentrate_heat"))
+
+        self.sim._habitat_stress(unprotected)
+        self.sim._habitat_stress(protected)
+
+        self.assertLess(unprotected.health, 1.0)
+        self.assertGreater(protected.health, unprotected.health)
+        self.assertGreater(self.sim.physics_events["exposure_pressure"], 0)
+        self.assertGreater(self.sim.physics_events["tool_buffered_exposure"], 0)
+        self.assertGreater(protected.tool_skill["insulate"], 0.0)
+
+    def test_active_helpers_can_buffer_exposure_without_replacing_tools(self) -> None:
+        self.sim = make_sim(places=2)
+        for place in self.sim.world.places[:2]:
+            place.volatility = 0.30
+            place.geothermal = 0.0
+            place.resources["thermal"] = 0.0
+            place.physics.update(
+                {
+                    "temperature": 0.07,
+                    "humidity": 0.95,
+                    "fluid_level": 0.12,
+                    "pressure": 0.0,
+                    "current_exposure": 0.55,
+                    "elevation": 0.86,
+                    "abrasion": 0.62,
+                    "wet_dry_cycle": 0.74,
+                    "shelter": 0.0,
+                    "salinity": 0.0,
+                }
+            )
+            place.habitat.update({"aquatic": 0.0, "depth": 0.0, "humidity": 0.95, "salinity": 0.0})
+        fragile = Genome.neural(self.sim.rng)
+        fragile.thermal_tolerance = 0.0
+        fragile.armor = 0.0
+        alone = self.sim.add_organism("agent", fragile, 1, 80.0)
+        helped = self.sim.add_organism("agent", fragile, 0, 80.0)
+        helper = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        assert alone is not None and helped is not None and helper is not None
+        helper.last_action = "signal"
+        helper.tool_skill["protect"] = 1.0
+        helper.tool_skill["support"] = 1.0
+        helper.genome.signal_strength = 1.0
+        helper.genome.sensor_range = 1.0
+        helper.genome.manipulator = 1.0
+
+        self.sim._habitat_stress(alone)
+        self.sim._habitat_stress(helped)
+
+        self.assertLess(alone.health, 1.0)
+        self.assertGreater(helped.health, alone.health)
+        self.assertGreater(self.sim.collaboration_events["exposure"], 0)
+        self.assertGreater(self.sim.physics_events["collaborative_exposure_buffer"], 0)
+
     def test_plain_marks_do_not_automatically_encode_recent_lessons(self) -> None:
         self.sim = make_sim()
         agent_genome = Genome.neural(self.sim.rng)
@@ -783,12 +1087,13 @@ class CausalContractTests(unittest.TestCase):
 
         self.sim._move(actor, {"reproduction": 0.0, "social": 0.0, "tool": 0.0})
 
-        self.assertEqual(actor.location, 1)
+        self.assertEqual(actor.location, 0)
         movement = self.sim._movement_summary()
         self.assertEqual(movement["events"]["attempt"], 1)
-        self.assertEqual(movement["events"]["assisted_success"], 1)
+        self.assertEqual(movement["events"]["assisted_failure"], 1)
         self.assertGreater(movement["avg_relocation_shock"], 0.0)
         self.assertGreater(movement["avg_energy_cost"], 0.0)
+        self.assertGreater(movement["avg_health_cost"], 0.0)
         self.assertLess(actor.energy, 120.0)
         self.assertLess(helper.energy, 120.0)
 

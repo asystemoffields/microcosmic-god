@@ -85,6 +85,9 @@ class Organism:
     age: int = 0
     generation: int = 0
     parent_ids: tuple[int, ...] = ()
+    lineage_root_id: int = 0
+    parent_lineage_ids: tuple[int, ...] = ()
+    inherited_brain_template: bool = False
     brain: TinyBrain | None = None
     brain_template: TinyBrain | None = None
     inventory: dict[str, int] = field(default_factory=dict)
@@ -309,6 +312,9 @@ class Organism:
             "location": self.location,
             "age": self.age,
             "generation": self.generation,
+            "lineage_root_id": self.lineage_root_id,
+            "parent_lineage_ids": list(self.parent_lineage_ids),
+            "inherited_brain_template": self.inherited_brain_template,
             "energy": round(self.energy, 4),
             "health": round(self.health, 4),
             "neural": self.neural,
@@ -331,6 +337,12 @@ class Organism:
     def cognitive_snapshot(self) -> dict[str, Any]:
         place_memory = sorted(self.place_memory.items(), key=lambda item: item[1], reverse=True)[:8]
         return {
+            "lineage": {
+                "root_id": self.lineage_root_id,
+                "parents": list(self.parent_ids),
+                "parent_lineages": list(self.parent_lineage_ids),
+                "inherited_brain_template": self.inherited_brain_template,
+            },
             "last_action": self.last_action,
             "last_valence": round(self.last_valence, 6),
             "recent_trace": {label: round(value, 6) for label, value in zip(RECENT_TRACE_LABELS, self.recent_trace())},
@@ -383,6 +395,7 @@ def organism_from_genome(
         energy=energy,
         generation=generation,
         parent_ids=parent_ids,
+        inherited_brain_template=brain_template is not None,
         brain=brain,
         brain_template=template,
     )

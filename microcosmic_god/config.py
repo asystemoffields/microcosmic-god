@@ -30,6 +30,7 @@ class RunConfig:
     neural_checkpoint_limit: int = 64
     compute_backend: str = "cpu"
     device: str = "auto"
+    environment_harshness: float = 1.0
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -48,7 +49,7 @@ class RunConfig:
             config.log_every = 25
             config.checkpoint_every = 150
         elif profile == "minute":
-            pass
+            config.environment_harshness = 1.35
         elif profile == "long":
             config.max_ticks = 1_000_000
             config.max_wall_seconds = 86_400.0
@@ -61,6 +62,7 @@ class RunConfig:
             config.log_every = 2_500
             config.checkpoint_every = 20_000
             config.event_detail = False
+            config.environment_harshness = 1.35
         elif profile == "modal":
             config.max_ticks = 10_000_000
             config.max_wall_seconds = 259_200.0
@@ -73,6 +75,7 @@ class RunConfig:
             config.log_every = 5_000
             config.checkpoint_every = 50_000
             config.event_detail = False
+            config.environment_harshness = 1.45
         else:
             raise ValueError(f"unknown profile: {profile}")
 

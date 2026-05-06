@@ -153,6 +153,7 @@ def build_debrief(sim: Any, reason: str, elapsed_seconds: float) -> dict[str, An
         "collaboration_events": dict(getattr(sim, "collaboration_events", {})),
         "movement": sim._movement_summary() if hasattr(sim, "_movement_summary") else {},
         "success_profile": success_profile_summary(sim.organisms),
+        "lineages": sim._lineage_summary() if hasattr(sim, "_lineage_summary") else {},
         "marks_created": dict(sim.marks_created),
         "mark_lessons": dict(getattr(sim, "mark_lessons", {})),
         "mark_lesson_packets": dict(getattr(sim, "mark_lesson_packets", {})),
