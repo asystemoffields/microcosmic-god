@@ -324,7 +324,6 @@ class Simulation:
         for organism in list(self.organisms.values()):
             if organism.alive:
                 organism.repair_or_decay()
-                self._age_risk(organism)
 
         if self.tick % self.config.log_every == 0:
             self._log_aggregate()
@@ -1187,13 +1186,6 @@ class Simulation:
                 self._kill(organism, "current_exposure")
             else:
                 self._kill(organism, "habitat_mismatch")
-
-    def _age_risk(self, organism: Organism) -> None:
-        life_expectancy = 850 + organism.genome.storage_capacity * 800 + organism.genome.armor * 300
-        if organism.age > life_expectancy:
-            risk = min(0.030, (organism.age - life_expectancy) / max(1.0, life_expectancy) * 0.020)
-            if self.rng.random() < risk:
-                self._kill(organism, "senescence")
 
     def _observe(self, organism: Organism, rosters: dict[int, list[int]]) -> list[float]:
         place = self.world.places[organism.location]
@@ -3014,7 +3006,7 @@ class Simulation:
         self.deaths_by_kind_cause[f"{organism.kind}:{cause}"] += 1
         place = self.world.places[organism.location]
         place.resources["biological_storage"] = min(180.0, place.resources["biological_storage"] + max(0.0, organism.energy) * 0.35 + 2.0)
-        if cause in {"predation", "senescence", "starvation"}:
+        if cause in {"predation", "starvation"}:
             place.materials["bone"] = min(99, place.materials.get("bone", 0) + 1)
         checkpoint_score = self._checkpoint_score(organism) if organism.brain is not None else 0.0
         notable = (
