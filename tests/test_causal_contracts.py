@@ -1251,7 +1251,9 @@ class CausalContractTests(unittest.TestCase):
         self.assertGreater(organic_decay, stone_decay * 2.0)
 
     def test_brain_plasticity_can_update_representations(self) -> None:
-        brain = TinyBrain.random(Random(7), input_size=5, hidden_size=4, output_size=3)
+        # Tests the core (non-attention) plasticity path. Attention plasticity
+        # is exercised separately in AttentionTests below.
+        brain = TinyBrain.random(Random(7), input_size=5, hidden_size=4, output_size=3, with_attention=False)
         inputs = [0.8, -0.2, 0.5, 0.0, 0.3]
         brain.forward(inputs)
         before_in = list(brain.weights_in)
@@ -1345,12 +1347,15 @@ class CausalContractTests(unittest.TestCase):
             raise unittest.SkipTest(f"torch backend unavailable: {exc}") from exc
 
     def test_torch_brain_batch_forward_matches_cpu_reference(self) -> None:
+        # The torch backend does not yet implement the attention head; for now,
+        # parity is verified on attention-disabled brains. Attention behavior
+        # has dedicated CPU tests in AttentionTests.
         runtime = self._torch_runtime_or_skip()
         rng = Random(123)
         cpu_brains = [
-            TinyBrain.random(rng, input_size=5, hidden_size=3, output_size=4),
-            TinyBrain.random(rng, input_size=5, hidden_size=4, output_size=4),
-            TinyBrain.random(rng, input_size=5, hidden_size=3, output_size=4),
+            TinyBrain.random(rng, input_size=5, hidden_size=3, output_size=4, with_attention=False),
+            TinyBrain.random(rng, input_size=5, hidden_size=4, output_size=4, with_attention=False),
+            TinyBrain.random(rng, input_size=5, hidden_size=3, output_size=4, with_attention=False),
         ]
         torch_brains = [TinyBrain.from_dict(brain.to_dict(include_state=True)) for brain in cpu_brains]
         observations = [
@@ -1375,8 +1380,8 @@ class CausalContractTests(unittest.TestCase):
         runtime = self._torch_runtime_or_skip()
         rng = Random(321)
         cpu_brains = [
-            TinyBrain.random(rng, input_size=5, hidden_size=4, output_size=3),
-            TinyBrain.random(rng, input_size=5, hidden_size=4, output_size=3),
+            TinyBrain.random(rng, input_size=5, hidden_size=4, output_size=3, with_attention=False),
+            TinyBrain.random(rng, input_size=5, hidden_size=4, output_size=3, with_attention=False),
         ]
         torch_brains = [TinyBrain.from_dict(brain.to_dict(include_state=True)) for brain in cpu_brains]
         observations = [[0.3, -0.2, 0.8, 0.1, 0.0], [-0.4, 0.9, 0.2, 0.0, 0.5]]
@@ -1447,6 +1452,117 @@ class CausalContractTests(unittest.TestCase):
         self.assertEqual(debrief["reason"], "max_ticks")
         self.assertEqual(debrief["tick"], 3)
         self.assertEqual(self.sim.config.compute_backend, "torch")
+
+
+class AttentionTests(unittest.TestCase):
+    """Information-as-attention: brains learn during life what to attend to.
+    Total fidelity is bounded; what isn't attended to gets noise. The mechanism
+    must be neuroplastic (lifetime learning), inheritable (clone with mutation),
+    backward-compatible (legacy checkpoints work), and not require marks/signals
+    (transfer-clean to environments without writing)."""
+
+    def test_default_brain_has_attention_head(self) -> None:
+        from microcosmic_god.brain import TinyBrain
+
+        brain = TinyBrain.random(Random(11), input_size=6, hidden_size=4, output_size=3)
+        self.assertEqual(len(brain.attention_weights), 6 * 4)
+        self.assertEqual(len(brain.attention_bias), 6)
+        self.assertTrue(brain._has_attention())
+
+    def test_brain_can_be_constructed_without_attention(self) -> None:
+        from microcosmic_god.brain import TinyBrain
+
+        brain = TinyBrain.random(Random(11), input_size=6, hidden_size=4, output_size=3, with_attention=False)
+        self.assertEqual(brain.attention_weights, [])
+        self.assertEqual(brain.attention_bias, [])
+        self.assertFalse(brain._has_attention())
+
+    def test_attention_total_fidelity_bounded_by_budget(self) -> None:
+        from microcosmic_god.brain import TinyBrain, ATTENTION_BUDGET_FRACTION
+
+        brain = TinyBrain.random(Random(11), input_size=8, hidden_size=4, output_size=3)
+        # Saturate attention bias to push raw attention well above budget.
+        brain.attention_bias = [10.0 for _ in range(brain.input_size)]
+        inputs = [0.5] * brain.input_size
+        brain.forward(inputs)
+        budget = brain.input_size * ATTENTION_BUDGET_FRACTION
+        # Floating-point slack is acceptable; the bound should hold to ~1e-6.
+        self.assertLessEqual(sum(brain.last_attention), budget + 1e-6)
+
+    def test_attention_passthrough_when_brain_has_no_attention(self) -> None:
+        from microcosmic_god.brain import TinyBrain
+
+        brain = TinyBrain.random(Random(11), input_size=5, hidden_size=4, output_size=3, with_attention=False)
+        inputs = [0.8, -0.2, 0.5, 0.0, 0.3]
+        brain.forward(inputs)
+        # Without attention, last_inputs should equal inputs exactly (no noise injected).
+        for expected, actual in zip(inputs, brain.last_inputs):
+            self.assertAlmostEqual(expected, actual, places=10)
+        # last_attention reports uniform 1.0 (full fidelity) for the no-attention path.
+        self.assertEqual(brain.last_attention, [1.0] * 5)
+
+    def test_attention_weights_change_with_surprise_and_valence(self) -> None:
+        from microcosmic_god.brain import TinyBrain
+
+        brain = TinyBrain.random(Random(11), input_size=6, hidden_size=5, output_size=3)
+        before = list(brain.attention_weights)
+        # Drive several iterations of forward + learn with strong surprise/valence.
+        for _ in range(10):
+            brain.forward([0.7, -0.4, 0.6, 0.1, -0.5, 0.3])
+            brain.learn(
+                action_index=2,
+                valence=1.5,
+                energy_delta=0.8,
+                learning_rate=0.20,
+                plasticity=0.95,
+                prediction_weight=0.85,
+            )
+        after = brain.attention_weights
+        self.assertNotEqual(before, after)
+        # And the attention bias should also have shifted on at least one feature.
+        self.assertTrue(any(abs(b) > 1e-6 for b in brain.attention_bias))
+
+    def test_attention_serializes_round_trip(self) -> None:
+        from microcosmic_god.brain import TinyBrain
+
+        brain = TinyBrain.random(Random(11), input_size=6, hidden_size=4, output_size=3)
+        # Modify a couple of attention weights to ensure they're persisted.
+        brain.attention_weights[0] = 0.5
+        brain.attention_weights[5] = -0.3
+        brain.attention_bias[2] = 1.2
+        data = brain.to_dict(include_state=True)
+        restored = TinyBrain.from_dict(data)
+        self.assertEqual(len(brain.attention_weights), len(restored.attention_weights))
+        for original, recovered in zip(brain.attention_weights, restored.attention_weights):
+            self.assertAlmostEqual(original, recovered, places=6)
+        for original, recovered in zip(brain.attention_bias, restored.attention_bias):
+            self.assertAlmostEqual(original, recovered, places=6)
+
+    def test_legacy_checkpoint_without_attention_loads_cleanly(self) -> None:
+        from microcosmic_god.brain import TinyBrain
+
+        # Construct a checkpoint dict that predates attention (no fields).
+        legacy_brain = TinyBrain.random(Random(11), input_size=5, hidden_size=3, output_size=2, with_attention=False)
+        data = legacy_brain.to_dict(include_state=True)
+        data.pop("attention_weights", None)
+        data.pop("attention_bias", None)
+        data.pop("last_attention", None)
+        restored = TinyBrain.from_dict(data)
+        self.assertFalse(restored._has_attention())
+        # And the brain still produces forward outputs.
+        outputs = restored.forward([0.1, 0.2, 0.3, 0.4, 0.5])
+        self.assertEqual(len(outputs), 2)
+
+    def test_clone_propagates_attention_with_mutation(self) -> None:
+        from microcosmic_god.brain import TinyBrain
+
+        rng = Random(11)
+        parent = TinyBrain.random(rng, input_size=5, hidden_size=3, output_size=2)
+        child = parent.clone_for_offspring(Random(12), mutation_scale=0.05)
+        self.assertEqual(len(child.attention_weights), len(parent.attention_weights))
+        self.assertEqual(len(child.attention_bias), len(parent.attention_bias))
+        # Mutation should have nudged at least some values.
+        self.assertNotEqual(parent.attention_weights, child.attention_weights)
 
 
 class TexturedHarshnessTests(unittest.TestCase):

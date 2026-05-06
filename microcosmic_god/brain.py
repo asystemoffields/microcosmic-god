@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import random as _random
 from dataclasses import dataclass, field
 from random import Random
 from typing import Any
@@ -12,6 +13,25 @@ def _rand_weight(rng: Random) -> float:
 
 PREDICTION_HEADS = ("energy", "damage", "reproduction", "social", "tool", "hazard")
 AUXILIARY_PREDICTION_HEADS = tuple(head for head in PREDICTION_HEADS if head != "energy")
+
+# Information-as-attention: brains learn (during life) where to look. Total
+# fidelity is bounded so the brain must choose; what's not attended to gets
+# noise instead of signal. The mechanism is general (no marks-specific or
+# mg-specific structure baked in), so brains transfer cleanly to environments
+# without writing/marks - the attention rule simply re-targets via the same
+# error-modulated plasticity in the new environment's prediction errors.
+#
+# Init bias is set high enough that untrained brains pass nearly-full fidelity
+# (sigmoid(2.5) ≈ 0.92). Budget then bounds total attention at 0.85 * N, so
+# untrained avg fidelity ≈ 0.85 - learning bootstraps normally. Selection
+# pressure activates once the brain learns to push some features toward 1.0
+# (which requires pulling others down, since total is bounded).
+ATTENTION_BUDGET_FRACTION = 0.85
+ATTENTION_BIAS_INIT_MEAN = 2.5
+ATTENTION_BIAS_INIT_SCALE = 0.10
+ATTENTION_NOISE_SCALE = 0.30
+ATTENTION_LEARNING_RATE_FACTOR = 0.012
+ATTENTION_DECAY = 0.0008
 
 
 @dataclass(slots=True)
@@ -25,16 +45,32 @@ class TinyBrain:
     bias_o: list[float]
     prediction_weights: list[float]
     auxiliary_prediction_weights: dict[str, list[float]] = field(default_factory=dict)
+    attention_weights: list[float] = field(default_factory=list)
+    attention_bias: list[float] = field(default_factory=list)
     hidden: list[float] = field(default_factory=list)
     last_outputs: list[float] = field(default_factory=list)
     last_inputs: list[float] = field(default_factory=list)
+    last_attention: list[float] = field(default_factory=list)
     last_prediction_errors: dict[str, float] = field(default_factory=dict)
     input_trace: list[float] = field(default_factory=list)
     hidden_trace: list[float] = field(default_factory=list)
 
     @classmethod
-    def random(cls, rng: Random, input_size: int, hidden_size: int, output_size: int) -> "TinyBrain":
+    def random(
+        cls,
+        rng: Random,
+        input_size: int,
+        hidden_size: int,
+        output_size: int,
+        with_attention: bool = True,
+    ) -> "TinyBrain":
         hidden_size = max(1, min(128, hidden_size))
+        if with_attention:
+            attention_weights = [rng.gauss(0.0, 0.15) for _ in range(input_size * hidden_size)]
+            attention_bias = [rng.gauss(ATTENTION_BIAS_INIT_MEAN, ATTENTION_BIAS_INIT_SCALE) for _ in range(input_size)]
+        else:
+            attention_weights = []
+            attention_bias = []
         brain = cls(
             input_size=input_size,
             hidden_size=hidden_size,
@@ -48,9 +84,12 @@ class TinyBrain:
                 head: [_rand_weight(rng) for _ in range(hidden_size)]
                 for head in AUXILIARY_PREDICTION_HEADS
             },
+            attention_weights=attention_weights,
+            attention_bias=attention_bias,
             hidden=[0.0 for _ in range(hidden_size)],
             last_outputs=[0.0 for _ in range(output_size)],
             last_inputs=[0.0 for _ in range(input_size)],
+            last_attention=[0.0 for _ in range(input_size)],
             last_prediction_errors={head: 0.0 for head in PREDICTION_HEADS},
             input_trace=[0.0 for _ in range(input_size)],
             hidden_trace=[0.0 for _ in range(hidden_size)],
@@ -63,6 +102,45 @@ class TinyBrain:
             if weights is None or len(weights) != self.hidden_size:
                 self.auxiliary_prediction_weights[head] = [0.0 for _ in range(self.hidden_size)]
 
+    def _has_attention(self) -> bool:
+        return (
+            len(self.attention_weights) == self.input_size * self.hidden_size
+            and len(self.attention_bias) == self.input_size
+        )
+
+    def _attend(self, inputs: list[float]) -> list[float]:
+        """Compute fidelity from current hidden state and apply it to inputs.
+
+        Bounded by ATTENTION_BUDGET_FRACTION * input_size; what isn't attended
+        to is replaced with gaussian noise. The brain's own hidden state shapes
+        what it looks at, so attention is a function of context (neuroplastic
+        in life via the learning rule below, and inheritable via clone_for_offspring).
+        """
+        if not self._has_attention():
+            self.last_attention = [1.0 for _ in range(self.input_size)]
+            return list(inputs)
+        inv_h = 1.0 / math.sqrt(max(1, self.hidden_size))
+        raw: list[float] = []
+        for i in range(self.input_size):
+            total = self.attention_bias[i]
+            for h in range(self.hidden_size):
+                total += self.attention_weights[h * self.input_size + i] * self.hidden[h] * inv_h
+            # bounded sigmoid; clamp argument to avoid math.exp overflow
+            arg = max(-30.0, min(30.0, total))
+            raw.append(1.0 / (1.0 + math.exp(-arg)))
+        budget = self.input_size * ATTENTION_BUDGET_FRACTION
+        total_attention = sum(raw)
+        if total_attention > budget and total_attention > 0.0:
+            scale = budget / total_attention
+            fidelity = [r * scale for r in raw]
+        else:
+            fidelity = raw
+        self.last_attention = fidelity
+        return [
+            float(value) * f + _random.gauss(0.0, ATTENTION_NOISE_SCALE) * (1.0 - f)
+            for value, f in zip(inputs, fidelity)
+        ]
+
     def forward(self, inputs: list[float]) -> list[float]:
         if len(inputs) != self.input_size:
             raise ValueError(f"expected {self.input_size} inputs, got {len(inputs)}")
@@ -70,6 +148,10 @@ class TinyBrain:
             self.input_trace = [0.0 for _ in range(self.input_size)]
         if not self.hidden_trace or len(self.hidden_trace) != self.hidden_size:
             self.hidden_trace = [0.0 for _ in range(self.hidden_size)]
+        # Apply attention: brain decides (from its hidden state) what to look
+        # at this tick. Total fidelity bounded; unattended channels get noise.
+        attended = self._attend(inputs)
+        inputs = attended
         self.last_inputs = list(inputs)
         self.input_trace = [old * 0.92 + float(value) * 0.08 for old, value in zip(self.input_trace, inputs)]
         inv = 1.0 / math.sqrt(max(1, self.input_size))
@@ -172,6 +254,39 @@ class TinyBrain:
                     index = offset_in + i
                     updated = self.weights_in[index] + representation_lr * modulation * hidden_gate * input_value
                     self.weights_in[index] = max(-4.0, min(4.0, updated))
+
+        # Neuroplastic attention update. Surprise (sum of prediction errors)
+        # signals "I should be looking at things I'm not predicting well";
+        # valence sign tells us whether this tick was good or bad. Hebbian-ish
+        # at the hidden-to-input boundary: features active alongside hidden
+        # units that fired during a surprising/valenced moment get strengthened
+        # attention; everything decays slowly so stale attention patterns fade.
+        if self._has_attention():
+            attention_lr = lr * ATTENTION_LEARNING_RATE_FACTOR
+            if attention_lr > 0.0:
+                surprise_signal = sum(abs(value) for value in errors.values()) / max(1, len(errors))
+                valence_sign = 1.0 if valence >= 0.0 else -1.0
+                signal_strength = surprise_signal * valence_sign
+                for h, hidden_value in enumerate(self.hidden_trace or self.hidden):
+                    if abs(hidden_value) < 0.015:
+                        continue
+                    offset_a = h * self.input_size
+                    hidden_gate = max(-1.0, min(1.0, hidden_value))
+                    for i, input_value in enumerate(self.input_trace or self.last_inputs):
+                        if abs(input_value) < 0.010:
+                            continue
+                        index = offset_a + i
+                        delta = attention_lr * signal_strength * hidden_gate * input_value
+                        decayed = self.attention_weights[index] * (1.0 - ATTENTION_DECAY * attention_lr)
+                        self.attention_weights[index] = max(-3.0, min(3.0, decayed + delta))
+                # Bias also slowly tracks chronic feature value (independent of hidden state).
+                bias_lr = attention_lr * 0.4
+                for i, input_value in enumerate(self.input_trace or self.last_inputs):
+                    if abs(input_value) < 0.010:
+                        continue
+                    delta = bias_lr * signal_strength * input_value
+                    decayed = self.attention_bias[i] * (1.0 - ATTENTION_DECAY * attention_lr)
+                    self.attention_bias[i] = max(-2.0, min(2.0, decayed + delta))
         return error
 
     def clone_for_offspring(self, rng: Random, mutation_scale: float = 0.03) -> "TinyBrain":
@@ -189,6 +304,10 @@ class TinyBrain:
             head: mutate_many(weights)
             for head, weights in data.get("auxiliary_prediction_weights", {}).items()
         }
+        if data.get("attention_weights"):
+            data["attention_weights"] = mutate_many(data["attention_weights"])
+        if data.get("attention_bias"):
+            data["attention_bias"] = mutate_many(data["attention_bias"])
         return TinyBrain.from_dict(data)
 
     def to_dict(self, include_state: bool = True) -> dict[str, Any]:
@@ -205,11 +324,14 @@ class TinyBrain:
                 head: [round(v, 7) for v in weights]
                 for head, weights in sorted(self.auxiliary_prediction_weights.items())
             },
+            "attention_weights": [round(v, 7) for v in self.attention_weights],
+            "attention_bias": [round(v, 7) for v in self.attention_bias],
         }
         if include_state:
             data["hidden"] = [round(v, 7) for v in self.hidden]
             data["last_outputs"] = [round(v, 7) for v in self.last_outputs]
             data["last_inputs"] = [round(v, 7) for v in self.last_inputs]
+            data["last_attention"] = [round(v, 7) for v in self.last_attention]
             data["last_prediction_errors"] = {head: round(value, 7) for head, value in sorted(self.last_prediction_errors.items())}
             data["input_trace"] = [round(v, 7) for v in self.input_trace]
             data["hidden_trace"] = [round(v, 7) for v in self.hidden_trace]
@@ -217,10 +339,26 @@ class TinyBrain:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "TinyBrain":
+        input_size = int(data["input_size"])
+        hidden_size = int(data["hidden_size"])
+        output_size = int(data["output_size"])
+        # Backward compat: pre-attention checkpoints have neither field. Default
+        # to empty (no attention head -> brain receives unfiltered observations
+        # via _attend's pass-through path).
+        attention_weights_raw = data.get("attention_weights")
+        attention_bias_raw = data.get("attention_bias")
+        if attention_weights_raw is not None and len(attention_weights_raw) == input_size * hidden_size:
+            attention_weights = [float(v) for v in attention_weights_raw]
+        else:
+            attention_weights = []
+        if attention_bias_raw is not None and len(attention_bias_raw) == input_size:
+            attention_bias = [float(v) for v in attention_bias_raw]
+        else:
+            attention_bias = []
         brain = cls(
-            input_size=int(data["input_size"]),
-            hidden_size=int(data["hidden_size"]),
-            output_size=int(data["output_size"]),
+            input_size=input_size,
+            hidden_size=hidden_size,
+            output_size=output_size,
             weights_in=[float(v) for v in data["weights_in"]],
             weights_out=[float(v) for v in data["weights_out"]],
             bias_h=[float(v) for v in data["bias_h"]],
@@ -230,12 +368,15 @@ class TinyBrain:
                 head: [float(v) for v in weights]
                 for head, weights in data.get("auxiliary_prediction_weights", {}).items()
             },
-            hidden=[0.0 for _ in range(int(data["hidden_size"]))],
-            last_outputs=[0.0 for _ in range(int(data["output_size"]))],
-            last_inputs=[0.0 for _ in range(int(data["input_size"]))],
+            attention_weights=attention_weights,
+            attention_bias=attention_bias,
+            hidden=[0.0 for _ in range(hidden_size)],
+            last_outputs=[0.0 for _ in range(output_size)],
+            last_inputs=[0.0 for _ in range(input_size)],
+            last_attention=[0.0 for _ in range(input_size)],
             last_prediction_errors={head: 0.0 for head in PREDICTION_HEADS},
-            input_trace=[0.0 for _ in range(int(data["input_size"]))],
-            hidden_trace=[0.0 for _ in range(int(data["hidden_size"]))],
+            input_trace=[0.0 for _ in range(input_size)],
+            hidden_trace=[0.0 for _ in range(hidden_size)],
         )
         brain._ensure_auxiliary_prediction_heads()
         if "hidden" in data:
@@ -244,6 +385,8 @@ class TinyBrain:
             brain.last_outputs = [float(v) for v in data["last_outputs"]]
         if "last_inputs" in data:
             brain.last_inputs = [float(v) for v in data["last_inputs"]]
+        if "last_attention" in data:
+            brain.last_attention = [float(v) for v in data["last_attention"]]
         if "last_prediction_errors" in data:
             brain.last_prediction_errors = {head: float(data["last_prediction_errors"].get(head, 0.0)) for head in PREDICTION_HEADS}
         if "input_trace" in data:
