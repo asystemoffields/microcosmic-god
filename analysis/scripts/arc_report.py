@@ -75,6 +75,35 @@ def is_anchor(event: dict[str, Any]) -> bool:
     return kind in ANCHOR_KINDS
 
 
+AGENTIC_PROFILE_KEYS = (
+    "causal_unlock",
+    "structure",
+    "reproduction",
+    "tool_make",
+    "knowledge_transmitted",
+    "social_learning",
+    "collaboration",
+    "causal_step",
+    "written_learning",
+)
+
+
+def diversity_factor(profile: dict[str, float]) -> float:
+    """Discount post-hoc tool_use credit when the organism showed no other agentic signals.
+
+    A pure tool_use spike with zero across causal/structure/reproduction/social
+    is the specialist-trap signature: 328 lever-pulls at one place add up to a
+    huge tool_use score but reflect rote memory loops, not adaptation.
+    Returns ~0.25 for pure trap, 1.0 for balanced, capped at 1.0.
+    """
+    tool_use = profile.get("tool_use", 0.0) or 0.0
+    if tool_use < 1.0:
+        return 1.0
+    other = sum((profile.get(k, 0.0) or 0.0) for k in AGENTIC_PROFILE_KEYS)
+    ratio = other / (other + tool_use)
+    return max(0.2, min(1.0, 0.25 + ratio * 1.5))
+
+
 def anchor_weight(event: dict[str, Any]) -> float:
     kind = event.get("kind")
     payload = event.get("payload", {})
@@ -88,7 +117,7 @@ def anchor_weight(event: dict[str, Any]) -> float:
         tool_use = profile.get("tool_use", 0.0) or 0.0
         unlocks = profile.get("causal_unlock", 0.0) or 0.0
         score = payload.get("score", 0.0) or 0.0
-        return 0.3 + min(score, 100.0) * 0.02 + tool_use * 0.2 + unlocks * 2.0
+        return 0.3 + min(score, 100.0) * 0.02 + tool_use * 0.2 * diversity_factor(profile) + unlocks * 2.0
     return ANCHOR_BASE_WEIGHT.get(kind, 0.0)
 
 
@@ -327,6 +356,46 @@ def render_arc(arc: dict[str, Any], collapse: bool = True) -> str:
     return "\n".join(lines)
 
 
+def find_specialist_traps(arcs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Surface organisms whose 'success' came from a single repetitive loop.
+
+    Signature: notable_death anchor with high tool_use, near-zero across the
+    other agentic categories, no offspring, and the arc visited at most one
+    place. These are the 2025-class organisms that the raw success_profile
+    score would mistake for high achievers.
+    """
+    traps: list[dict[str, Any]] = []
+    for arc in arcs:
+        death_anchor = next(
+            (a for a in arc["anchors"] if a.get("kind") == "notable_death"),
+            None,
+        )
+        if death_anchor is None:
+            continue
+        payload = death_anchor.get("payload", {})
+        profile = payload.get("success_profile", {}) or {}
+        tool_use = profile.get("tool_use", 0.0) or 0.0
+        if tool_use < 50.0:
+            continue
+        factor = diversity_factor(profile)
+        offspring = payload.get("offspring_count", 0) or 0
+        if factor > 0.4 or offspring > 0 or len(arc["places"]) > 1:
+            continue
+        traps.append({
+            "organism_id": arc["organism_id"],
+            "lineage_id": arc["lineage_id"],
+            "place": arc["places"][0] if arc["places"] else None,
+            "tool_use": tool_use,
+            "diversity_factor": factor,
+            "death_score": payload.get("score", 0.0) or 0.0,
+            "cause": payload.get("cause"),
+            "tick_lo": arc["tick_lo"],
+            "tick_hi": arc["tick_hi"],
+        })
+    traps.sort(key=lambda t: t["tool_use"], reverse=True)
+    return traps
+
+
 def main() -> None:
     if len(sys.argv) < 2:
         print("usage: python analysis/scripts/arc_report.py runs/<run_dir> [--top N] [--write-jsonl]")
@@ -354,11 +423,23 @@ def main() -> None:
 
     events = load_events(story_path)
     arcs = build_arcs(events)
+    traps = find_specialist_traps(arcs)
     print(f"Arc report: {run_dir}")
     print(f"  raw events: {len(events)}  arcs detected: {len(arcs)}  showing top: {min(top_n, len(arcs))}")
     print()
     for arc in arcs[:top_n]:
         print(render_arc(arc))
+        print()
+
+    if traps:
+        print("Specialist Traps")
+        print(f"  {len(traps)} organism(s) accumulated high tool_use with zero diversification, no offspring, single place.")
+        print(f"  These look like big achievers by raw score but actually got stuck in a memory loop.")
+        for t in traps:
+            print(f"  - org={t['organism_id']:>4} lineage={t['lineage_id']} place={t['place']} "
+                  f"t={t['tick_lo']}-{t['tick_hi']} tool_use={t['tool_use']:.0f} "
+                  f"divfactor={t['diversity_factor']:.2f} death_score={t['death_score']:.0f} "
+                  f"cause={t['cause']}")
         print()
 
     if write_jsonl:
