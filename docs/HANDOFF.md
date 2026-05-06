@@ -1,6 +1,6 @@
 # Microcosmic God Handoff
 
-Last updated: 2026-05-01
+Last updated: 2026-05-06
 
 This is the quick-start context for a fresh Codex instance taking over Microcosmic God.
 
@@ -8,14 +8,21 @@ This is the quick-start context for a fresh Codex instance taking over Microcosm
 
 - Repo: `C:\Users\power\Documents\Codex\2026-05-01\i-have-an-exciting-and-fun\microcosmic-god`
 - Remote: `https://github.com/asystemoffields/microcosmic-god`
-- Branch: `main`
-- Latest pushed commit: `5680f86 Lock movement energy costs`
-- Recent commits:
-  - `5680f86` lock movement energy-cost tests
-  - `4654066` add collaboration, movement telemetry, relocation shock, hostile biomes
-  - `42fc5a9` archive seed 63 standout brains
-  - `2629c28` add portable memory and gear capacities
-  - `5f223c4` add literacy value feedback for marks
+- Active branch: `codex/colab-a100-run-notebook` (8 commits ahead of `main`, pushed to origin)
+- Latest pushed commit: `36ec8a0 Add physics-conditional prep steps to causal challenges`
+- Recent commits (this session, oldest → newest):
+  - `eb5dd82` Add environment harshness + situation-aware affordance choice + lineage tracking + counterattack + exposure-pressure hazard
+  - `2eee68e` Add arc report (`analysis/scripts/arc_report.py`) — narrative-arc curator over `story_events.jsonl`
+  - `696fc43` Drop senescence as a death cause
+  - `7d22c19` Penalize specialist-trap signatures in arc scoring + surface them in a dedicated section
+  - `36ec8a0` Add physics-conditional prep steps to causal challenges (textured harshness)
+- Pre-session commits still relevant:
+  - `0b75780` Add torch brain simulation backend
+  - `2a9e4f0` Use CUDA for checkpoint SAE analysis
+  - `34ddb4e` Add Colab A100 run notebook
+  - `5680f86` Lock movement energy costs
+
+54/54 tests pass at HEAD.
 
 Before editing, run:
 
@@ -105,6 +112,24 @@ Evolution and checkpoints:
 
 ## Recent Empirical Notes
 
+Seed 1 5-minute textured-harshness run (`runs/cpu_5m_harsh_env_textured/20260506_181846_seed1_minute/`):
+
+- Final tick 1016, final population 2284 (575 neural).
+- Tool repertoire shifted dramatically vs the pre-textured seed-1 run:
+  - `concentrate_heat` 7 → 1198 (cold-place prep rule biting)
+  - `bind` 321 → 1530 (abrasion-prep)
+  - `filter` 2 → 217
+  - `lever` 880 → 2121, `crack` 572 → 1264
+- Neural population went from 232 → 575 (+148%) — neural agents outcompete non-neurals more strongly when puzzles demand cognitive work.
+- **Lineage 474** is the new dominant civilization. 41 births, max generation 7. Solves four physics-regime puzzles across four places: `crack>lever>contain` at place 15, `cut>bind` at place 14, `bind>contain>filter` at place 16, `concentrate_heat>conduct` at place 23. Three different prep-step types in one lineage = brain template generalizing the physics-conditional rule.
+- Run was ~30% slower per tick (1016 vs 1456 ticks in same wall budget).
+
+Seed 1 5-minute pre-textured run (`runs/cpu_5m_harsh_env/20260502_070301_seed1_minute/`) — kept for comparison:
+
+- Final tick 1456, final population 2123 (232 neural).
+- Lever-dominated tool monoculture (lever 880, crack 572, all others <250). One 3-step unlock in the entire run.
+- Codex-flagged narrative arcs: 424 (early crack specialist eaten), 422 (founder of dominant lineage), 1551 (clean crack→lever causal arc), 3692 (best team-problem-solving), 3427 (builder-then-solver across places 7+8). The arc tool also surfaces 2025 as the run's biggest specialist trap (tool_use=330 from 328 lever-only successes at place 8, died of starvation, no offspring).
+
 Seed 63 10-minute run:
 
 - Run dir: `runs\20260501_204018_seed63_minute`
@@ -155,7 +180,17 @@ python -m microcosmic_god specs
 
 Important tests are in `tests/test_causal_contracts.py`.
 
-Recent additions cover:
+The 2026-05-06 session added a `TexturedHarshnessTests` class covering the prep-step rule:
+
+- `test_temperate_dry_place_skips_prep`
+- `test_cold_place_prepends_concentrate_heat`
+- `test_flooded_place_prepends_contain`
+- `test_high_pressure_place_prepends_contain`
+- `test_unstable_place_prepends_bind`
+- `test_cold_and_flooded_stacks_two_prep_steps`
+- `test_prep_step_not_duplicated_when_base_sequence_already_contains_it`
+
+Earlier important tests still in place:
 
 - `test_bind_practice_transfers_only_to_related_skills`
 - `test_specialists_keep_cognitive_credit_from_repeated_practice`
@@ -165,31 +200,37 @@ Recent additions cover:
 - `test_failed_movement_spends_energy`
 - `test_environment_generation_has_hostile_treasure_biomes`
 
-As of commit `5680f86`, full suite passed:
+As of commit `36ec8a0`, full suite passes:
 
 ```text
-Ran 35 tests
+Ran 54 tests
 OK
 ```
 
 ## Likely Next Actions
 
-Good next work:
+The 2026-05-06 session left several open design threads worth pulling next, ranked roughly by leverage:
 
-- Run a 5-10 minute sealed run and inspect movement/collaboration/tool/mark stories.
+- **Information cost**: make `observe` cost energy proportional to detail extracted. Currently `observe` averaged -0.026 energy in seed-1 (nearly free), so attention has no economy and marks/signals have no compressive value. Tighten this and `mark`/`signal`/`mark_lesson_*` channels gain real economic weight.
+- **Push diversity-aware scoring into `simulation.py`'s `_checkpoint_score`**: arc_report's `diversity_factor` correctly demotes specialist-trap brains in *analysis*, but the simulator still archives them via the same accumulator-style score. Fixing this means the brains saved for transfer will reflect the agentic intelligence the project actually wants, not rote memorizers.
+- **Brain-checkpoint trajectory metrics**: action diversity over a window, novelty of place-action pairs. Currently checkpoints rank on cumulative counts; trajectory metrics would catch organisms whose intelligence is in *adaptation*, not volume.
+- **Decompose `habitat_mismatch`** into the underlying physical pressures it conflates. The pressures already exist; the label is redundant and obscures cause-of-death analysis.
+
+Earlier carry-over ideas (still good):
+
 - Calibrate relocation teeth: enough failures to matter, not so much that lineages randomly collapse every time.
-- Improve event story tooling around movement: identify costly relocations, repeated routes, habitat traps, successful expeditions, and agents that learned to avoid bad moves.
+- Improve event story tooling around movement: identify costly relocations, repeated routes, habitat traps, successful expeditions, and agents that learned to avoid bad moves. Note: `arc_report.py` partially addresses this for organism-centric arcs; place-centric and movement-centric arcs are not yet covered.
 - Expand environmental resource coupling in general ways: flow gradients, hydro-like structures, pressure/thermal/electrical reservoirs, sea treasures with consistent risks.
 - Add richer object/structure attention to observations so ANNs can notice local affordance causes more directly.
-- Improve checkpoint ranking so it catches specialists, collaborators, causal unlockers, tool makers, literacy users, and strong movers separately.
 
 Avoid for now:
 
 - Do not add a separate predator species unless the user reaffirms it. Existing predation via agent attack is enough pressure to inspect first.
 - Do not make cooperation mandatory.
-- Do not add recipe-like tools such as "axe cuts wood" as a special case.
+- Do not add recipe-like tools such as "axe cuts wood" as a special case. Note: textured-harshness prep steps are *not* recipes — the rule is global (e.g., "cold places need warming first") and physics varies per place.
 - Do not reward marks/writing directly; only changed action consequences should matter.
 - Do not start a long run before giving the user key specs: profile, seed, ticks/wall limit, places, initial populations, max population, checkpoint cadence.
+- Do not collapse fixed `kind` (agent/fungus/plant/neural) into emergent kinds yet. The user explicitly held off on this in the 2026-05-06 session.
 
 ## User Preferences
 
