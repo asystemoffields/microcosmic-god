@@ -40,7 +40,12 @@ ATTENTION_BUDGET_FRACTION = 0.95
 ATTENTION_BIAS_INIT_MEAN = 3.0
 ATTENTION_BIAS_INIT_SCALE = 0.10
 ATTENTION_NOISE_SCALE = 0.18
-ATTENTION_LEARNING_RATE_FACTOR = 0.012
+# Attention learning rate raised 0.012 -> 0.040 (3.3x) because the 30-min
+# seed-1 run held attention concentration flat at 0.01-0.02 across 5000+
+# ticks - converging slower than agents could live and reproduce. This
+# couples directly to whether "cognition" actually pays off: a brain that
+# never learns to focus its attention can't outperform a smaller brain.
+ATTENTION_LEARNING_RATE_FACTOR = 0.040
 ATTENTION_DECAY = 0.0008
 
 # Float dtype for all brain arrays. float64 matches Python float semantics so
@@ -299,10 +304,13 @@ class TinyBrain:
 
         # Neuroplastic attention update. Surprise (sum of prediction errors)
         # signals "I should be looking at things I'm not predicting well";
-        # valence sign tells us whether this tick was good or bad. Same shape
-        # as the representation update: outer product of hidden-trace * input-
-        # trace, modulated by surprise * sign(valence). Slow decay keeps stale
-        # attention patterns from persisting.
+        # valence sign tells us whether this tick was good or bad. Updates use
+        # raw hidden state and raw inputs (NOT the dampened traces) - the
+        # traces are scaled to ~10% of true magnitude, which made per-tick
+        # updates ~100x too small to accumulate meaningful concentration
+        # within an organism's lifetime. The 30-min seed-1 run held attention
+        # concentration flat at 0.01-0.02 across 5440 ticks because of this.
+        # Threshold masks are raised to match raw-value scale.
         if self._has_attention():
             attention_lr = lr * ATTENTION_LEARNING_RATE_FACTOR
             if attention_lr > 0.0:
@@ -310,10 +318,10 @@ class TinyBrain:
                 surprise_signal = sum(abs(value) for value in error_values) / max(1, len(error_values))
                 valence_sign = 1.0 if valence >= 0.0 else -1.0
                 signal_strength = surprise_signal * valence_sign
-                hidden_active = self.hidden_trace if self.hidden_trace.size else self.hidden
-                input_active = self.input_trace if self.input_trace.size else self.last_inputs
-                hidden_mask = (np.abs(hidden_active) >= 0.015).astype(_DTYPE)
-                input_mask = (np.abs(input_active) >= 0.010).astype(_DTYPE)
+                hidden_active = self.hidden if self.hidden.size else self.hidden_trace
+                input_active = self.last_inputs if self.last_inputs.size else self.input_trace
+                hidden_mask = (np.abs(hidden_active) >= 0.05).astype(_DTYPE)
+                input_mask = (np.abs(input_active) >= 0.05).astype(_DTYPE)
                 hidden_gate = np.clip(hidden_active, -1.0, 1.0) * hidden_mask
                 input_gate = input_active * input_mask
                 delta = attention_lr * signal_strength * np.outer(hidden_gate, input_gate)
@@ -348,13 +356,13 @@ class TinyBrain:
             extra = new_size - old_size
             # Grow weights_in: append rows of small random values.
             new_in_rows = np.array(
-                [[_rand_weight(rng) * 0.30 for _ in range(self.input_size)] for _ in range(extra)],
+                [[_rand_weight(rng) * 0.50 for _ in range(self.input_size)] for _ in range(extra)],
                 dtype=_DTYPE,
             )
             self.weights_in = np.vstack([self.weights_in, new_in_rows])
             # Grow weights_out: append columns to each row.
             new_out_cols = np.array(
-                [[_rand_weight(rng) * 0.30 for _ in range(extra)] for _ in range(self.output_size)],
+                [[_rand_weight(rng) * 0.50 for _ in range(extra)] for _ in range(self.output_size)],
                 dtype=_DTYPE,
             )
             self.weights_out = np.hstack([self.weights_out, new_out_cols])
@@ -364,14 +372,14 @@ class TinyBrain:
             self.prediction_weights = np.concatenate(
                 [
                     self.prediction_weights,
-                    np.array([_rand_weight(rng) * 0.30 for _ in range(extra)], dtype=_DTYPE),
+                    np.array([_rand_weight(rng) * 0.50 for _ in range(extra)], dtype=_DTYPE),
                 ]
             )
             for head in self.auxiliary_prediction_weights:
                 self.auxiliary_prediction_weights[head] = np.concatenate(
                     [
                         self.auxiliary_prediction_weights[head],
-                        np.array([_rand_weight(rng) * 0.30 for _ in range(extra)], dtype=_DTYPE),
+                        np.array([_rand_weight(rng) * 0.50 for _ in range(extra)], dtype=_DTYPE),
                     ]
                 )
             if self._has_attention():

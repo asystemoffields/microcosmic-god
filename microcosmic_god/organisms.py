@@ -157,8 +157,13 @@ class Organism:
             + self.genome.sensor_range * 0.010
             + self.genome.developmental_complexity * 0.020
         )
+        # neural_budget coefficient lowered 0.0045 -> 0.0030 so a 64-unit brain
+        # costs 0.192/tick instead of 0.288. Bigger brains need lifespan to
+        # bootstrap their learned representations; if they starve before
+        # cognition pays off, selection drives capacity down regardless of
+        # the world's puzzle complexity. This relief lets the experiment run.
         neural = (
-            self.genome.neural_budget * 0.0045
+            self.genome.neural_budget * 0.0030
             + self.genome.memory_budget * 0.0028
             + self.genome.prediction_weight * 0.018
             + self.genome.plasticity_rate * 0.010
