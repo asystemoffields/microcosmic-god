@@ -106,34 +106,65 @@ class Simulation:
         return max(0.2, float(getattr(self.config, "environment_harshness", 1.0)))
 
     def _refresh_world(self) -> None:
-        """Replace the current world with a fresh one (new seed, new physics).
+        """Replace physics + causal challenges with fresh ones, but keep
+        accumulated resource state.
 
-        Organisms keep their location index but the place at that index is now
-        a different place with different physics, resources, and causal
-        challenges. Place memories are cleared because they'd otherwise refer
-        to the (now-replaced) prior world. Organisms that memorized "place 7
-        is hot, contains chemical via crack>lever" suddenly find place 7 is
-        cold, holds biological_storage via cut>bind, and have to adapt or die.
+        The point of multi-world is to invalidate brains' memorized solutions
+        (place 7 needs concentrate_heat first, etc.) so that only brains with
+        abstracted causal rules survive. We do NOT want to also reset resource
+        depletion, because that's a free buff to the population — it lets
+        starving lineages get refed every refresh cycle, which masks the
+        cognitive selection pressure with a basic survival pressure release.
+
+        So the refresh swaps:
+          - place.physics (temperature, fluid_level, abrasion, pressure, ...)
+          - place.obstacles (water/thorn/heat/etc. barriers)
+          - place.causal_challenge (the prep-step rules that brains memorize)
+          - place.archetype, sun_exposure, water_flow, geothermal, mineral_richness, volatility
+        and KEEPS:
+          - place.resources (current chemical / biological_storage / thermal / etc.)
+          - place.locked_chemical (the unlocked-energy reserve)
+          - place.materials (currently accumulated materials)
+          - place.structures, signals, marks (built artifacts persist across refreshes)
+          - place.id, name, neighbors (graph topology preserved so movement stays valid)
         """
         from random import Random as _Random
-        # Use a derived seed so reproducibility holds: new_seed = base + tick.
         new_rng = _Random((self.config.seed * 1_000_003) ^ (self.tick * 1_009))
         new_world = self.world.__class__.generate(new_rng, self.config)
-        # Preserve tick / season offset by carrying forward the tick counter
-        # but resetting climate drift to baseline (consistent with a new world).
         new_world.tick = self.world.tick
-        n_places = len(new_world.places)
+
+        # Carry over the resource/material/artifact state place-by-place. The
+        # new world has the same place count and matching ids (both are 0..N-1
+        # by construction), but freshly generated physics/obstacles/challenges.
+        # We mutate the new world's places to inherit the carried state.
+        n_places = min(len(self.world.places), len(new_world.places))
+        for i in range(n_places):
+            old = self.world.places[i]
+            new = new_world.places[i]
+            new.resources = dict(old.resources)
+            new.locked_chemical = old.locked_chemical
+            new.materials = dict(old.materials)
+            new.structures = list(old.structures)
+            new.signals = list(old.signals)
+            new.marks = list(old.marks)
+
+        # Edges/topology stay attached to the new world (which was just
+        # generated, so its edges already match its place ids). We swap the
+        # whole world object.
         for organism in self.organisms.values():
             if not organism.alive:
                 continue
-            # Clear stale place memories. Keep the organism's location index
-            # in range (the new world should have the same number of places
-            # since `places` is from config, but defensive in case it differs).
             if organism.location >= n_places:
                 organism.location = self.rng.randrange(n_places)
+            # Place memories refer to the old physics; clear them so brains
+            # have to re-learn what each place is good for.
             organism.place_memory.clear()
         self.world = new_world
-        self.logger.event(self.tick, "world_refreshed", {"new_world_seed_basis": self.tick})
+        self.logger.event(
+            self.tick,
+            "world_refreshed",
+            {"new_world_seed_basis": self.tick, "resources_preserved": True},
+        )
 
     def _seed_initial_life(self) -> None:
         for _ in range(self.config.initial_plants):
@@ -1346,6 +1377,15 @@ class Simulation:
         organism.last_action = action
         if action == "rest":
             organism.energy -= 0.004
+            # Replay-during-rest: if the brain has episodic memory, sample two
+            # stored episodes, average them, and push the result through the
+            # recurrent core. This is the "spontaneous coupling" / offline
+            # consolidation mechanism — the substrate gives the brain a way
+            # to associate distant experiences. Whether the brain develops a
+            # useful replay strategy is up to selection; the substrate just
+            # provides the channel.
+            if organism.brain is not None and organism.brain._has_episodic():
+                organism.brain.replay_episode(self.rng)
             return
         if action == "move":
             self._move(organism, feedback)

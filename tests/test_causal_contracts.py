@@ -1657,6 +1657,102 @@ class BrainGrowthTests(unittest.TestCase):
         self.assertEqual(big_brain.hidden_size, 200)
 
 
+class EpisodicMemoryTests(unittest.TestCase):
+    """Episodic memory: optional v2 brain feature. When capacity > 0, the
+    brain has a content-addressable bank of past hidden-state snapshots.
+    Storage is gated by surprise + valence; retrieval is similarity-weighted
+    cross-attention; replay during rest averages two episodes and pushes
+    the result through the recurrent core."""
+
+    def test_default_brain_has_no_episodic_memory(self) -> None:
+        from microcosmic_god.brain import TinyBrain
+
+        brain = TinyBrain.random(Random(11), input_size=6, hidden_size=4, output_size=3)
+        self.assertFalse(brain._has_episodic())
+        self.assertEqual(brain.episodic_slots.size, 0)
+
+    def test_brain_with_capacity_has_episodic_memory(self) -> None:
+        from microcosmic_god.brain import TinyBrain
+
+        brain = TinyBrain.random(Random(11), input_size=6, hidden_size=4, output_size=3, episodic_capacity=8)
+        self.assertTrue(brain._has_episodic())
+        self.assertEqual(brain.episodic_slots.shape, (8, 4))
+        self.assertEqual(brain.episodic_age.shape, (8,))
+        # All slots start empty (age=-1).
+        self.assertTrue(all(brain.episodic_age == -1.0))
+
+    def test_episodic_storage_writes_on_surprise(self) -> None:
+        from microcosmic_god.brain import TinyBrain
+
+        brain = TinyBrain.random(Random(11), input_size=5, hidden_size=4, output_size=3, episodic_capacity=4)
+        brain.forward([0.5, 0.3, -0.2, 0.4, 0.1])
+        # High surprise + high valence -> should write a slot.
+        wrote = brain._store_episode(surprise=0.8, valence=1.0)
+        self.assertTrue(wrote)
+        self.assertEqual((brain.episodic_age >= 0.0).sum(), 1)
+
+    def test_episodic_storage_skips_when_uneventful(self) -> None:
+        from microcosmic_god.brain import TinyBrain
+
+        brain = TinyBrain.random(Random(11), input_size=5, hidden_size=4, output_size=3, episodic_capacity=4)
+        brain.forward([0.5, 0.3, -0.2, 0.4, 0.1])
+        # Low surprise + low valence -> should NOT write.
+        wrote = brain._store_episode(surprise=0.05, valence=0.10)
+        self.assertFalse(wrote)
+        self.assertEqual((brain.episodic_age >= 0.0).sum(), 0)
+
+    def test_episodic_retrieval_returns_zero_when_empty(self) -> None:
+        from microcosmic_god.brain import TinyBrain
+        import numpy as np
+
+        brain = TinyBrain.random(Random(11), input_size=5, hidden_size=4, output_size=3, episodic_capacity=4)
+        brain.forward([0.5, 0.3, -0.2, 0.4, 0.1])
+        retrieved = brain._retrieve_episodes()
+        self.assertEqual(retrieved.shape, (4,))
+        self.assertTrue(np.allclose(retrieved, 0.0))
+
+    def test_replay_requires_two_or_more_stored_episodes(self) -> None:
+        from microcosmic_god.brain import TinyBrain
+
+        brain = TinyBrain.random(Random(11), input_size=5, hidden_size=4, output_size=3, episodic_capacity=4)
+        brain.forward([0.5, 0.3, -0.2, 0.4, 0.1])
+        # No stored episodes yet -> replay is a no-op.
+        self.assertFalse(brain.replay_episode(Random(0)))
+        # Store two episodes.
+        brain._store_episode(surprise=0.8, valence=1.0)
+        brain.forward([0.1, -0.4, 0.6, 0.2, -0.1])
+        brain._store_episode(surprise=0.8, valence=1.0)
+        # Now replay should succeed.
+        self.assertTrue(brain.replay_episode(Random(0)))
+
+    def test_episodic_serializes_round_trip(self) -> None:
+        from microcosmic_god.brain import TinyBrain
+        import numpy as np
+
+        brain = TinyBrain.random(Random(11), input_size=5, hidden_size=4, output_size=3, episodic_capacity=4)
+        brain.forward([0.5, 0.3, -0.2, 0.4, 0.1])
+        brain._store_episode(surprise=0.8, valence=1.0)
+        data = brain.to_dict(include_state=True)
+        restored = TinyBrain.from_dict(data)
+        self.assertTrue(restored._has_episodic())
+        self.assertEqual(restored.episodic_slots.shape, brain.episodic_slots.shape)
+        for original, recovered in zip(brain.episodic_slots.flatten(), restored.episodic_slots.flatten()):
+            self.assertAlmostEqual(float(original), float(recovered), places=6)
+
+    def test_clone_inherits_capacity_but_clears_memories(self) -> None:
+        from microcosmic_god.brain import TinyBrain
+
+        parent = TinyBrain.random(Random(11), input_size=5, hidden_size=4, output_size=3, episodic_capacity=4)
+        parent.forward([0.5, 0.3, -0.2, 0.4, 0.1])
+        parent._store_episode(surprise=0.8, valence=1.0)
+        # Parent has 1 stored episode.
+        self.assertEqual((parent.episodic_age >= 0.0).sum(), 1)
+        # Child should inherit capacity but start with empty slots (no Lamarckism).
+        child = parent.clone_for_offspring(Random(12), mutation_scale=0.02)
+        self.assertEqual(child.episodic_slots.shape, parent.episodic_slots.shape)
+        self.assertEqual((child.episodic_age >= 0.0).sum(), 0, "child should have no inherited episodes")
+
+
 class MultiWorldSelectionTests(unittest.TestCase):
     """When `world_refresh_every` is set, the simulation should swap the world
     every N ticks. Brains' place memories should be cleared so they can't

@@ -48,6 +48,21 @@ ATTENTION_NOISE_SCALE = 0.18
 ATTENTION_LEARNING_RATE_FACTOR = 0.040
 ATTENTION_DECAY = 0.0008
 
+# Episodic memory: optional v2 feature. When `episodic_capacity > 0`, the
+# brain has a content-addressable bank of past hidden-state snapshots. Each
+# tick the current hidden state queries the bank and pulls a similarity-
+# weighted summary into the recurrence. Storage is gated by surprise (high
+# prediction error) and valence (high-magnitude reward signals). Replay
+# during the `rest` action averages two random episodes and pushes them
+# back through the brain - the substrate for "spontaneous coupling" /
+# offline consolidation. Capacity is genome-controlled (mutates), so
+# evolution decides whether episodic memory is worth its metabolic cost.
+EPISODIC_RETRIEVAL_TEMPERATURE = 1.0
+EPISODIC_INTEGRATION_WEIGHT = 0.18  # how much retrieved summary blends into hidden
+EPISODIC_STORAGE_SURPRISE_THRESHOLD = 0.30
+EPISODIC_STORAGE_VALENCE_THRESHOLD = 0.45
+EPISODIC_REPLAY_LR_FACTOR = 0.35  # replay-driven plasticity is gentler than live
+
 # Float dtype for all brain arrays. float64 matches Python float semantics so
 # checkpoint round-trips are bit-exact within rounding tolerance and tests
 # that assert almostEqual at 6+ places stay clean. Switching to float32 would
@@ -81,6 +96,13 @@ class TinyBrain:
     # Attention head: empty arrays mean "no attention" (legacy/disabled).
     attention_weights: np.ndarray = field(default_factory=lambda: _empty_array((0, 0)))
     attention_bias: np.ndarray = field(default_factory=lambda: _empty_array(0))
+    # Episodic memory bank: shape (capacity, hidden_size). Each row is a
+    # stored hidden-state snapshot. Empty array means "no episodic memory."
+    episodic_slots: np.ndarray = field(default_factory=lambda: _empty_array((0, 0)))
+    # Per-slot age (ticks since stored) for LRU replacement.
+    episodic_age: np.ndarray = field(default_factory=lambda: _empty_array(0))
+    # Tracks last retrieved attention pattern over slots, for diagnostics.
+    last_episodic_attention: np.ndarray = field(default_factory=lambda: _empty_array(0))
     # Per-tick state.
     hidden: np.ndarray = field(default_factory=lambda: _empty_array(0))
     last_outputs: np.ndarray = field(default_factory=lambda: _empty_array(0))
@@ -98,8 +120,10 @@ class TinyBrain:
         hidden_size: int,
         output_size: int,
         with_attention: bool = True,
+        episodic_capacity: int = 0,
     ) -> "TinyBrain":
         hidden_size = max(1, min(BRAIN_HIDDEN_MAX, hidden_size))
+        episodic_capacity = max(0, int(episodic_capacity))
 
         def _rand_matrix(shape: tuple[int, int]) -> np.ndarray:
             return np.array(
@@ -138,6 +162,9 @@ class TinyBrain:
             },
             attention_weights=attention_weights,
             attention_bias=attention_bias,
+            episodic_slots=_empty_array((episodic_capacity, hidden_size)) if episodic_capacity > 0 else _empty_array((0, 0)),
+            episodic_age=np.full(episodic_capacity, -1.0, dtype=_DTYPE) if episodic_capacity > 0 else _empty_array(0),
+            last_episodic_attention=_empty_array(episodic_capacity) if episodic_capacity > 0 else _empty_array(0),
             hidden=_empty_array(hidden_size),
             last_outputs=_empty_array(output_size),
             last_inputs=_empty_array(input_size),
@@ -158,6 +185,103 @@ class TinyBrain:
             self.attention_weights.shape == (self.hidden_size, self.input_size)
             and self.attention_bias.shape == (self.input_size,)
         )
+
+    def _has_episodic(self) -> bool:
+        return (
+            self.episodic_slots.ndim == 2
+            and self.episodic_slots.shape[0] > 0
+            and self.episodic_slots.shape[1] == self.hidden_size
+        )
+
+    def _retrieve_episodes(self) -> np.ndarray:
+        """Cross-attend the current hidden state over the episodic bank.
+
+        Returns a similarity-weighted summary of stored episodes (shape
+        (hidden_size,)). Empty bank or no-episodic-memory: returns zeros.
+        """
+        if not self._has_episodic():
+            return np.zeros(self.hidden_size, dtype=_DTYPE)
+        norm = np.sqrt(max(1.0, float(self.hidden_size)))
+        # Cosine-ish similarity: dot product, scaled. Stable softmax.
+        scores = (self.episodic_slots @ self.hidden) / norm
+        scores -= scores.max()
+        weights = np.exp(scores / EPISODIC_RETRIEVAL_TEMPERATURE)
+        weights /= weights.sum() + 1e-9
+        self.last_episodic_attention = weights
+        return weights @ self.episodic_slots
+
+    def _store_episode(self, surprise: float, valence: float) -> bool:
+        """Decide whether to write the current hidden state to the bank.
+
+        Surprise above threshold (the brain was wrong about something) or
+        high-magnitude valence (this tick mattered) gates storage. Replaces
+        the oldest slot (LRU) when the bank is full, or the slot most
+        similar to the current state (so we don't store near-duplicates).
+
+        Never-written slots have age==-1 and stay there until written; only
+        written slots accrue age each tick.
+        """
+        if not self._has_episodic():
+            return False
+        # Increment ages of slots that have been written, regardless of
+        # whether we write a new one this tick.
+        written_mask = self.episodic_age >= 0.0
+        if (
+            abs(surprise) < EPISODIC_STORAGE_SURPRISE_THRESHOLD
+            and abs(valence) < EPISODIC_STORAGE_VALENCE_THRESHOLD
+        ):
+            self.episodic_age[written_mask] += 1
+            return False
+        # Choose replacement slot: prefer empty slots (age==-1), else oldest
+        # (max age) unless the most-similar existing slot is very close.
+        empty_mask = self.episodic_age < 0.0
+        if np.any(empty_mask):
+            slot_idx = int(np.argmax(empty_mask))
+        else:
+            norm = np.sqrt(max(1.0, float(self.hidden_size)))
+            similarities = (self.episodic_slots @ self.hidden) / norm
+            most_similar_idx = int(np.argmax(similarities))
+            if similarities[most_similar_idx] > 0.85 * (np.linalg.norm(self.hidden) + 1e-6):
+                slot_idx = most_similar_idx
+            else:
+                slot_idx = int(np.argmax(self.episodic_age))
+        self.episodic_slots[slot_idx] = self.hidden
+        # Increment all already-written slots' ages, then set the chosen slot to 0.
+        self.episodic_age[written_mask] += 1
+        self.episodic_age[slot_idx] = 0.0
+        return True
+
+    def replay_episode(self, rng: Random) -> bool:
+        """Sample two random episodes, average them, push the result through
+        the brain via the recurrent core.
+
+        Drives consolidation: the random pairing creates novel hidden-state
+        patterns that the standard plasticity rules can shape into reusable
+        templates. This is the "spontaneous coupling" mechanism — at rest,
+        the brain rummages through its own memory, occasionally finding
+        useful associations between distant experiences.
+
+        Returns True if replay actually happened (requires >=2 stored
+        episodes). Caller is responsible for invoking learn() afterward
+        to apply plasticity to the replayed state.
+        """
+        if not self._has_episodic() or self.episodic_slots.shape[0] < 2:
+            return False
+        # Sample two distinct slots that have been written to.
+        valid_mask = self.episodic_age >= 0.0
+        valid_indices = np.flatnonzero(valid_mask)
+        if valid_indices.size < 2:
+            return False
+        i_a, i_b = rng.sample(valid_indices.tolist(), 2)
+        replay_state = 0.5 * (self.episodic_slots[i_a] + self.episodic_slots[i_b])
+        # Push the replayed state through one step of the recurrent core
+        # without external input. This lets the brain associate the two
+        # episodes via its own dynamics.
+        inv_h = 1.0 / math.sqrt(max(1, self.hidden_size))
+        new_hidden = np.tanh(self.bias_h + 0.62 * replay_state)
+        self.hidden = new_hidden
+        self.last_outputs = self.bias_o + (self.weights_out @ self.hidden) * inv_h
+        return True
 
     def _attend(self, inputs: np.ndarray) -> np.ndarray:
         """Compute fidelity from current hidden state and apply it to inputs.
@@ -197,6 +321,15 @@ class TinyBrain:
         self.input_trace = self.input_trace * 0.92 + x * 0.08
         inv = 1.0 / math.sqrt(max(1, self.input_size))
         new_hidden = np.tanh(self.bias_h + 0.62 * self.hidden + (self.weights_in @ x) * inv)
+        # Episodic retrieval: blend a similarity-weighted summary of past
+        # hidden-state snapshots into the current state. Lets the brain
+        # condition this tick on relevant past experience without having to
+        # compress the experience into weights.
+        if self._has_episodic():
+            self.hidden = new_hidden  # update before retrieval so query uses tanh'd state
+            retrieved = self._retrieve_episodes()
+            blend = EPISODIC_INTEGRATION_WEIGHT
+            new_hidden = (1.0 - blend) * new_hidden + blend * retrieved
         self.hidden = new_hidden
         self.hidden_trace = self.hidden_trace * 0.90 + self.hidden * 0.10
         inv_h = 1.0 / math.sqrt(max(1, self.hidden_size))
@@ -334,6 +467,13 @@ class TinyBrain:
                 self.attention_bias = np.clip(
                     self.attention_bias * decay_factor + bias_delta, -2.0, 2.0
                 )
+
+        # Episodic storage gate: if this tick was surprising or strongly
+        # valenced, write the post-update hidden state into the episode bank.
+        if self._has_episodic():
+            error_values = list(errors.values())
+            surprise_signal = sum(abs(value) for value in error_values) / max(1, len(error_values))
+            self._store_episode(surprise_signal, valence)
         return error
 
     def resize_hidden(self, rng: Random, new_size: int) -> None:
@@ -409,6 +549,13 @@ class TinyBrain:
             self.hidden_trace = (
                 self.hidden_trace[keep] if self.hidden_trace.size == old_size else _empty_array(new_size)
             )
+        # Episodic slots' second dim is hidden_size; reset on resize since
+        # the stored episodes were in the old hidden-space representation.
+        if self._has_episodic():
+            capacity = self.episodic_slots.shape[0]
+            self.episodic_slots = _empty_array((capacity, new_size))
+            self.episodic_age = np.full(capacity, -1.0, dtype=_DTYPE)
+            self.last_episodic_attention = _empty_array(capacity)
         self.hidden_size = new_size
 
     def clone_for_offspring(
@@ -455,6 +602,18 @@ class TinyBrain:
             attention_weights = _empty_array((0, 0))
             attention_bias = _empty_array(0)
 
+        # Episodic memory capacity is inherited (it's a structural / metabolic
+        # commitment), but the actual stored episodes start fresh in the child.
+        # Passing memories down would be Lamarckian inheritance the substrate
+        # doesn't otherwise permit.
+        child_capacity = int(data.get("episodic_capacity") or 0) if self._has_episodic() else 0
+        if child_capacity > 0:
+            child_episodic_slots = _empty_array((child_capacity, self.hidden_size))
+            child_episodic_age = np.full(child_capacity, -1.0, dtype=_DTYPE)
+        else:
+            child_episodic_slots = _empty_array((0, 0))
+            child_episodic_age = _empty_array(0)
+
         child = TinyBrain(
             input_size=self.input_size,
             hidden_size=self.hidden_size,
@@ -467,6 +626,9 @@ class TinyBrain:
             auxiliary_prediction_weights=auxiliary_prediction_weights,
             attention_weights=attention_weights,
             attention_bias=attention_bias,
+            episodic_slots=child_episodic_slots,
+            episodic_age=child_episodic_age,
+            last_episodic_attention=_empty_array(child_capacity) if child_capacity > 0 else _empty_array(0),
             hidden=_empty_array(self.hidden_size),
             last_outputs=_empty_array(self.output_size),
             last_inputs=_empty_array(self.input_size),
@@ -500,6 +662,9 @@ class TinyBrain:
             },
             "attention_weights": _round(self.attention_weights),
             "attention_bias": _round(self.attention_bias),
+            "episodic_capacity": int(self.episodic_slots.shape[0]) if self.episodic_slots.ndim == 2 else 0,
+            "episodic_slots": _round(self.episodic_slots),
+            "episodic_age": _round(self.episodic_age),
         }
         if include_state:
             data["hidden"] = _round(self.hidden)
@@ -533,6 +698,21 @@ class TinyBrain:
         else:
             attention_bias = _empty_array(0)
 
+        # Episodic memory (v2 feature). Backward-compat: missing fields => disabled.
+        episodic_capacity = int(data.get("episodic_capacity") or 0)
+        if episodic_capacity > 0:
+            slots_raw = data.get("episodic_slots") or []
+            age_raw = data.get("episodic_age") or []
+            if len(slots_raw) == episodic_capacity * hidden_size and len(age_raw) == episodic_capacity:
+                episodic_slots = np.array(slots_raw, dtype=_DTYPE).reshape(episodic_capacity, hidden_size)
+                episodic_age = np.array(age_raw, dtype=_DTYPE)
+            else:
+                episodic_slots = _empty_array((episodic_capacity, hidden_size))
+                episodic_age = np.full(episodic_capacity, -1.0, dtype=_DTYPE)
+        else:
+            episodic_slots = _empty_array((0, 0))
+            episodic_age = _empty_array(0)
+
         brain = cls(
             input_size=input_size,
             hidden_size=hidden_size,
@@ -548,6 +728,9 @@ class TinyBrain:
             },
             attention_weights=attention_weights,
             attention_bias=attention_bias,
+            episodic_slots=episodic_slots,
+            episodic_age=episodic_age,
+            last_episodic_attention=_empty_array(episodic_capacity) if episodic_capacity > 0 else _empty_array(0),
             hidden=_empty_array(hidden_size),
             last_outputs=_empty_array(output_size),
             last_inputs=_empty_array(input_size),

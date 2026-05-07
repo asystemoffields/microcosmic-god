@@ -25,6 +25,10 @@ NEURAL_BUDGET_MAX = 512.0
 # units, which spikes metabolic cost and crashes early lineages.
 NEURAL_BUDGET_MUTATION_REFERENCE = 128.0
 MEMORY_BUDGET_MAX = 48.0
+# Episodic memory capacity: number of past hidden-state snapshots a brain can
+# store. 0 = no episodic memory (legacy behavior). Genome-controlled, mutates
+# like other budgets. Metabolic cost is added in organisms.metabolic_cost.
+EPISODIC_CAPACITY_MAX = 32.0
 
 
 @dataclass(slots=True)
@@ -63,6 +67,9 @@ class Genome:
     valence_damage: float
     valence_reproduction: float
     valence_social: float
+    # Episodic memory capacity (number of stored hidden-state snapshots).
+    # Optional v2 brain feature; 0 disables. Genome-evolvable.
+    episodic_capacity: float = 0.0
 
     @classmethod
     def plant(cls, rng: Random) -> "Genome":
@@ -179,6 +186,11 @@ class Genome:
             valence_damage=rng.uniform(0.35, 0.95),
             valence_reproduction=rng.uniform(0.00, 0.55),
             valence_social=rng.uniform(0.00, 0.35),
+            # Initial neural agents start with modest episodic capacity (0-8 slots).
+            # Mutation can grow it up to EPISODIC_CAPACITY_MAX or shrink it to 0.
+            # Brains that find episodic memory useful keep it; brains that don't
+            # pay metabolic cost for nothing and lose to lineages that mutated it away.
+            episodic_capacity=rng.uniform(0.0, 8.0),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -192,6 +204,7 @@ class Genome:
             "desiccation_tolerance": 0.55,
             "pressure_tolerance": 0.20,
             "buoyancy": 0.25,
+            "episodic_capacity": 0.0,  # backward-compat: legacy genomes had no episodic memory
         }
         for field in fields(cls):
             if field.name not in data and field.name in defaults:
@@ -222,6 +235,8 @@ class Genome:
                     )
                     * NEURAL_BUDGET_MUTATION_REFERENCE
                 )
+            elif key == "episodic_capacity":
+                data[key] = mut_float(rng, value / EPISODIC_CAPACITY_MAX, rate, strength, 0.0, 1.0) * EPISODIC_CAPACITY_MAX
             elif key == "memory_budget":
                 data[key] = mut_float(rng, value / MEMORY_BUDGET_MAX, rate, strength, 0.0, 1.0) * MEMORY_BUDGET_MAX
             else:

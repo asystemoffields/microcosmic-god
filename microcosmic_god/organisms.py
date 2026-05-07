@@ -162,11 +162,16 @@ class Organism:
         # bootstrap their learned representations; if they starve before
         # cognition pays off, selection drives capacity down regardless of
         # the world's puzzle complexity. This relief lets the experiment run.
+        # Episodic capacity at 0.0035/slot - moderate cost since each slot is
+        # a hidden_size-dim vector (a brain at neural_budget=8 with
+        # episodic_capacity=8 holds 64 floats of episodic memory).
+        episodic = max(0.0, getattr(self.genome, "episodic_capacity", 0.0)) * 0.0035
         neural = (
             self.genome.neural_budget * 0.0030
             + self.genome.memory_budget * 0.0028
             + self.genome.prediction_weight * 0.018
             + self.genome.plasticity_rate * 0.010
+            + episodic
         )
         if self.kind in {"plant", "fungus"}:
             base *= 0.55
@@ -369,7 +374,8 @@ def make_brain_for_genome(rng: Random, genome: Genome) -> tuple[TinyBrain | None
     hidden = int(round(genome.neural_budget))
     if hidden < 2:
         return None, None
-    template = TinyBrain.random(rng, OBSERVATION_SIZE, hidden, len(ACTIONS))
+    episodic_capacity = int(round(max(0.0, getattr(genome, "episodic_capacity", 0.0))))
+    template = TinyBrain.random(rng, OBSERVATION_SIZE, hidden, len(ACTIONS), episodic_capacity=episodic_capacity)
     brain = TinyBrain.from_dict(template.to_dict(include_state=False))
     return brain, template
 
