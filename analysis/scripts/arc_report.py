@@ -424,11 +424,80 @@ def main() -> None:
     events = load_events(story_path)
     arcs = build_arcs(events)
     traps = find_specialist_traps(arcs)
+    summary_path = run_dir / "summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8")) if summary_path.exists() else {}
     print(f"Arc report: {run_dir}")
     print(f"  raw events: {len(events)}  arcs detected: {len(arcs)}  showing top: {min(top_n, len(arcs))}")
     print()
     for arc in arcs[:top_n]:
         print(render_arc(arc))
+        print()
+
+    # Lineage civilizations: summary.json already aggregates these per run end.
+    # Render the top scoring lineages so the run output tells a complete story
+    # without requiring a separate grep through events.jsonl.
+    lineages = (summary.get("lineages") or {}).get("top_living") or []
+    if not lineages:
+        # Fallback: lineage_summary may emit "by_living" or just a flat list.
+        candidate = summary.get("lineages") or {}
+        for key in ("top_living", "by_living", "top"):
+            if isinstance(candidate.get(key), list):
+                lineages = candidate[key]
+                break
+        if not lineages and isinstance(candidate, list):
+            lineages = candidate
+    if lineages:
+        print("Top Lineages")
+        for row in lineages[:8]:
+            profile = row.get("profile", {}) or {}
+            tools = row.get("tool_use_counts", {}) or {}
+            tool_summary = ", ".join(f"{k}:{v}" for k, v in list(tools.items())[:5])
+            profile_summary = ", ".join(
+                f"{k}={v:.1f}" for k, v in sorted(profile.items(), key=lambda kv: kv[1], reverse=True)[:4]
+            )
+            print(
+                f"  lineage={row.get('lineage_root_id'):>4}  "
+                f"living={row.get('living', 0):>3} ({row.get('living_neural', 0)} neural)  "
+                f"max_gen={row.get('max_generation', 0):>2}  "
+                f"born={row.get('born', 0):>3}  "
+                f"offspring={row.get('offspring_total', 0):>3}  "
+                f"tools={row.get('successful_tools_total', 0):>3}  "
+                f"score={row.get('score', 0):.1f}"
+            )
+            if profile_summary:
+                print(f"      profile: {profile_summary}")
+            if tool_summary:
+                print(f"      tools:   {tool_summary}")
+            top_ids = row.get("top_living_ids", []) or []
+            if top_ids:
+                print(f"      top organisms: {top_ids}")
+        print()
+
+    # Brain capacity & attention trajectory across the run, sampled from
+    # aggregates. Tells you whether brains grew during the run and whether
+    # attention concentrated as the population learned.
+    aggregates: list[dict[str, Any]] = []
+    events_path = run_dir / "events.jsonl"
+    if events_path.exists():
+        for line in events_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            item = json.loads(line)
+            if item.get("kind") == "aggregate":
+                aggregates.append(item)
+    if aggregates and any("brain_capacity" in a for a in aggregates):
+        print("Brain Capacity Trajectory")
+        stride = max(1, len(aggregates) // 8)
+        for item in aggregates[::stride]:
+            cap = item.get("brain_capacity") or {}
+            attn = item.get("attention_stats") or {}
+            print(
+                f"  tick {item['tick']:>6}: brains={cap.get('count', 0):>4}  "
+                f"hidden mean={cap.get('mean', 0):>5.1f}  max={cap.get('max', 0):>3}  "
+                f"p90={cap.get('p90', 0):>3}  "
+                f"attn max_fid={attn.get('mean_max_fidelity', 0):>4.2f}  "
+                f"concentration={attn.get('mean_concentration', 0):>4.2f}"
+            )
         print()
 
     if traps:

@@ -3339,12 +3339,51 @@ class Simulation:
         neural = [organism for organism in living if organism.neural]
         avg_energy = sum(organism.energy for organism in living) / max(1, len(living))
         avg_complexity = sum(organism.genome.complexity() for organism in living) / max(1, len(living))
+        # Brain capacity & attention stats — these only make sense for neural agents
+        # with brains. With brain growth active and neuroplastic attention active,
+        # tracking how these distributions evolve over the run is what tells you
+        # whether the substrate is selecting for richer cognition.
+        brain_sizes = [organism.brain.hidden_size for organism in neural if organism.brain is not None]
+        if brain_sizes:
+            brain_capacity = {
+                "count": len(brain_sizes),
+                "mean": round(sum(brain_sizes) / len(brain_sizes), 3),
+                "max": max(brain_sizes),
+                "min": min(brain_sizes),
+                "p90": sorted(brain_sizes)[int(len(brain_sizes) * 0.9)] if len(brain_sizes) >= 10 else max(brain_sizes),
+            }
+        else:
+            brain_capacity = {"count": 0, "mean": 0.0, "max": 0, "min": 0, "p90": 0}
+        attention_stats: dict[str, float | int] = {"count": 0}
+        attended_brains = [
+            organism.brain
+            for organism in neural
+            if organism.brain is not None and organism.brain._has_attention() and organism.brain.last_attention.size
+        ]
+        if attended_brains:
+            # Concentration measure: max(fidelity) - mean(fidelity). High when brain
+            # is focusing on a few features, low when spread uniformly. Good signal
+            # for "how trained" the attention head is on this organism.
+            concentrations: list[float] = []
+            mean_max_fidelity = 0.0
+            for brain in attended_brains:
+                fidelity = brain.last_attention
+                concentrations.append(float(fidelity.max() - fidelity.mean()))
+                mean_max_fidelity += float(fidelity.max())
+            attention_stats = {
+                "count": len(attended_brains),
+                "mean_max_fidelity": round(mean_max_fidelity / len(attended_brains), 4),
+                "mean_concentration": round(sum(concentrations) / len(concentrations), 4),
+                "max_concentration": round(max(concentrations), 4),
+            }
         aggregate = {
             "tick": self.tick,
             "population": population_counts(self.organisms),
             "avg_energy": round(avg_energy, 5),
             "avg_complexity": round(avg_complexity, 5),
             "neural_avg_energy": round(sum(o.energy for o in neural) / max(1, len(neural)), 5),
+            "brain_capacity": brain_capacity,
+            "attention_stats": attention_stats,
             "births": dict(self.births_by_mode),
             "deaths": dict(self.deaths_by_cause),
             "deaths_by_kind_cause": dict(self.deaths_by_kind_cause),
