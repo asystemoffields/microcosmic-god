@@ -36,6 +36,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="environment pressure multiplier; 1.0 is baseline, higher values reduce easy survival",
     )
+    run.add_argument(
+        "--world-refresh-every",
+        dest="world_refresh_every",
+        type=int,
+        default=None,
+        help="regenerate the world (new seed, new physics) every N ticks; 0 disables (legacy single-world)",
+    )
     run.add_argument("--backend", choices=["cpu", "torch"], default=None, help="brain compute backend")
     run.add_argument("--device", default=None, help="compute device for --backend torch, such as auto, cpu, cuda, or cuda:0")
     run.add_argument("--garden", action="store_true", help="allow logged interventions")
@@ -65,6 +72,7 @@ def config_from_args(args: argparse.Namespace) -> RunConfig:
         "checkpoint_every": args.checkpoint_every,
         "neural_checkpoint_limit": args.checkpoint_limit,
         "environment_harshness": args.environment_harshness,
+        "world_refresh_every": args.world_refresh_every,
         "compute_backend": args.backend,
         "device": args.device,
         "run_mode": "garden" if args.garden else "sealed",
@@ -116,6 +124,7 @@ def print_run_card(config: RunConfig) -> None:
     print(f"  checkpoint every: {config.checkpoint_every} ticks")
     print(f"  checkpoint limit: {config.neural_checkpoint_limit}")
     print(f"  environment harshness: {config.environment_harshness:.2f}")
+    print(f"  world refresh every: {'never' if config.world_refresh_every <= 0 else f'{config.world_refresh_every} ticks'}")
     print(f"  compute backend: {config.compute_backend}")
     print(f"  device: {config.device}")
     print(f"  output dir: {config.output_dir}")

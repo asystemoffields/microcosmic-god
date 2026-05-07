@@ -105,6 +105,36 @@ class Simulation:
     def _environment_harshness(self) -> float:
         return max(0.2, float(getattr(self.config, "environment_harshness", 1.0)))
 
+    def _refresh_world(self) -> None:
+        """Replace the current world with a fresh one (new seed, new physics).
+
+        Organisms keep their location index but the place at that index is now
+        a different place with different physics, resources, and causal
+        challenges. Place memories are cleared because they'd otherwise refer
+        to the (now-replaced) prior world. Organisms that memorized "place 7
+        is hot, contains chemical via crack>lever" suddenly find place 7 is
+        cold, holds biological_storage via cut>bind, and have to adapt or die.
+        """
+        from random import Random as _Random
+        # Use a derived seed so reproducibility holds: new_seed = base + tick.
+        new_rng = _Random((self.config.seed * 1_000_003) ^ (self.tick * 1_009))
+        new_world = self.world.__class__.generate(new_rng, self.config)
+        # Preserve tick / season offset by carrying forward the tick counter
+        # but resetting climate drift to baseline (consistent with a new world).
+        new_world.tick = self.world.tick
+        n_places = len(new_world.places)
+        for organism in self.organisms.values():
+            if not organism.alive:
+                continue
+            # Clear stale place memories. Keep the organism's location index
+            # in range (the new world should have the same number of places
+            # since `places` is from config, but defensive in case it differs).
+            if organism.location >= n_places:
+                organism.location = self.rng.randrange(n_places)
+            organism.place_memory.clear()
+        self.world = new_world
+        self.logger.event(self.tick, "world_refreshed", {"new_world_seed_basis": self.tick})
+
     def _seed_initial_life(self) -> None:
         for _ in range(self.config.initial_plants):
             self.add_organism("plant", Genome.plant(self.rng), self.rng.randrange(len(self.world.places)), self.rng.uniform(10.0, 35.0))
@@ -190,6 +220,13 @@ class Simulation:
 
     def step(self) -> None:
         self.tick += 1
+        # Multi-world selection: regenerate the world periodically so the
+        # population faces shifting physics. Brains that memorized one
+        # specific world die when it changes; brains that abstracted the
+        # underlying causal rules survive. Selects FOR generalization.
+        refresh_every = int(getattr(self.config, "world_refresh_every", 0) or 0)
+        if refresh_every > 0 and self.tick > 1 and self.tick % refresh_every == 0:
+            self._refresh_world()
         physics_events = self.world.update_environment(self.rng)
         self.physics_events.update(physics_events)
         self._apply_physics_transport()

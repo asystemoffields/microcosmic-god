@@ -1657,6 +1657,89 @@ class BrainGrowthTests(unittest.TestCase):
         self.assertEqual(big_brain.hidden_size, 200)
 
 
+class MultiWorldSelectionTests(unittest.TestCase):
+    """When `world_refresh_every` is set, the simulation should swap the world
+    every N ticks. Brains' place memories should be cleared so they can't
+    'remember' places that no longer exist with their old properties."""
+
+    def test_world_refresh_replaces_world_and_clears_place_memory(self) -> None:
+        from microcosmic_god.simulation import Simulation
+        from microcosmic_god.config import RunConfig
+        import tempfile
+
+        tmp = tempfile.TemporaryDirectory()
+        config = RunConfig(
+            seed=42,
+            profile="test",
+            max_ticks=10,
+            max_wall_seconds=0,
+            places=8,
+            initial_plants=4,
+            initial_fungi=2,
+            initial_agents=4,
+            max_population=30,
+            output_dir=tmp.name,
+            event_detail=False,
+            world_refresh_every=3,
+        )
+        sim = Simulation(config)
+        sim._tmpdir = tmp  # type: ignore[attr-defined]
+
+        original_world = sim.world
+
+        # Run up to (but not past) the first refresh point.
+        for _ in range(2):
+            sim.step()
+        self.assertIs(sim.world, original_world, "world must not refresh before tick 3")
+
+        # Plant a synthetic place memory entry on a living organism.
+        target = next((o for o in sim.organisms.values() if o.alive), None)
+        self.assertIsNotNone(target)
+        target.place_memory[42] = 0.99
+
+        # Step into and across the refresh boundary.
+        sim.step()  # tick 3 -> refresh fires
+        self.assertIsNot(sim.world, original_world, "world must refresh at tick 3")
+        # The synthetic pre-refresh entry was cleared by _refresh_world.
+        # (New entries may be written during the same tick, but key 42 is no
+        # longer in there since it was nuked at refresh time.)
+        self.assertNotIn(42, target.place_memory)
+
+        sim.logger.close()
+        tmp.cleanup()
+
+    def test_world_refresh_zero_means_legacy_single_world(self) -> None:
+        from microcosmic_god.simulation import Simulation
+        from microcosmic_god.config import RunConfig
+        import tempfile
+
+        tmp = tempfile.TemporaryDirectory()
+        config = RunConfig(
+            seed=42,
+            profile="test",
+            max_ticks=10,
+            max_wall_seconds=0,
+            places=8,
+            initial_plants=4,
+            initial_fungi=2,
+            initial_agents=4,
+            max_population=30,
+            output_dir=tmp.name,
+            event_detail=False,
+            world_refresh_every=0,
+        )
+        sim = Simulation(config)
+        sim._tmpdir = tmp  # type: ignore[attr-defined]
+
+        original_world = sim.world
+        for _ in range(5):
+            sim.step()
+        self.assertIs(sim.world, original_world)
+
+        sim.logger.close()
+        tmp.cleanup()
+
+
 class TexturedHarshnessTests(unittest.TestCase):
     """Causal challenges should pick up physics-conditional prep steps so the
     same global rule produces different sequences in different physics regimes,
