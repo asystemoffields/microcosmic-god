@@ -112,6 +112,14 @@ Evolution and checkpoints:
 
 ## Recent Empirical Notes
 
+Seed 1 30-minute payoff-rebalance run (`runs/cpu_30m_seed1_payoff_v2/20260507_124346_seed1_minute/`):
+
+- 5,429 ticks, 546 neural agents at end (peaked at 861 alive at tick 4,900).
+- **Brain capacity grew across the run for the first time**: mean 7.7 → 10.8 (+40%), max 13 → 26 (2x). Earlier runs had brains stuck at ~8 throughout.
+- **Three competing lineage strategies** (vs v1's single dominant): lineage 490 collaborate-heavy (241 living, 3,060 offspring), lineage 430 balanced (195 living, 3,990 tools), lineage 489 tool-master (105 living, 9,882 tools). Genuinely differentiated cognitive niches in the same world.
+- Ecology denser and more competitive: starvation 1,240 (was 701 in v1), counterattack 246 (was 53).
+- Attention concentration moved from 0.01 → 0.02 — slight movement after the raw-values rule fix, but still well below the convergence we'd want. Probably needs longer runs.
+
 Seed 1 30-minute full-pipeline run (`runs/cpu_30m_seed1_full_pipeline/20260507_113805_seed1_minute/`):
 
 - 5,440 ticks, 397 neural agents at end (out of 2,482 total population).
