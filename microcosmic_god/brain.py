@@ -28,14 +28,18 @@ BRAIN_HIDDEN_MAX = 512
 # error-modulated plasticity in the new environment's prediction errors.
 #
 # Init bias is set high enough that untrained brains pass nearly-full fidelity
-# (sigmoid(2.5) ≈ 0.92). Budget then bounds total attention at 0.85 * N, so
-# untrained avg fidelity ≈ 0.85 - learning bootstraps normally. Selection
-# pressure activates once the brain learns to push some features toward 1.0
-# (which requires pulling others down, since total is bounded).
-ATTENTION_BUDGET_FRACTION = 0.85
-ATTENTION_BIAS_INIT_MEAN = 2.5
+# (sigmoid(3.0) ≈ 0.95). Budget then bounds total attention at 0.95 * N, so
+# untrained avg fidelity ≈ 0.95 - learning bootstraps normally and the
+# information cost is gentle enough that early-life agents still survive long
+# enough to reproduce. Selection pressure activates once the brain learns to
+# push some features toward 1.0 (which requires pulling others down, since
+# total is bounded). Earlier 0.85 budget + 0.30 noise crashed early lineages
+# because untrained agents received too-noisy observations to bootstrap good
+# action policies before starving.
+ATTENTION_BUDGET_FRACTION = 0.95
+ATTENTION_BIAS_INIT_MEAN = 3.0
 ATTENTION_BIAS_INIT_SCALE = 0.10
-ATTENTION_NOISE_SCALE = 0.30
+ATTENTION_NOISE_SCALE = 0.18
 ATTENTION_LEARNING_RATE_FACTOR = 0.012
 ATTENTION_DECAY = 0.0008
 

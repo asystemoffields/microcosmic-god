@@ -18,6 +18,12 @@ def mut_float(rng: Random, value: float, rate: float, scale: float, low: float =
 
 
 NEURAL_BUDGET_MAX = 512.0
+# Mutations and recombination distances on neural_budget were calibrated for a
+# 128-unit operating range. The cap was raised to 512 to allow brains to grow,
+# but mutations should still produce the same absolute step magnitudes, not
+# 4x larger ones - otherwise a single mutation can shove a brain from 8 to 40
+# units, which spikes metabolic cost and crashes early lineages.
+NEURAL_BUDGET_MUTATION_REFERENCE = 128.0
 MEMORY_BUDGET_MAX = 48.0
 
 
@@ -200,7 +206,22 @@ class Genome:
         rate = clamp(self.mutation_rate, 0.001, 0.30)
         for key, value in list(data.items()):
             if key == "neural_budget":
-                data[key] = mut_float(rng, value / NEURAL_BUDGET_MAX, rate, strength, 0.0, 1.0) * NEURAL_BUDGET_MAX
+                # Normalize against the mutation reference (128) so the scaled
+                # gaussian step has legacy magnitude; the upper bound on the
+                # normalized value is MAX / REFERENCE so a rare reset can still
+                # land anywhere in the legal range.
+                upper = NEURAL_BUDGET_MAX / NEURAL_BUDGET_MUTATION_REFERENCE
+                data[key] = (
+                    mut_float(
+                        rng,
+                        value / NEURAL_BUDGET_MUTATION_REFERENCE,
+                        rate,
+                        strength,
+                        0.0,
+                        upper,
+                    )
+                    * NEURAL_BUDGET_MUTATION_REFERENCE
+                )
             elif key == "memory_budget":
                 data[key] = mut_float(rng, value / MEMORY_BUDGET_MAX, rate, strength, 0.0, 1.0) * MEMORY_BUDGET_MAX
             else:
