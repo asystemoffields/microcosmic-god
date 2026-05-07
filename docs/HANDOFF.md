@@ -1,6 +1,6 @@
 # Microcosmic God Handoff
 
-Last updated: 2026-05-06
+Last updated: 2026-05-07
 
 This is the quick-start context for a fresh Codex instance taking over Microcosmic God.
 
@@ -8,21 +8,30 @@ This is the quick-start context for a fresh Codex instance taking over Microcosm
 
 - Repo: `C:\Users\power\Documents\Codex\2026-05-01\i-have-an-exciting-and-fun\microcosmic-god`
 - Remote: `https://github.com/asystemoffields/microcosmic-god`
-- Active branch: `codex/colab-a100-run-notebook` (8 commits ahead of `main`, pushed to origin)
-- Latest pushed commit: `36ec8a0 Add physics-conditional prep steps to causal challenges`
-- Recent commits (this session, oldest → newest):
-  - `eb5dd82` Add environment harshness + situation-aware affordance choice + lineage tracking + counterattack + exposure-pressure hazard
-  - `2eee68e` Add arc report (`analysis/scripts/arc_report.py`) — narrative-arc curator over `story_events.jsonl`
+- Active branch: **`main`** (sessions are now landing directly on main; `codex/colab-a100-run-notebook` was kept in sync but main is canonical)
+- Latest pushed commit: `3c825b0 Align Catch transfer harness with v2 brain architecture (A+B+C+D)`
+- Recent commits (newest → oldest, last few sessions):
+  - `3c825b0` Align Catch transfer harness with v2 brain architecture (multi-ball, persistent hidden, replay-on-stay, adaptive mode)
+  - `37392d8` Add v2 brain (episodic memory + replay) and fix multi-world refresh (preserve resources)
+  - `aa95bbf` Add multi-world selection: regenerate world every N ticks
+  - `bc16cff` Add skeptic controls; the single-seed +0.38 was noise
+  - `2c3bb5b` Add Catch transfer harness as Colab notebook
+  - `e2e3c7c` Rebalance metabolic cost and attention update for cognitive payoff
+  - `36ec8a0` Add physics-conditional prep steps to causal challenges
+  - `c634607` Add neuroplastic attention head with bounded fidelity budget
+  - `10b93d4` Allow brains to grow and shrink across reproduction
+  - `e10a91c` Move TinyBrain core to numpy (~11x brain ops speedup)
+  - `eb5dd82` Add environment harshness + situation-aware affordance + lineage tracking + counterattack + exposure-pressure
+  - `2eee68e` Add arc report (`analysis/scripts/arc_report.py`)
   - `696fc43` Drop senescence as a death cause
-  - `7d22c19` Penalize specialist-trap signatures in arc scoring + surface them in a dedicated section
-  - `36ec8a0` Add physics-conditional prep steps to causal challenges (textured harshness)
+  - `7d22c19` Specialist-trap penalty in arc scoring
 - Pre-session commits still relevant:
   - `0b75780` Add torch brain simulation backend
   - `2a9e4f0` Use CUDA for checkpoint SAE analysis
   - `34ddb4e` Add Colab A100 run notebook
   - `5680f86` Lock movement energy costs
 
-54/54 tests pass at HEAD.
+77/77 tests pass at HEAD.
 
 Before editing, run:
 
@@ -111,6 +120,34 @@ Evolution and checkpoints:
 - Seed 63 standout brains were archived in `archives/brains/seed63_run204018`.
 
 ## Recent Empirical Notes
+
+Seed 1 30-minute v2 brain + multi-world run (`runs/cpu_30m_seed1_v2_multiworld/20260507_153023_seed1_minute/`):
+
+- Multi-world selection enabled (`world_refresh_every=1200`). World refreshes preserve resources, structures, marks; only physics + obstacles + causal_challenge are regenerated.
+- v2 brain features active: episodic memory bank (genome-evolvable capacity), replay-during-rest, attention head with budget=0.95.
+- 5,440-tick budget but only reached tick 3,113 — population pressure + episodic computation slowed per-tick. **1,641 neural agents at end** (3,622 total) — the largest neural population observed.
+- 60% recombination rate (was 33% in single-world).
+- **Lineage 460 = 909 living agents at run-end**, max gen 19, 7,539 cumulative offspring. Largest civilization observed in the substrate.
+- **Notable narrative arc**: organism 5506 lived ticks 993-1658 across the world refresh at tick 1200. At place 33 it solved `cut > bind` for biological_storage in World A; after the refresh, place 33 became different physics, and 5506 switched to `crack > lever > contain` for chemical and unlocked it 4 more times. Concrete in-substrate evidence of cognitive flexibility under distribution shift — the phenotype the substrate was designed to select for.
+- Brain capacity transient peak: 218 hidden units at tick 2,300 (selected against, but the substrate is exploring large brains).
+
+**Catch transfer test results (10 seeds, 4 conditions, frozen + adaptive modes, multi-ball harness):**
+
+The harness was aligned to the brain's architecture (A+B+C+D from `3c825b0`): multi-ball Catch episodes with paddle persistence, brain hidden state persists across balls within an episode, Catch's "stay" action triggers `brain.replay_episode()`, and an adaptive mode that fires brain plasticity from per-ball reward.
+
+Results in multi-ball units (max possible reward per episode = +30):
+- Direct linear policy (no brain): **+16.66 ± 2.11** — best.
+- Random-init brain + adapter: +13.37 ± 2.66 — beats trained brain.
+- v2 trained brain + adapter: +5.27 ± 5.22 — third.
+- Permuted v2 brain + adapter: +0.29 ± 9.29 — worst.
+
+**Decisive findings:**
+- `trained − permuted = +4.98` — permutation test passes; the substrate IS producing structured cognition (not just well-conditioned weights).
+- `trained − random_brain = -8.10` — random brains beat trained brains. The mg-trained representations are actively misaligned with Catch.
+- `trained − direct = -11.39` — the brain hinders compared to no brain.
+- Adaptive mode catastrophically broke all brain conditions (collapse to ~-13 reward). The naive Hebbian rule trains the wrong mg-action's weights — there's no alignment between the brain's intended mg-action argmax and the projected Catch action chosen. Adaptive transfer needs a redesign before it's testable.
+
+**Read:** Catch is the wrong test target. Even with full harness alignment, mg-trained brains underperform random brains. The substrate produces structure (permutation test confirms) but that structure doesn't generalize to a 4-feature linearly-solvable game. Either the substrate isn't producing transferable cognition yet (true negative for the project's "transferable minds" claim), OR Catch can't probe what's actually being produced. Probably both.
 
 Seed 1 30-minute payoff-rebalance run (`runs/cpu_30m_seed1_payoff_v2/20260507_124346_seed1_minute/`):
 
@@ -227,7 +264,15 @@ OK
 
 ## Likely Next Actions
 
-The 2026-05-06 session left several open design threads worth pulling next, ranked roughly by leverage:
+The 2026-05-07 session pinned the open thread to a clean question: *the substrate produces structured cognition (permutation test passes), but that cognition doesn't transfer to Catch.* Three ranked threads to pull next:
+
+- **Within-substrate transfer test (highest priority)**: take a trained brain from one mg seed, drop it into a fresh mg seed (different physics + puzzles, same observation/action space), measure survival/tool-use/causal-unlock vs random-init baseline. No action-space mismatch, no input-distribution shift to fight, exercises exactly the cognition the brain has. This is the cleanest probe for whether the substrate produces general cognition. **Build this next.**
+
+- **Smarter adaptive transfer**: the current adaptive mode (`adaptive_lr > 0` in the Catch harness) is broken because it trains the brain's mg-action policy on Catch reward — but the brain's argmax mg-action and the projected Catch action are decoupled. Fix: representation-level plasticity from prediction errors only (the brain's native learning signal), no policy updates. Lets the brain rapidly form representations of new environments without the action-space mismatch destroying it.
+
+- **v3 brain architecture (typed inputs / cross-attention over input tokens)**: addresses the "input-distribution-specific priors" root cause that makes mg-trained brains hurt vs. random brains on out-of-distribution tasks. Bigger lift but the deepest fix. Worth investigating after within-substrate transfer is validated.
+
+Earlier 2026-05-06 threads still relevant:
 
 - **Information cost**: make `observe` cost energy proportional to detail extracted. Currently `observe` averaged -0.026 energy in seed-1 (nearly free), so attention has no economy and marks/signals have no compressive value. Tighten this and `mark`/`signal`/`mark_lesson_*` channels gain real economic weight.
 - **Push diversity-aware scoring into `simulation.py`'s `_checkpoint_score`**: arc_report's `diversity_factor` correctly demotes specialist-trap brains in *analysis*, but the simulator still archives them via the same accumulator-style score. Fixing this means the brains saved for transfer will reflect the agentic intelligence the project actually wants, not rote memorizers.
