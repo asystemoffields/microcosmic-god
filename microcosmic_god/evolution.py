@@ -110,17 +110,32 @@ class EvolutionEngine:
     def _inherit_template_clone_mutate(self, parent: Organism, child_genome: Genome, strain: float) -> TinyBrain | None:
         if parent.brain_template is None or child_genome.neural_budget < 2.0:
             return None
-        if int(round(child_genome.neural_budget)) != parent.brain_template.hidden_size:
-            return None
+        target_hidden = int(round(child_genome.neural_budget))
         mutation_scale = 0.025 + child_genome.mutation_rate * 0.25 + strain * 0.010
-        return parent.brain_template.clone_for_offspring(self.rng, mutation_scale=mutation_scale)
+        # When child genome calls for a different brain size, clone_for_offspring
+        # resizes the inherited template instead of returning None - the parent's
+        # learned function is preserved across size changes.
+        return parent.brain_template.clone_for_offspring(
+            self.rng, mutation_scale=mutation_scale, target_hidden_size=target_hidden
+        )
 
     def _inherit_template_recombine(self, a: Organism, b: Organism, child_genome: Genome) -> TinyBrain | None:
-        hidden = int(round(child_genome.neural_budget))
-        templates = [parent.brain_template for parent in (a, b) if parent.brain_template and parent.brain_template.hidden_size == hidden]
-        if templates:
-            return self.rng.choice(templates).clone_for_offspring(self.rng, mutation_scale=0.035 + child_genome.mutation_rate * 0.20)
-        return None
+        target_hidden = int(round(child_genome.neural_budget))
+        if target_hidden < 2:
+            return None
+        # Prefer parents whose template size already matches; fall back to either
+        # parent (size will be reconciled via resize during cloning).
+        exact = [parent.brain_template for parent in (a, b) if parent.brain_template and parent.brain_template.hidden_size == target_hidden]
+        any_template = [parent.brain_template for parent in (a, b) if parent.brain_template]
+        templates = exact or any_template
+        if not templates:
+            return None
+        chosen = self.rng.choice(templates)
+        return chosen.clone_for_offspring(
+            self.rng,
+            mutation_scale=0.035 + child_genome.mutation_rate * 0.20,
+            target_hidden_size=target_hidden,
+        )
 
     def to_summary(self) -> dict[str, object]:
         return {

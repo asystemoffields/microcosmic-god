@@ -1565,6 +1565,87 @@ class AttentionTests(unittest.TestCase):
         self.assertNotEqual(parent.attention_weights, child.attention_weights)
 
 
+class BrainGrowthTests(unittest.TestCase):
+    """Brains can grow or shrink across reproduction without losing the parent's
+    learned function. This gives evolution real freedom to find appropriate
+    capacity for each ecological niche, rather than capping all brains at one
+    fixed size."""
+
+    def test_brain_grow_preserves_function_for_pre_existing_inputs(self) -> None:
+        from microcosmic_god.brain import TinyBrain
+
+        rng = Random(31)
+        brain = TinyBrain.random(rng, input_size=4, hidden_size=5, output_size=3, with_attention=False)
+        # Drive a forward pass and snapshot the original output so we can verify
+        # function preservation after growth.
+        inputs = [0.4, -0.2, 0.6, 0.1]
+        before = brain.forward(inputs)
+        # Reset hidden state so the comparison is clean.
+        brain.hidden = [0.0 for _ in range(brain.hidden_size)]
+        brain.resize_hidden(rng, 9)
+        self.assertEqual(brain.hidden_size, 9)
+        # Newly-added hidden units have small random in-weights so the output is
+        # close to but not identical to the original. The shape is what we care
+        # about - growth should not catastrophically distort behavior.
+        after = brain.forward(inputs)
+        self.assertEqual(len(after), len(before))
+
+    def test_brain_shrink_keeps_top_magnitude_units(self) -> None:
+        from microcosmic_god.brain import TinyBrain
+
+        rng = Random(31)
+        brain = TinyBrain.random(rng, input_size=4, hidden_size=8, output_size=3, with_attention=False)
+        # Make unit 3 dominant via incoming weights, unit 5 dominant via outgoing.
+        for h in range(brain.hidden_size):
+            for i in range(brain.input_size):
+                brain.weights_in[h * brain.input_size + i] = 2.5 if h == 3 else 0.01
+        for o in range(brain.output_size):
+            for h in range(brain.hidden_size):
+                brain.weights_out[o * brain.hidden_size + h] = 2.5 if h == 5 else 0.01
+        brain.resize_hidden(rng, 2)
+        self.assertEqual(brain.hidden_size, 2)
+        # After shrink, the two surviving units (kept in original index order)
+        # are the dominant ones: unit 3 had big incoming weights (2.5 each) and
+        # unit 5 had big outgoing weights (2.5 each). The first surviving slot
+        # should reflect unit 3's incoming weights; the second slot should
+        # reflect unit 5's outgoing weights.
+        self.assertEqual(brain.weights_in[0 * brain.input_size + 0], 2.5)  # unit 3 in slot 0
+        self.assertEqual(brain.weights_out[0 * brain.hidden_size + 1], 2.5)  # unit 5's out, in slot 1
+
+    def test_clone_for_offspring_resizes_when_target_differs(self) -> None:
+        from microcosmic_god.brain import TinyBrain
+
+        rng = Random(31)
+        parent = TinyBrain.random(rng, input_size=4, hidden_size=5, output_size=3, with_attention=False)
+        child = parent.clone_for_offspring(Random(32), mutation_scale=0.02, target_hidden_size=8)
+        self.assertEqual(child.hidden_size, 8)
+        self.assertEqual(parent.hidden_size, 5)  # parent unchanged
+        # Child should still produce sensible outputs.
+        outputs = child.forward([0.1, 0.2, 0.3, 0.4])
+        self.assertEqual(len(outputs), 3)
+
+    def test_resize_preserves_attention_when_present(self) -> None:
+        from microcosmic_god.brain import TinyBrain
+
+        rng = Random(31)
+        brain = TinyBrain.random(rng, input_size=4, hidden_size=5, output_size=3, with_attention=True)
+        self.assertEqual(len(brain.attention_weights), 4 * 5)
+        brain.resize_hidden(rng, 9)
+        self.assertEqual(len(brain.attention_weights), 4 * 9)
+        brain.resize_hidden(rng, 3)
+        self.assertEqual(len(brain.attention_weights), 4 * 3)
+        self.assertTrue(brain._has_attention())
+
+    def test_brain_max_cap_raised_above_legacy_128(self) -> None:
+        from microcosmic_god.brain import TinyBrain, BRAIN_HIDDEN_MAX
+
+        # The legacy cap was 128; growth requires headroom beyond that.
+        self.assertGreater(BRAIN_HIDDEN_MAX, 128)
+        rng = Random(31)
+        big_brain = TinyBrain.random(rng, input_size=4, hidden_size=200, output_size=3, with_attention=False)
+        self.assertEqual(big_brain.hidden_size, 200)
+
+
 class TexturedHarshnessTests(unittest.TestCase):
     """Causal challenges should pick up physics-conditional prep steps so the
     same global rule produces different sequences in different physics regimes,

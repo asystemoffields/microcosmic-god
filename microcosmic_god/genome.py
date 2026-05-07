@@ -17,7 +17,7 @@ def mut_float(rng: Random, value: float, rate: float, scale: float, low: float =
     return clamp(value, low, high)
 
 
-NEURAL_BUDGET_MAX = 128.0
+NEURAL_BUDGET_MAX = 512.0
 MEMORY_BUDGET_MAX = 48.0
 
 

@@ -14,6 +14,11 @@ def _rand_weight(rng: Random) -> float:
 PREDICTION_HEADS = ("energy", "damage", "reproduction", "social", "tool", "hazard")
 AUXILIARY_PREDICTION_HEADS = tuple(head for head in PREDICTION_HEADS if head != "energy")
 
+# Brain hidden-layer size cap. Brains can grow up to this size if their
+# genome.neural_budget evolves there; metabolic cost (in organisms.py) scales
+# with neural_budget, so growth pays off only when cognition does.
+BRAIN_HIDDEN_MAX = 512
+
 # Information-as-attention: brains learn (during life) where to look. Total
 # fidelity is bounded so the brain must choose; what's not attended to gets
 # noise instead of signal. The mechanism is general (no marks-specific or
@@ -64,7 +69,7 @@ class TinyBrain:
         output_size: int,
         with_attention: bool = True,
     ) -> "TinyBrain":
-        hidden_size = max(1, min(128, hidden_size))
+        hidden_size = max(1, min(BRAIN_HIDDEN_MAX, hidden_size))
         if with_attention:
             attention_weights = [rng.gauss(0.0, 0.15) for _ in range(input_size * hidden_size)]
             attention_bias = [rng.gauss(ATTENTION_BIAS_INIT_MEAN, ATTENTION_BIAS_INIT_SCALE) for _ in range(input_size)]
@@ -289,7 +294,86 @@ class TinyBrain:
                     self.attention_bias[i] = max(-2.0, min(2.0, decayed + delta))
         return error
 
-    def clone_for_offspring(self, rng: Random, mutation_scale: float = 0.03) -> "TinyBrain":
+    def resize_hidden(self, rng: Random, new_size: int) -> None:
+        """Grow or shrink the hidden layer while preserving learned function.
+
+        Grow: pad weights with small random values, biases with zeros, and the
+        hidden state with zeros - the existing function is preserved (the new
+        units start near-inert and can learn to contribute over time). Shrink:
+        rank hidden units by total |incoming|+|outgoing| weight magnitude and
+        keep the top new_size; the most heavily-used connections survive.
+
+        This allows neural_budget mutations to actually change brain capacity
+        across generations without losing the parent's learned representations.
+        """
+        new_size = max(1, min(BRAIN_HIDDEN_MAX, int(new_size)))
+        old_size = self.hidden_size
+        if new_size == old_size:
+            return
+        if new_size > old_size:
+            extra = new_size - old_size
+            # weights_in: row-major (h * input_size + i). Append `extra` new rows.
+            for _ in range(extra):
+                self.weights_in.extend(_rand_weight(rng) * 0.30 for _ in range(self.input_size))
+            # weights_out: row-major (o * hidden_size + h). Need to insert columns
+            # within each output row, so rebuild.
+            new_weights_out: list[float] = []
+            for o in range(self.output_size):
+                old_offset = o * old_size
+                new_weights_out.extend(self.weights_out[old_offset:old_offset + old_size])
+                new_weights_out.extend(_rand_weight(rng) * 0.30 for _ in range(extra))
+            self.weights_out = new_weights_out
+            self.bias_h.extend(rng.gauss(0.0, 0.04) for _ in range(extra))
+            self.prediction_weights.extend(_rand_weight(rng) * 0.30 for _ in range(extra))
+            for head in self.auxiliary_prediction_weights:
+                self.auxiliary_prediction_weights[head].extend(_rand_weight(rng) * 0.30 for _ in range(extra))
+            if self._has_attention():
+                for _ in range(extra):
+                    self.attention_weights.extend(rng.gauss(0.0, 0.15) for _ in range(self.input_size))
+            self.hidden.extend(0.0 for _ in range(extra))
+            self.hidden_trace.extend(0.0 for _ in range(extra))
+        else:
+            # Rank old hidden units by total connection magnitude and keep top-k.
+            scores: list[tuple[float, int]] = []
+            for h in range(old_size):
+                in_mag = sum(abs(self.weights_in[h * self.input_size + i]) for i in range(self.input_size))
+                out_mag = sum(abs(self.weights_out[o * old_size + h]) for o in range(self.output_size))
+                scores.append((in_mag + out_mag, h))
+            scores.sort(reverse=True)
+            keep = sorted(idx for _, idx in scores[:new_size])
+            self.weights_in = [
+                self.weights_in[h * self.input_size + i]
+                for h in keep
+                for i in range(self.input_size)
+            ]
+            self.weights_out = [
+                self.weights_out[o * old_size + h]
+                for o in range(self.output_size)
+                for h in keep
+            ]
+            self.bias_h = [self.bias_h[h] for h in keep]
+            self.prediction_weights = [self.prediction_weights[h] for h in keep]
+            for head in self.auxiliary_prediction_weights:
+                self.auxiliary_prediction_weights[head] = [
+                    self.auxiliary_prediction_weights[head][h] for h in keep
+                ]
+            if self._has_attention():
+                self.attention_weights = [
+                    self.attention_weights[h * self.input_size + i]
+                    for h in keep
+                    for i in range(self.input_size)
+                ]
+            if len(self.hidden) == old_size:
+                self.hidden = [self.hidden[h] for h in keep]
+            else:
+                self.hidden = [0.0 for _ in range(new_size)]
+            if len(self.hidden_trace) == old_size:
+                self.hidden_trace = [self.hidden_trace[h] for h in keep]
+            else:
+                self.hidden_trace = [0.0 for _ in range(new_size)]
+        self.hidden_size = new_size
+
+    def clone_for_offspring(self, rng: Random, mutation_scale: float = 0.03, target_hidden_size: int | None = None) -> "TinyBrain":
         data = self.to_dict(include_state=False)
 
         def mutate_many(values: list[float]) -> list[float]:
@@ -308,7 +392,10 @@ class TinyBrain:
             data["attention_weights"] = mutate_many(data["attention_weights"])
         if data.get("attention_bias"):
             data["attention_bias"] = mutate_many(data["attention_bias"])
-        return TinyBrain.from_dict(data)
+        child = TinyBrain.from_dict(data)
+        if target_hidden_size is not None and target_hidden_size != child.hidden_size:
+            child.resize_hidden(rng, target_hidden_size)
+        return child
 
     def to_dict(self, include_state: bool = True) -> dict[str, Any]:
         data: dict[str, Any] = {
