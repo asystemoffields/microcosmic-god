@@ -184,7 +184,7 @@ class Organism:
         return self.recombine_energy_threshold()
 
     def choose_signal_token(self) -> int:
-        if self.brain and self.brain.last_outputs:
+        if self.brain is not None and self.brain.last_outputs.size:
             return int(max(range(min(8, len(self.brain.last_outputs))), key=lambda i: self.brain.last_outputs[i])) % 8
         return (self.id + self.age + int(self.energy)) % 8
 

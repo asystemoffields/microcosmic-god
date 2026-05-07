@@ -1253,11 +1253,13 @@ class CausalContractTests(unittest.TestCase):
     def test_brain_plasticity_can_update_representations(self) -> None:
         # Tests the core (non-attention) plasticity path. Attention plasticity
         # is exercised separately in AttentionTests below.
+        import numpy as np
+
         brain = TinyBrain.random(Random(7), input_size=5, hidden_size=4, output_size=3, with_attention=False)
         inputs = [0.8, -0.2, 0.5, 0.0, 0.3]
         brain.forward(inputs)
-        before_in = list(brain.weights_in)
-        before_out = list(brain.weights_out)
+        before_in = brain.weights_in.copy()
+        before_out = brain.weights_out.copy()
 
         brain.learn(
             action_index=1,
@@ -1268,16 +1270,18 @@ class CausalContractTests(unittest.TestCase):
             prediction_weight=0.70,
         )
 
-        self.assertNotEqual(before_out, brain.weights_out)
-        self.assertNotEqual(before_in, brain.weights_in)
-        self.assertEqual(len(brain.input_trace), 5)
-        self.assertEqual(len(brain.hidden_trace), 4)
+        self.assertFalse(np.array_equal(before_out, brain.weights_out))
+        self.assertFalse(np.array_equal(before_in, brain.weights_in))
+        self.assertEqual(brain.input_trace.size, 5)
+        self.assertEqual(brain.hidden_trace.size, 4)
 
     def test_brain_learns_multiple_prediction_heads(self) -> None:
+        import numpy as np
+
         brain = TinyBrain.random(Random(9), input_size=5, hidden_size=4, output_size=3)
         brain.forward([0.5, -0.1, 0.4, 0.7, 0.2])
-        before_damage = list(brain.auxiliary_prediction_weights["damage"])
-        before_tool = list(brain.auxiliary_prediction_weights["tool"])
+        before_damage = brain.auxiliary_prediction_weights["damage"].copy()
+        before_tool = brain.auxiliary_prediction_weights["tool"].copy()
 
         brain.learn(
             action_index=2,
@@ -1290,8 +1294,8 @@ class CausalContractTests(unittest.TestCase):
         )
 
         self.assertEqual(set(brain.last_prediction_errors), set(PREDICTION_HEADS))
-        self.assertNotEqual(before_damage, brain.auxiliary_prediction_weights["damage"])
-        self.assertNotEqual(before_tool, brain.auxiliary_prediction_weights["tool"])
+        self.assertFalse(np.array_equal(before_damage, brain.auxiliary_prediction_weights["damage"]))
+        self.assertFalse(np.array_equal(before_tool, brain.auxiliary_prediction_weights["tool"]))
 
     def test_zero_plasticity_keeps_brain_weights_stable(self) -> None:
         brain = TinyBrain.random(Random(8), input_size=5, hidden_size=4, output_size=3)
@@ -1420,10 +1424,11 @@ class CausalContractTests(unittest.TestCase):
         for expected_value, actual_value in zip(expected_errors, actual_errors):
             self.assertAlmostEqual(expected_value, actual_value, places=5)
         for cpu_brain, torch_brain in zip(cpu_brains, torch_brains):
-            for expected_value, actual_value in zip(cpu_brain.weights_out, torch_brain.weights_out):
-                self.assertAlmostEqual(expected_value, actual_value, places=5)
+            # weights_out is now a (output_size, hidden_size) matrix; flatten to compare element-wise.
+            for expected_value, actual_value in zip(cpu_brain.weights_out.flatten(), torch_brain.weights_out.flatten()):
+                self.assertAlmostEqual(float(expected_value), float(actual_value), places=5)
             for expected_value, actual_value in zip(cpu_brain.prediction_weights, torch_brain.prediction_weights):
-                self.assertAlmostEqual(expected_value, actual_value, places=5)
+                self.assertAlmostEqual(float(expected_value), float(actual_value), places=5)
             self.assertEqual(set(torch_brain.last_prediction_errors), set(PREDICTION_HEADS))
 
     def test_torch_backend_can_run_small_simulation(self) -> None:
@@ -1465,24 +1470,26 @@ class AttentionTests(unittest.TestCase):
         from microcosmic_god.brain import TinyBrain
 
         brain = TinyBrain.random(Random(11), input_size=6, hidden_size=4, output_size=3)
-        self.assertEqual(len(brain.attention_weights), 6 * 4)
-        self.assertEqual(len(brain.attention_bias), 6)
+        self.assertEqual(brain.attention_weights.shape, (4, 6))
+        self.assertEqual(brain.attention_bias.shape, (6,))
         self.assertTrue(brain._has_attention())
 
     def test_brain_can_be_constructed_without_attention(self) -> None:
         from microcosmic_god.brain import TinyBrain
 
         brain = TinyBrain.random(Random(11), input_size=6, hidden_size=4, output_size=3, with_attention=False)
-        self.assertEqual(brain.attention_weights, [])
-        self.assertEqual(brain.attention_bias, [])
+        self.assertEqual(brain.attention_weights.size, 0)
+        self.assertEqual(brain.attention_bias.size, 0)
         self.assertFalse(brain._has_attention())
 
     def test_attention_total_fidelity_bounded_by_budget(self) -> None:
         from microcosmic_god.brain import TinyBrain, ATTENTION_BUDGET_FRACTION
 
+        import numpy as np
+
         brain = TinyBrain.random(Random(11), input_size=8, hidden_size=4, output_size=3)
         # Saturate attention bias to push raw attention well above budget.
-        brain.attention_bias = [10.0 for _ in range(brain.input_size)]
+        brain.attention_bias = np.full(brain.input_size, 10.0, dtype=np.float64)
         inputs = [0.5] * brain.input_size
         brain.forward(inputs)
         budget = brain.input_size * ATTENTION_BUDGET_FRACTION
@@ -1499,13 +1506,15 @@ class AttentionTests(unittest.TestCase):
         for expected, actual in zip(inputs, brain.last_inputs):
             self.assertAlmostEqual(expected, actual, places=10)
         # last_attention reports uniform 1.0 (full fidelity) for the no-attention path.
-        self.assertEqual(brain.last_attention, [1.0] * 5)
+        self.assertEqual(brain.last_attention.tolist(), [1.0] * 5)
 
     def test_attention_weights_change_with_surprise_and_valence(self) -> None:
         from microcosmic_god.brain import TinyBrain
 
+        import numpy as np
+
         brain = TinyBrain.random(Random(11), input_size=6, hidden_size=5, output_size=3)
-        before = list(brain.attention_weights)
+        before = brain.attention_weights.copy()
         # Drive several iterations of forward + learn with strong surprise/valence.
         for _ in range(10):
             brain.forward([0.7, -0.4, 0.6, 0.1, -0.5, 0.3])
@@ -1517,26 +1526,26 @@ class AttentionTests(unittest.TestCase):
                 plasticity=0.95,
                 prediction_weight=0.85,
             )
-        after = brain.attention_weights
-        self.assertNotEqual(before, after)
+        self.assertFalse(np.array_equal(before, brain.attention_weights))
         # And the attention bias should also have shifted on at least one feature.
-        self.assertTrue(any(abs(b) > 1e-6 for b in brain.attention_bias))
+        self.assertTrue(np.any(np.abs(brain.attention_bias) > 1e-6))
 
     def test_attention_serializes_round_trip(self) -> None:
         from microcosmic_god.brain import TinyBrain
 
         brain = TinyBrain.random(Random(11), input_size=6, hidden_size=4, output_size=3)
         # Modify a couple of attention weights to ensure they're persisted.
-        brain.attention_weights[0] = 0.5
-        brain.attention_weights[5] = -0.3
+        # attention_weights is now (hidden_size, input_size) — index as [h, i].
+        brain.attention_weights[0, 0] = 0.5
+        brain.attention_weights[1, 5] = -0.3
         brain.attention_bias[2] = 1.2
         data = brain.to_dict(include_state=True)
         restored = TinyBrain.from_dict(data)
-        self.assertEqual(len(brain.attention_weights), len(restored.attention_weights))
-        for original, recovered in zip(brain.attention_weights, restored.attention_weights):
-            self.assertAlmostEqual(original, recovered, places=6)
+        self.assertEqual(brain.attention_weights.shape, restored.attention_weights.shape)
+        for original, recovered in zip(brain.attention_weights.flatten(), restored.attention_weights.flatten()):
+            self.assertAlmostEqual(float(original), float(recovered), places=6)
         for original, recovered in zip(brain.attention_bias, restored.attention_bias):
-            self.assertAlmostEqual(original, recovered, places=6)
+            self.assertAlmostEqual(float(original), float(recovered), places=6)
 
     def test_legacy_checkpoint_without_attention_loads_cleanly(self) -> None:
         from microcosmic_god.brain import TinyBrain
@@ -1555,14 +1564,15 @@ class AttentionTests(unittest.TestCase):
 
     def test_clone_propagates_attention_with_mutation(self) -> None:
         from microcosmic_god.brain import TinyBrain
+        import numpy as np
 
         rng = Random(11)
         parent = TinyBrain.random(rng, input_size=5, hidden_size=3, output_size=2)
         child = parent.clone_for_offspring(Random(12), mutation_scale=0.05)
-        self.assertEqual(len(child.attention_weights), len(parent.attention_weights))
-        self.assertEqual(len(child.attention_bias), len(parent.attention_bias))
+        self.assertEqual(child.attention_weights.shape, parent.attention_weights.shape)
+        self.assertEqual(child.attention_bias.shape, parent.attention_bias.shape)
         # Mutation should have nudged at least some values.
-        self.assertNotEqual(parent.attention_weights, child.attention_weights)
+        self.assertFalse(np.array_equal(parent.attention_weights, child.attention_weights))
 
 
 class BrainGrowthTests(unittest.TestCase):
@@ -1596,12 +1606,13 @@ class BrainGrowthTests(unittest.TestCase):
         rng = Random(31)
         brain = TinyBrain.random(rng, input_size=4, hidden_size=8, output_size=3, with_attention=False)
         # Make unit 3 dominant via incoming weights, unit 5 dominant via outgoing.
+        # weights_in is (hidden_size, input_size); weights_out is (output_size, hidden_size).
         for h in range(brain.hidden_size):
             for i in range(brain.input_size):
-                brain.weights_in[h * brain.input_size + i] = 2.5 if h == 3 else 0.01
+                brain.weights_in[h, i] = 2.5 if h == 3 else 0.01
         for o in range(brain.output_size):
             for h in range(brain.hidden_size):
-                brain.weights_out[o * brain.hidden_size + h] = 2.5 if h == 5 else 0.01
+                brain.weights_out[o, h] = 2.5 if h == 5 else 0.01
         brain.resize_hidden(rng, 2)
         self.assertEqual(brain.hidden_size, 2)
         # After shrink, the two surviving units (kept in original index order)
@@ -1609,8 +1620,8 @@ class BrainGrowthTests(unittest.TestCase):
         # unit 5 had big outgoing weights (2.5 each). The first surviving slot
         # should reflect unit 3's incoming weights; the second slot should
         # reflect unit 5's outgoing weights.
-        self.assertEqual(brain.weights_in[0 * brain.input_size + 0], 2.5)  # unit 3 in slot 0
-        self.assertEqual(brain.weights_out[0 * brain.hidden_size + 1], 2.5)  # unit 5's out, in slot 1
+        self.assertEqual(brain.weights_in[0, 0], 2.5)  # unit 3 in slot 0
+        self.assertEqual(brain.weights_out[0, 1], 2.5)  # unit 5's out, in slot 1
 
     def test_clone_for_offspring_resizes_when_target_differs(self) -> None:
         from microcosmic_god.brain import TinyBrain
@@ -1629,11 +1640,11 @@ class BrainGrowthTests(unittest.TestCase):
 
         rng = Random(31)
         brain = TinyBrain.random(rng, input_size=4, hidden_size=5, output_size=3, with_attention=True)
-        self.assertEqual(len(brain.attention_weights), 4 * 5)
+        self.assertEqual(brain.attention_weights.shape, (5, 4))
         brain.resize_hidden(rng, 9)
-        self.assertEqual(len(brain.attention_weights), 4 * 9)
+        self.assertEqual(brain.attention_weights.shape, (9, 4))
         brain.resize_hidden(rng, 3)
-        self.assertEqual(len(brain.attention_weights), 4 * 3)
+        self.assertEqual(brain.attention_weights.shape, (3, 4))
         self.assertTrue(brain._has_attention())
 
     def test_brain_max_cap_raised_above_legacy_128(self) -> None:

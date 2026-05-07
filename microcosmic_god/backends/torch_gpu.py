@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from collections import defaultdict
 
+import numpy as np
+
 from .contracts import BrainLearningCase
 from microcosmic_god.brain import AUXILIARY_PREDICTION_HEADS, PREDICTION_HEADS, TinyBrain
 
@@ -11,16 +13,16 @@ def _clip(value: float, low: float, high: float) -> float:
 
 
 def _ensure_brain_state(brain: TinyBrain) -> None:
-    if len(brain.hidden) != brain.hidden_size:
-        brain.hidden = [0.0 for _ in range(brain.hidden_size)]
-    if len(brain.last_outputs) != brain.output_size:
-        brain.last_outputs = [0.0 for _ in range(brain.output_size)]
-    if len(brain.last_inputs) != brain.input_size:
-        brain.last_inputs = [0.0 for _ in range(brain.input_size)]
-    if len(brain.input_trace) != brain.input_size:
-        brain.input_trace = [0.0 for _ in range(brain.input_size)]
-    if len(brain.hidden_trace) != brain.hidden_size:
-        brain.hidden_trace = [0.0 for _ in range(brain.hidden_size)]
+    if brain.hidden.size != brain.hidden_size:
+        brain.hidden = np.zeros(brain.hidden_size, dtype=np.float64)
+    if brain.last_outputs.size != brain.output_size:
+        brain.last_outputs = np.zeros(brain.output_size, dtype=np.float64)
+    if brain.last_inputs.size != brain.input_size:
+        brain.last_inputs = np.zeros(brain.input_size, dtype=np.float64)
+    if brain.input_trace.size != brain.input_size:
+        brain.input_trace = np.zeros(brain.input_size, dtype=np.float64)
+    if brain.hidden_trace.size != brain.hidden_size:
+        brain.hidden_trace = np.zeros(brain.hidden_size, dtype=np.float64)
 
 
 class TorchBrainRuntime:
@@ -83,12 +85,12 @@ class TorchBrainRuntime:
             output_rows = out.detach().cpu().tolist()
             for local, brain_index in enumerate(indexes):
                 brain = brains[brain_index]
-                brain.last_inputs = [float(value) for value in x_rows[local]]
-                brain.input_trace = [float(value) for value in input_trace_rows[local]]
-                brain.hidden = [float(value) for value in hidden_rows[local]]
-                brain.hidden_trace = [float(value) for value in hidden_trace_rows[local]]
-                brain.last_outputs = [float(value) for value in output_rows[local]]
-                outputs[brain_index] = brain.last_outputs
+                brain.last_inputs = np.array(x_rows[local], dtype=np.float64)
+                brain.input_trace = np.array(input_trace_rows[local], dtype=np.float64)
+                brain.hidden = np.array(hidden_rows[local], dtype=np.float64)
+                brain.hidden_trace = np.array(hidden_trace_rows[local], dtype=np.float64)
+                brain.last_outputs = np.array(output_rows[local], dtype=np.float64)
+                outputs[brain_index] = brain.last_outputs.tolist()
 
         return [row if row is not None else [] for row in outputs]
 
@@ -211,12 +213,18 @@ class TorchBrainRuntime:
 
         for local, case_index in enumerate(indexes):
             brain = cases[case_index].brain
-            brain.weights_in = [float(value) for value in weights_in_rows[local]]
-            brain.weights_out = [float(value) for value in weights_out_rows[local]]
-            brain.bias_o = [float(value) for value in bias_o_rows[local]]
-            brain.prediction_weights = [float(value) for value in prediction_rows[local]]
+            brain.weights_in = np.array(weights_in_rows[local], dtype=np.float64).reshape(
+                brain.hidden_size, brain.input_size
+            )
+            brain.weights_out = np.array(weights_out_rows[local], dtype=np.float64).reshape(
+                brain.output_size, brain.hidden_size
+            )
+            brain.bias_o = np.array(bias_o_rows[local], dtype=np.float64)
+            brain.prediction_weights = np.array(prediction_rows[local], dtype=np.float64)
             for head in AUXILIARY_PREDICTION_HEADS:
-                brain.auxiliary_prediction_weights[head] = [float(value) for value in auxiliary_rows[head][local]]
+                brain.auxiliary_prediction_weights[head] = np.array(
+                    auxiliary_rows[head][local], dtype=np.float64
+                )
             brain.last_prediction_errors = {
                 head: float(error_rows[local][head_index])
                 for head_index, head in enumerate(PREDICTION_HEADS)
