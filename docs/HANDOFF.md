@@ -112,6 +112,16 @@ Evolution and checkpoints:
 
 ## Recent Empirical Notes
 
+Seed 1 30-minute full-pipeline run (`runs/cpu_30m_seed1_full_pipeline/20260507_113805_seed1_minute/`):
+
+- 5,440 ticks, 397 neural agents at end (out of 2,482 total population).
+- **Lineage 489 reached generation 38** with 369 living agents, 6,459 cumulative offspring, 54,067 tool successes, collaboration profile = 351,218. By far the deepest selection-driven civilization observed in this substrate.
+- Recombination shifted to 33% of births (was 5%). Cross-lineage genome mixing is now a dominant reproduction mode at scale.
+- Tool repertoire genuinely diversified: bind 14,982, lever 13,970, crack 9,869, concentrate_heat 9,742, contain 8,237. No single dominant affordance.
+- **Organism 416 lived 2,044 ticks** (38% of the run) at place 12 and built a single `structure_support_anchor_gradient_harvest` from scale 6 → 372 across 104 build/extend events, working solo. Died of predation with 1 offspring. Long-horizon coherence in one brain's lifetime.
+- Attention concentration stayed flat at 0.01-0.02 across the whole run — the neuroplastic update rule is calibrated too gently to converge in 5,000 ticks.
+- Brain capacity mean stayed at ~7.9 throughout. Brains aren't growing despite the mechanism being enabled.
+
 Seed 1 5-minute textured-harshness run (`runs/cpu_5m_harsh_env_textured/20260506_181846_seed1_minute/`):
 
 - Final tick 1016, final population 2284 (575 neural).
