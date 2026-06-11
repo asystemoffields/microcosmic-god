@@ -36,6 +36,15 @@ class RunConfig:
     # world are deactivated when it changes; controllers that abstracted the
     # underlying rule survive. 0 = disabled (legacy single-world behavior).
     world_refresh_every: int = 0
+    # Developmental subsidy: for an individual's first N ticks, the neural
+    # component of upkeep ramps from `floor` x cost up to full cost. Capacity's
+    # benefit arrives only after lifetime learning fills it, but its upkeep is
+    # charged immediately - a fitness valley at every rung of growth that has
+    # kept every observed champion inside the initialization size range
+    # (docs/CONTROLLER_EVOLVABILITY.md). The subsidy gives capacity a window
+    # to pay for itself. 0 = disabled (legacy behavior).
+    neural_upkeep_grace_ticks: int = 0
+    neural_upkeep_grace_floor: float = 0.35
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

@@ -43,6 +43,20 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="regenerate the world (new seed, new physics) every N ticks; 0 disables (legacy single-world)",
     )
+    run.add_argument(
+        "--neural-grace-ticks",
+        dest="neural_upkeep_grace_ticks",
+        type=int,
+        default=None,
+        help="developmental subsidy: neural upkeep ramps from a floor to full price over an individual's first N ticks; 0 disables (legacy)",
+    )
+    run.add_argument(
+        "--neural-grace-floor",
+        dest="neural_upkeep_grace_floor",
+        type=float,
+        default=None,
+        help="starting fraction of neural upkeep at age 0 when --neural-grace-ticks is set (default 0.35)",
+    )
     run.add_argument("--backend", choices=["cpu", "torch"], default=None, help="controller compute backend")
     run.add_argument("--device", default=None, help="compute device for --backend torch, such as auto, cpu, cuda, or cuda:0")
     run.add_argument("--garden", action="store_true", help="allow logged interventions")
@@ -73,6 +87,8 @@ def config_from_args(args: argparse.Namespace) -> RunConfig:
         "neural_checkpoint_limit": args.checkpoint_limit,
         "environment_harshness": args.environment_harshness,
         "world_refresh_every": args.world_refresh_every,
+        "neural_upkeep_grace_ticks": args.neural_upkeep_grace_ticks,
+        "neural_upkeep_grace_floor": args.neural_upkeep_grace_floor,
         "compute_backend": args.backend,
         "device": args.device,
         "run_mode": "garden" if args.garden else "sealed",

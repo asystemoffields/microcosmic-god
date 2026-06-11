@@ -118,6 +118,10 @@ class Individual:
     last_craft_target: str = ""
     last_artifact_method: float = 0.0
     lesson_memory: list[dict[str, Any]] = field(default_factory=list)
+    # Developmental subsidy on the neural component of upkeep (set from
+    # RunConfig by the simulation at creation; 0 ticks = legacy full price).
+    neural_upkeep_grace_ticks: int = 0
+    neural_upkeep_grace_floor: float = 0.35
 
     @property
     def neural(self) -> bool:
@@ -176,6 +180,13 @@ class Individual:
         if self.kind in {"plant", "fungus"}:
             base *= 0.55
             body *= 0.35
+        # Developmental subsidy: capacity's benefit arrives only after lifetime
+        # learning fills it, so the neural term ramps in over the grace window
+        # rather than charging full price from tick zero.
+        if self.neural_upkeep_grace_ticks > 0 and self.age < self.neural_upkeep_grace_ticks:
+            floor = min(1.0, max(0.0, self.neural_upkeep_grace_floor))
+            ramp = floor + (1.0 - floor) * (self.age / self.neural_upkeep_grace_ticks)
+            neural *= ramp
         return base + body + neural
 
     def adult(self) -> bool:

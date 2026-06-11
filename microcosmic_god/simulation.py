@@ -212,6 +212,8 @@ class Simulation:
             individual.lineage_root_id = individual.parent_lineage_ids[0]
         else:
             individual.lineage_root_id = individual.id
+        individual.neural_upkeep_grace_ticks = self.config.neural_upkeep_grace_ticks
+        individual.neural_upkeep_grace_floor = self.config.neural_upkeep_grace_floor
         self.organisms[individual.id] = individual
         self.next_id += 1
         self.living_total += 1
