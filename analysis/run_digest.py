@@ -107,15 +107,68 @@ def digest(run_dir: Path) -> None:
             )
 
 
+def biography(run_dir: Path, organism_id: int) -> None:
+    """Print one individual's arc: every story/structure event that touches it."""
+    print(f"\n=== {run_dir} — individual #{organism_id} ===")
+    needle = f"organism:{organism_id}"
+    timeline: list[tuple[int, str]] = []
+    for record in _iter_jsonl(run_dir / "story_events.jsonl"):
+        payload = record.get("payload", {})
+        touched = (
+            any(needle == s for s in record.get("subjects") or [])
+            or payload.get("organism_id") == organism_id
+            or payload.get("child_id") == organism_id
+            or organism_id in (payload.get("parent_ids") or [])
+        )
+        if not touched:
+            continue
+        keep = {
+            k: payload[k]
+            for k in (
+                "mode", "cause", "age", "offspring_count", "successful_tools",
+                "child_id", "parent_ids", "generation", "complexity", "place",
+                "affordance", "gain", "architecture",
+            )
+            if k in payload and payload[k] not in (None, [], {})
+        }
+        timeline.append((record.get("tick", 0), f"{record.get('kind', '?'):<18} {keep}"))
+    for record in _iter_jsonl(run_dir / "structure_events.jsonl"):
+        if record.get("child_id") == organism_id or organism_id in (record.get("parent_ids") or []):
+            role = "child" if record.get("child_id") == organism_id else "parent"
+            timeline.append(
+                (
+                    record.get("tick", 0),
+                    f"structural_step    as {role}: {record['op']} blocks "
+                    f"{record['blocks_before']}->{record['blocks_after']} "
+                    f"cap {record['capacity_after']} child {record['child_id']}",
+                )
+            )
+    timeline.sort(key=lambda item: item[0])
+    if not timeline:
+        print("    no recorded events (unpromoted life, or wrong id)")
+    for tick, line in timeline:
+        print(f"  t{tick:>6}  {line}")
+
+
 def main() -> None:
-    for arg in sys.argv[1:]:
+    args = sys.argv[1:]
+    organism_id = None
+    if "--organism" in args:
+        index = args.index("--organism")
+        organism_id = int(args[index + 1])
+        del args[index : index + 2]
+    for arg in args:
         root = Path(arg)
         # Accept either a run dir or a parent of run dirs.
         if (root / "config.json").exists():
-            digest(root)
+            runs = [root]
         else:
-            for config in sorted(root.glob("**/config.json")):
-                digest(config.parent)
+            runs = [config.parent for config in sorted(root.glob("**/config.json"))]
+        for run in runs:
+            if organism_id is not None:
+                biography(run, organism_id)
+            else:
+                digest(run)
 
 
 if __name__ == "__main__":
