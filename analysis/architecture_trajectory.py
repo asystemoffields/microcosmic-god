@@ -13,7 +13,7 @@ from pathlib import Path
 
 def show(run_root: Path) -> None:
     for events in sorted(run_root.glob("**/events.jsonl")):
-        label = events.parent.name
+        label = str(events.parent.relative_to(run_root))
         rows = []
         for line in events.open():
             try:
