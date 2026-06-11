@@ -135,6 +135,28 @@ class PredictionLearningTest(unittest.TestCase):
             c.learn(action_index=2, valence=1.0, energy_delta=0.5, learning_rate=0.2, plasticity=1.0, prediction_weight=1.0)
         np.testing.assert_array_equal(frozen_before, c.blocks[idx].weights_out)
 
+    def test_neuromodulation_neutral_at_birth(self):
+        c = ModularController.random(Random(103), OBSERVATION_SIZE, len(ACTIONS), n_blocks=3)
+        c.forward(_obs(Random(107)))
+        self.assertAlmostEqual(c.neuromodulation(), 1.0, places=12)
+
+    def test_neuromodulation_gates_learning(self):
+        seed_state = ModularController.random(Random(109), OBSERVATION_SIZE, len(ACTIONS), n_blocks=1).to_dict()
+        free, suppressed = ModularController.from_dict(seed_state), ModularController.from_dict(seed_state)
+        # Strongly negative neuromod drive -> gate ~ 0 -> learning frozen.
+        suppressed.blocks[0].neuromod_weights = np.full(suppressed.blocks[0].hidden_size, -50.0)
+        obs = _obs(Random(113))
+        for c in (free, suppressed):
+            for _ in range(30):
+                c.forward(obs)
+                c.learn(action_index=3, valence=1.0, energy_delta=0.5, learning_rate=0.2, plasticity=1.0, prediction_weight=1.0)
+        moved_free = float(np.abs(free.blocks[0].weights_out).sum())
+        baseline = ModularController.from_dict(seed_state)
+        base_norm = float(np.abs(baseline.blocks[0].weights_out).sum())
+        moved_supp = float(np.abs(suppressed.blocks[0].weights_out).sum())
+        self.assertNotAlmostEqual(moved_free, base_norm, places=6)
+        self.assertLess(abs(moved_supp - base_norm), abs(moved_free - base_norm) * 0.2)
+
     def test_clone_for_offspring_perturbs_and_sometimes_grows(self):
         parent = ModularController.random(Random(101), OBSERVATION_SIZE, len(ACTIONS), n_blocks=2)
         capacities = set()

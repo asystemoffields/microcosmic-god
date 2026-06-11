@@ -91,6 +91,13 @@ class Block:
     out_gate: float                   # scalar gate on this block's action contribution
     prediction_weights: np.ndarray    # (hidden,) energy-prediction contribution
     auxiliary_prediction_weights: dict[str, np.ndarray] = field(default_factory=dict)
+    # Phase 3: evolvable plasticity. plasticity_scale multiplies this block's
+    # learning rates; neuromod_weights contribute to the controller-wide
+    # learning gate. Both are neutral at birth (1.0 / zeros) and only
+    # perturbation moves them - context-dependent learning is selectable,
+    # never imposed.
+    plasticity_scale: float = 1.0
+    neuromod_weights: np.ndarray = field(default=None)  # type: ignore[assignment]
     hidden: np.ndarray = field(default=None)  # type: ignore[assignment]
     hidden_trace: np.ndarray = field(default=None)  # type: ignore[assignment]
     pooled_trace: np.ndarray = field(default=None)  # type: ignore[assignment]
@@ -100,6 +107,8 @@ class Block:
             self.hidden = np.zeros(self.hidden_size, dtype=_DTYPE)
         if self.hidden_trace is None:
             self.hidden_trace = np.zeros(self.hidden_size, dtype=_DTYPE)
+        if self.neuromod_weights is None:
+            self.neuromod_weights = np.zeros(self.hidden_size, dtype=_DTYPE)
 
     def ensure_auxiliary_heads(self) -> None:
         from .brain import AUXILIARY_PREDICTION_HEADS
@@ -254,6 +263,20 @@ class ModularController:
     def replay_episode(self, rng: Random) -> None:  # episodic parity stub
         return None
 
+    def neuromodulation(self) -> float:
+        """Controller-wide learning gate in [0, 2], computed from hidden state.
+
+        Zero neuromod_weights give exactly 1.0 (neutral). Evolution can shape
+        when this controller learns: suppress plasticity in familiar contexts,
+        amplify it after surprises - whatever pays.
+        """
+        drive = 0.0
+        for blk in self.blocks:
+            if blk.neuromod_weights.size:
+                inv_h = 1.0 / math.sqrt(max(1, blk.hidden_size))
+                drive += blk.out_gate * float(blk.neuromod_weights @ blk.hidden) * inv_h
+        return 2.0 / (1.0 + math.exp(-max(-30.0, min(30.0, drive))))
+
     def predict_next_energy(self) -> float:
         total = 0.0
         for blk in self.blocks:
@@ -286,7 +309,8 @@ class ModularController:
         from .brain import PREDICTION_HEADS
 
         lr = max(0.0, min(0.25, learning_rate)) * max(0.0, min(1.0, plasticity))
-        pred_lr = lr * max(0.0, min(1.0, prediction_weight)) * 0.025
+        neuromod = self.neuromodulation()
+        pred_lr = lr * max(0.0, min(1.0, prediction_weight)) * 0.025 * neuromod
         predictions = self.predict_outcomes()
         errors: dict[str, float] = {}
         for head in PREDICTION_HEADS:
@@ -298,14 +322,15 @@ class ModularController:
             for blk in self.blocks:
                 if blk.out_gate == 0.0:
                     continue  # silent blocks neither contribute nor learn the heads
+                blk_lr = pred_lr * max(0.0, blk.plasticity_scale)
                 if head == "energy":
                     blk.prediction_weights = np.clip(
-                        blk.prediction_weights + pred_lr * error * blk.hidden, -4.0, 4.0
+                        blk.prediction_weights + blk_lr * error * blk.hidden, -4.0, 4.0
                     )
                 else:
                     blk.ensure_auxiliary_heads()
                     blk.auxiliary_prediction_weights[head] = np.clip(
-                        blk.auxiliary_prediction_weights[head] + pred_lr * error * blk.hidden, -4.0, 4.0
+                        blk.auxiliary_prediction_weights[head] + blk_lr * error * blk.hidden, -4.0, 4.0
                     )
         self.last_prediction_errors = {head: errors.get(head, 0.0) for head in PREDICTION_HEADS}
         return errors
@@ -338,6 +363,7 @@ class ModularController:
         error = errors.get("energy", 0.0)
 
         gate_total = sum(abs(blk.out_gate) for blk in self.blocks) or 1.0
+        neuromod = self.neuromodulation()
         error_values = list(errors.values())
         surprise = sum(abs(value) for value in error_values) / max(1, len(error_values))
         modulation = max(
@@ -351,7 +377,7 @@ class ModularController:
         for blk in self.blocks:
             if blk.out_gate == 0.0:
                 continue
-            credit = abs(blk.out_gate) / gate_total
+            credit = abs(blk.out_gate) / gate_total * max(0.0, blk.plasticity_scale) * neuromod
             hidden_for_policy = blk.hidden_trace if blk.hidden_trace.size else blk.hidden
             blk.weights_out[action_index] = np.clip(
                 blk.weights_out[action_index] + lr * valence * 0.035 * credit * hidden_for_policy,
@@ -365,7 +391,7 @@ class ModularController:
                 delta_in = (representation_lr * modulation * credit) * np.outer(hidden_gate, blk.pooled_trace)
                 blk.weights_in = np.clip(blk.weights_in + delta_in, -4.0, 4.0)
         self.bias_o[action_index] = max(
-            -4.0, min(4.0, self.bias_o[action_index] + lr * valence * 0.015)
+            -4.0, min(4.0, self.bias_o[action_index] + lr * valence * 0.015 * neuromod)
         )
         return error
 
@@ -402,6 +428,8 @@ class ModularController:
             blk.weights_out = mutate(blk.weights_out)
             blk.prediction_weights = mutate(blk.prediction_weights)
             blk.out_gate = float(blk.out_gate + rng.gauss(0.0, mutation_scale * 0.5))
+            blk.plasticity_scale = max(0.0, float(blk.plasticity_scale + rng.gauss(0.0, mutation_scale)))
+            blk.neuromod_weights = mutate(blk.neuromod_weights)
             for head in list(blk.auxiliary_prediction_weights):
                 blk.auxiliary_prediction_weights[head] = mutate(blk.auxiliary_prediction_weights[head])
         # Structural mutation: rare, and the additive moves are neutral at birth.
@@ -471,6 +499,8 @@ class ModularController:
             bias=src.bias.copy(),
             weights_out=src.weights_out.copy(),
             out_gate=src.out_gate / 2.0,
+            plasticity_scale=src.plasticity_scale,
+            neuromod_weights=src.neuromod_weights.copy(),
             prediction_weights=src.prediction_weights.copy(),
             auxiliary_prediction_weights={
                 head: weights.copy() for head, weights in src.auxiliary_prediction_weights.items()
@@ -523,6 +553,8 @@ class ModularController:
                     "bias": r(blk.bias),
                     "weights_out": r(blk.weights_out),
                     "out_gate": round(float(blk.out_gate), 7),
+                    "plasticity_scale": round(float(blk.plasticity_scale), 7),
+                    "neuromod_weights": r(blk.neuromod_weights),
                     "prediction_weights": r(blk.prediction_weights),
                     "auxiliary_prediction_weights": {
                         head: r(weights) for head, weights in sorted(blk.auxiliary_prediction_weights.items())
@@ -564,6 +596,12 @@ class ModularController:
                     bias=np.array(raw["bias"], dtype=_DTYPE),
                     weights_out=np.array(raw["weights_out"], dtype=_DTYPE).reshape(output_size, h),
                     out_gate=float(raw["out_gate"]),
+                    plasticity_scale=float(raw.get("plasticity_scale", 1.0)),
+                    neuromod_weights=(
+                        np.array(raw["neuromod_weights"], dtype=_DTYPE)
+                        if raw.get("neuromod_weights")
+                        else None
+                    ),
                     prediction_weights=np.array(raw["prediction_weights"], dtype=_DTYPE),
                     auxiliary_prediction_weights={
                         head: np.array(weights, dtype=_DTYPE)
