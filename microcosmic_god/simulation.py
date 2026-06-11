@@ -92,6 +92,7 @@ class Simulation:
         self.portable_mark_reads: Counter[str] = Counter()
         self.collaboration_events: Counter[str] = Counter()
         self.patch_recovery_triggers: int = 0
+        self.structural_steps: Counter[str] = Counter()
         self.movement_events: Counter[str] = Counter()
         self.movement_costs: Counter[str] = Counter()
         self.movement_motives: Counter[str] = Counter()
@@ -241,6 +242,7 @@ class Simulation:
 
     def run(self) -> dict[str, Any]:
         started = time.monotonic()
+        self._run_started = started
         reason = "max_ticks"
         try:
             while True:
@@ -2830,7 +2832,7 @@ class Simulation:
         return child
 
     def _instantiate_offspring(self, plan: OffspringPlan) -> Individual | None:
-        return self.add_individual(
+        child = self.add_individual(
             plan.child_kind,
             plan.child_genome,
             plan.location,
@@ -2839,6 +2841,22 @@ class Simulation:
             plan.parent_ids,
             plan.controller_template,
         )
+        if child is not None:
+            note = getattr(child.controller_template, "birth_structural_op", None)
+            if note:
+                child.controller_template.birth_structural_op = None
+                self.structural_steps[note["op"]] += 1
+                self.logger.structure_event(
+                    {
+                        "tick": self.tick,
+                        "child_id": child.id,
+                        "parent_ids": list(plan.parent_ids),
+                        "lineage_root_id": child.lineage_root_id,
+                        "mode": plan.operator,
+                        **note,
+                    }
+                )
+        return child
 
     def _apply_parent_costs_and_counts(self, plan: OffspringPlan) -> None:
         for parent_id, cost in plan.parent_costs.items():
@@ -3135,11 +3153,20 @@ class Simulation:
                     "kind": individual.kind,
                     "cause": cause,
                     "place": place.id,
+                    "age": individual.age,
                     "lineage_root_id": individual.lineage_root_id,
                     "offspring_count": individual.offspring_count,
                     "successful_tools": individual.successful_tools,
                     "score": checkpoint_score,
                     "success_profile": dict(individual.success_profile),
+                    "architecture": (
+                        {
+                            "blocks": len(individual.controller.blocks),
+                            "capacity": individual.controller.capacity,
+                        }
+                        if individual.controller is not None and hasattr(individual.controller, "blocks")
+                        else None
+                    ),
                 },
                 subjects=self._subjects(individual, place.id, [f"cause:{cause}"]),
                 score=0.75 + min(4.0, checkpoint_score / 8.0),
@@ -3523,6 +3550,7 @@ class Simulation:
             "causal_unlocks": dict(self.causal_unlocks),
             "collaboration_events": dict(self.collaboration_events),
             "patch_recovery_triggers": self.patch_recovery_triggers,
+            "structural_steps": dict(self.structural_steps),
             "movement": self._movement_summary(),
             "success_profile": success_profile_summary(self.organisms),
             "lineages": self._lineage_summary(),
@@ -3554,4 +3582,24 @@ class Simulation:
         if len(self.aggregate_history) > 500:
             self.aggregate_history = self.aggregate_history[-500:]
         self.logger.event(self.tick, "aggregate", aggregate)
+        # Live heartbeat: a small atomically-replaced snapshot so a running
+        # sim can be checked (`cat status.json`) without parsing events.jsonl.
+        elapsed = time.monotonic() - getattr(self, "_run_started", time.monotonic())
+        self.logger.write_json_atomic(
+            "status.json",
+            {
+                "tick": self.tick,
+                "elapsed_seconds": round(elapsed, 1),
+                "ticks_per_second": round(self.tick / elapsed, 2) if elapsed > 0 else 0.0,
+                "population": aggregate["population"],
+                "neural_avg_energy": aggregate["neural_avg_energy"],
+                "architecture": aggregate["architecture"],
+                "brain_capacity": aggregate["brain_capacity"],
+                "births": aggregate["births"],
+                "deaths": aggregate["deaths"],
+                "structural_steps": dict(self.structural_steps),
+                "patch_recovery_triggers": self.patch_recovery_triggers,
+                "stories_promoted": self.observer.promoted,
+            },
+        )
         self.logger.flush()

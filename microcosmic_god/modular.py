@@ -433,15 +433,29 @@ class ModularController:
             for head in list(blk.auxiliary_prediction_weights):
                 blk.auxiliary_prediction_weights[head] = mutate(blk.auxiliary_prediction_weights[head])
         # Structural mutation: rare, and the additive moves are neutral at birth.
+        # When one happens, the op is noted on the child (transient, not
+        # serialized) so the birth path can write the genealogy stream.
         roll = rng.random()
         if roll < structural_rate:
+            blocks_before = len(child.blocks)
+            op = None
             kind = rng.random()
             if kind < 0.40:
                 child.duplicate_block(rng.randrange(len(child.blocks)))
+                op = "duplicate_block"
             elif kind < 0.80:
                 child.add_block(rng, hidden_size=max(2, int(rng.gauss(8.0, 3.0))))
+                op = "add_block"
             elif len(child.blocks) > 1:
                 child.prune_block(rng.randrange(len(child.blocks)))
+                op = "prune_block"
+            if op is not None:
+                child.birth_structural_op = {
+                    "op": op,
+                    "blocks_before": blocks_before,
+                    "blocks_after": len(child.blocks),
+                    "capacity_after": child.capacity,
+                }
         # Fresh transient state for the child.
         for blk in child.blocks:
             blk.hidden = np.zeros(blk.hidden_size, dtype=_DTYPE)
