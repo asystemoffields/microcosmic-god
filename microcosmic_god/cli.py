@@ -78,6 +78,27 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="probability a modular clone takes a structural mutation (duplicate/add/prune)",
     )
+    run.add_argument(
+        "--patch-recovery-ticks",
+        dest="patch_recovery_ticks",
+        type=int,
+        default=None,
+        help="suppress a place's staple regen for N ticks after a substantial feed (0 disables)",
+    )
+    run.add_argument(
+        "--patch-recovery-floor",
+        dest="patch_recovery_floor",
+        type=float,
+        default=None,
+        help="regen multiplier while a patch recovers (default 0.0)",
+    )
+    run.add_argument(
+        "--patch-recovery-jitter",
+        dest="patch_recovery_jitter",
+        type=float,
+        default=None,
+        help="0 = fixed recovery window (predictable); 1 = same-mean exponential draw (scrambled control)",
+    )
     run.add_argument("--backend", choices=["cpu", "torch"], default=None, help="controller compute backend")
     run.add_argument("--device", default=None, help="compute device for --backend torch, such as auto, cpu, cuda, or cuda:0")
     run.add_argument("--garden", action="store_true", help="allow logged interventions")
@@ -113,6 +134,9 @@ def config_from_args(args: argparse.Namespace) -> RunConfig:
         "initial_modular_fraction": args.initial_modular_fraction,
         "initial_modular_max_blocks": args.initial_modular_max_blocks,
         "structural_mutation_rate": args.structural_mutation_rate,
+        "patch_recovery_ticks": args.patch_recovery_ticks,
+        "patch_recovery_floor": args.patch_recovery_floor,
+        "patch_recovery_jitter": args.patch_recovery_jitter,
         "compute_backend": args.backend,
         "device": args.device,
         "run_mode": "garden" if args.garden else "sealed",

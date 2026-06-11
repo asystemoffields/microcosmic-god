@@ -91,6 +91,7 @@ class Simulation:
         self.portable_marks_created: Counter[str] = Counter()
         self.portable_mark_reads: Counter[str] = Counter()
         self.collaboration_events: Counter[str] = Counter()
+        self.patch_recovery_triggers: int = 0
         self.movement_events: Counter[str] = Counter()
         self.movement_costs: Counter[str] = Counter()
         self.movement_motives: Counter[str] = Counter()
@@ -149,6 +150,7 @@ class Simulation:
             old = self.world.places[i]
             new = new_world.places[i]
             new.resources = dict(old.resources)
+            new.regen_recovery_until = old.regen_recovery_until
             new.sealed_essence = old.sealed_essence
             new.materials = dict(old.materials)
             new.structures = list(old.structures)
@@ -1649,6 +1651,8 @@ class Simulation:
         place.resources["organic_store"] -= organic
         gain = essence * individual.params.essence_energy_gain + organic * (0.45 + individual.params.essence_conversion * 0.80)
         individual.energy += gain
+        if essence + organic > 0.5 and self.world.note_patch_depletion(place.id, self.rng):
+            self.patch_recovery_triggers += 1
 
     def _absorb_solar(self, individual: Individual) -> None:
         place = self.world.places[individual.location]
@@ -3518,6 +3522,7 @@ class Simulation:
             "causal_steps": dict(self.causal_steps),
             "causal_unlocks": dict(self.causal_unlocks),
             "collaboration_events": dict(self.collaboration_events),
+            "patch_recovery_triggers": self.patch_recovery_triggers,
             "movement": self._movement_summary(),
             "success_profile": success_profile_summary(self.organisms),
             "lineages": self._lineage_summary(),

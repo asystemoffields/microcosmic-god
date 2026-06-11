@@ -117,6 +117,8 @@ class Place:
     signals: list[Signal] = field(default_factory=list)
     marks: list[Mark] = field(default_factory=list)
     causal_challenge: CausalChallenge | None = None
+    # Tick until which staple regeneration is suppressed (patch recovery).
+    regen_recovery_until: int = 0
 
     def total_accessible_energy(self) -> float:
         return sum(self.resources.values())
@@ -191,6 +193,9 @@ class World:
     tick: int = 0
     climate_drift: float = 0.0
     environment_harshness: float = 1.0
+    patch_recovery_ticks: int = 0
+    patch_recovery_floor: float = 0.0
+    patch_recovery_jitter: float = 0.0
 
     @classmethod
     def generate(cls, rng: Random, config: RunConfig) -> "World":
@@ -454,6 +459,9 @@ class World:
             edge_lookup=edge_lookup,
             edge_adjacency=edge_adjacency,
             environment_harshness=harshness,
+            patch_recovery_ticks=int(getattr(config, "patch_recovery_ticks", 0)),
+            patch_recovery_floor=float(getattr(config, "patch_recovery_floor", 0.0)),
+            patch_recovery_jitter=float(getattr(config, "patch_recovery_jitter", 0.0)),
         )
 
     @staticmethod
@@ -693,6 +701,9 @@ class World:
             solar_target = (18.0 + place.sun_exposure * 85.0) * (0.35 + season * 0.85 + self.climate_drift * 0.25)
             place.resources["solar"] += (solar_target * weather - place.resources["solar"]) * 0.08
             essence_regen = (0.010 + place.water_flow * 0.030 + place.mineral_richness * 0.006) * max(0.45, 1.0 - hardship * 0.30)
+            if place.regen_recovery_until >= self.tick:
+                essence_regen *= _clamp(self.patch_recovery_floor)
+                events["patch_recovering"] += 1
             place.resources["essence"] += essence_regen
             thermal_mass = _clamp(physics.get("thermal_mass", 0.4), 0.05, 1.0)
             temperature_target = _clamp(
@@ -848,6 +859,24 @@ class World:
     def emit_signal(self, place_id: int, source_id: int, token: int, intensity: float) -> None:
         if 0 <= place_id < len(self.places):
             self.places[place_id].signals.append(Signal(source_id=source_id, token=token % 8, intensity=max(0.0, intensity)))
+
+    def note_patch_depletion(self, place_id: int, rng: Random) -> bool:
+        """Start (or extend) a regen-recovery window after a substantial feed.
+
+        Returns True if a window was started/extended. With jitter 0 the window
+        is exactly `patch_recovery_ticks`; jitter blends toward a same-mean
+        exponential draw (the scrambled control), so timing a return visit
+        stops being predictable but mean downtime is unchanged.
+        """
+        if self.patch_recovery_ticks <= 0 or not 0 <= place_id < len(self.places):
+            return False
+        base = float(self.patch_recovery_ticks)
+        jitter = _clamp(self.patch_recovery_jitter)
+        duration = base if jitter <= 0.0 else (1.0 - jitter) * base + jitter * rng.expovariate(1.0 / base)
+        until = self.tick + max(1, int(round(duration)))
+        place = self.places[place_id]
+        place.regen_recovery_until = max(place.regen_recovery_until, until)
+        return True
 
     def create_mark(
         self,

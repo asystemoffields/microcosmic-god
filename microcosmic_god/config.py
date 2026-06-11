@@ -58,6 +58,16 @@ class RunConfig:
     # (duplicate / neutral add / prune). The Phase 2 default was a hunch;
     # the E2 sweep picks the real value.
     structural_mutation_rate: float = 0.06
+    # Patch recovery: a substantial feeding event at a place suppresses that
+    # place's staple regeneration (regen x floor) for a recovery window. With
+    # jitter 0 the window length is fixed, so remembering where/when you fed
+    # predicts when a patch is worth revisiting — route rotation becomes a
+    # learnable competence. jitter 1 draws the window from a same-mean
+    # exponential instead, severing that predictability while keeping mean
+    # energetics fixed (the scrambled-cue control for attribution). 0 = off.
+    patch_recovery_ticks: int = 0
+    patch_recovery_floor: float = 0.0
+    patch_recovery_jitter: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

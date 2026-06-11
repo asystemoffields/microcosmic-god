@@ -151,6 +151,7 @@ def build_debrief(sim: Any, reason: str, elapsed_seconds: float) -> dict[str, An
         "causal_steps": dict(getattr(sim, "causal_steps", {})),
         "causal_unlocks": dict(getattr(sim, "causal_unlocks", {})),
         "collaboration_events": dict(getattr(sim, "collaboration_events", {})),
+        "patch_recovery_triggers": int(getattr(sim, "patch_recovery_triggers", 0)),
         "movement": sim._movement_summary() if hasattr(sim, "_movement_summary") else {},
         "success_profile": success_profile_summary(sim.organisms),
         "lineages": sim._lineage_summary() if hasattr(sim, "_lineage_summary") else {},
