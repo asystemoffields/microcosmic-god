@@ -261,6 +261,9 @@ class Simulation:
                     reason = "neural_extinction"
                     break
                 self.step()
+        except KeyboardInterrupt:
+            # Graceful park (SIGINT): label honestly and still write the debrief.
+            reason = "interrupted"
         finally:
             elapsed = time.monotonic() - started
             self._checkpoint_champions("final")
