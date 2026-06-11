@@ -391,6 +391,10 @@ class TinyController:
     ) -> float:
         if action_index < 0 or action_index >= self.output_size:
             return 0.0
+        # Evaluation-only switch (harness control arm): inert weights, normal
+        # forward pass. Never set during ordinary runs; serialized only when True.
+        if getattr(self, "learning_frozen", False):
+            return 0.0
         valence = max(-2.0, min(2.0, valence))
         lr = max(0.0, min(0.25, learning_rate)) * max(0.0, min(1.0, plasticity))
         targets = {"energy": energy_delta}
@@ -677,6 +681,9 @@ class TinyController:
             }
             data["input_trace"] = _round(self.input_trace)
             data["hidden_trace"] = _round(self.hidden_trace)
+        # Only serialized when set, so ordinary checkpoints stay byte-identical.
+        if getattr(self, "learning_frozen", False):
+            data["learning_frozen"] = True
         return data
 
     @classmethod
@@ -756,4 +763,6 @@ class TinyController:
             controller.input_trace = np.array(data["input_trace"], dtype=_DTYPE)
         if "hidden_trace" in data:
             controller.hidden_trace = np.array(data["hidden_trace"], dtype=_DTYPE)
+        if data.get("learning_frozen"):
+            controller.learning_frozen = True
         return controller

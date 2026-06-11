@@ -169,3 +169,29 @@ class PredictionLearningTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LearningFrozenTest(unittest.TestCase):
+    def test_frozen_flag_blocks_updates_and_survives_roundtrip(self):
+        from random import Random as _Random
+        import numpy as _np
+        rng = _Random(3)
+        c = ModularController.random(rng, input_size=OBSERVATION_SIZE, output_size=15, n_blocks=2)
+        c.learning_frozen = True
+        # Round-trip without state (the path add_individual uses).
+        c2 = ModularController.from_dict(c.to_dict(include_state=False))
+        self.assertTrue(getattr(c2, "learning_frozen", False))
+        c2.forward([0.1] * OBSERVATION_SIZE)
+        before = [blk.weights_out.copy() for blk in c2.blocks]
+        bias_before = c2.bias_o.copy()
+        err = c2.learn(3, valence=1.5, energy_delta=2.0, learning_rate=0.2, plasticity=1.0, prediction_weight=0.5)
+        self.assertEqual(err, 0.0)
+        for blk, prev in zip(c2.blocks, before):
+            self.assertTrue(_np.array_equal(blk.weights_out, prev))
+        self.assertTrue(_np.array_equal(c2.bias_o, bias_before))
+
+    def test_unfrozen_serialization_has_no_flag_key(self):
+        from random import Random as _Random
+        rng = _Random(3)
+        c = ModularController.random(rng, input_size=OBSERVATION_SIZE, output_size=15, n_blocks=1)
+        self.assertNotIn("learning_frozen", c.to_dict())

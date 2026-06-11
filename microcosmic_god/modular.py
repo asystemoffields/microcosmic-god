@@ -354,6 +354,10 @@ class ModularController:
         """
         if action_index < 0 or action_index >= self.output_size:
             return 0.0
+        # Evaluation-only switch (harness control arm): inert weights, normal
+        # forward pass. Never set during ordinary runs; serialized only when True.
+        if getattr(self, "learning_frozen", False):
+            return 0.0
         valence = max(-2.0, min(2.0, valence))
         lr = max(0.0, min(0.25, learning_rate)) * max(0.0, min(1.0, plasticity))
         targets = {"energy": energy_delta}
@@ -582,6 +586,9 @@ class ModularController:
             data["block_state"] = [
                 {"hidden": r(blk.hidden), "hidden_trace": r(blk.hidden_trace)} for blk in self.blocks
             ]
+        # Only serialized when set, so ordinary checkpoints stay byte-identical.
+        if getattr(self, "learning_frozen", False):
+            data["learning_frozen"] = True
         return data
 
     @classmethod
@@ -633,6 +640,8 @@ class ModularController:
         for blk, state in zip(controller.blocks, data.get("block_state", [])):
             blk.hidden = np.array(state["hidden"], dtype=_DTYPE)
             blk.hidden_trace = np.array(state["hidden_trace"], dtype=_DTYPE)
+        if data.get("learning_frozen"):
+            controller.learning_frozen = True
         return controller
 
 

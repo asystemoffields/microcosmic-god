@@ -52,6 +52,7 @@ import numpy as np
 
 from microcosmic_god.brain import PREDICTION_HEADS, TinyController
 from microcosmic_god.config import RunConfig
+from microcosmic_god.modular import ModularController
 from microcosmic_god.params import ParamVector
 from microcosmic_god.organisms import OBSERVATION_SIZE
 from microcosmic_god.simulation import Simulation
@@ -144,26 +145,115 @@ def _permuted_template(controller_dict: dict[str, Any], seed: int) -> TinyContro
     return _reset_transient_and_memory(controller)
 
 
+# ---- modular (typed multi-block) variants of the three builders ---------- #
+def _is_modular(controller_dict: dict[str, Any]) -> bool:
+    return controller_dict.get("architecture") == "modular_v1"
+
+
+def _reset_transient_modular(controller: ModularController) -> ModularController:
+    for blk in controller.blocks:
+        blk.hidden = np.zeros(blk.hidden_size, dtype=blk.weights_in.dtype)
+        blk.hidden_trace = np.zeros(blk.hidden_size, dtype=blk.weights_in.dtype)
+        blk.pooled_trace = None
+    return controller
+
+
+def _trained_template_modular(controller_dict: dict[str, Any]) -> ModularController:
+    return _reset_transient_modular(ModularController.from_dict(controller_dict))
+
+
+def _random_template_modular(controller_dict: dict[str, Any], seed: int) -> ModularController:
+    """Fresh-init control with the exact trained block structure.
+
+    Same block count and per-block hidden sizes; every array re-drawn at the
+    init scales used by ModularController.random/add_block; gates back to the
+    uniform 1/K birth convention; plasticity/neuromod/wiring birth-neutral.
+    """
+    rng = Random(seed)
+    controller = ModularController.from_dict(controller_dict)
+    n_blocks = len(controller.blocks)
+
+    def draw(arr: np.ndarray, scale: float) -> np.ndarray:
+        return np.array(
+            [rng.gauss(0.0, scale) for _ in range(arr.size)], dtype=arr.dtype
+        ).reshape(arr.shape)
+
+    controller.encoders = [(draw(W, 0.5), draw(b, 0.5)) for W, b in controller.encoders]
+    controller.bias_o = np.zeros_like(controller.bias_o)
+    controller.wiring = np.zeros_like(controller.wiring)
+    controller.msg_weights = [draw(m, 0.3) for m in controller.msg_weights]
+    for blk in controller.blocks:
+        blk.weights_in = draw(blk.weights_in, 0.5)
+        blk.token_mix = draw(blk.token_mix, 0.8)
+        blk.bias = draw(blk.bias, 0.2)
+        blk.weights_out = draw(blk.weights_out, 0.5)
+        blk.prediction_weights = draw(blk.prediction_weights, 0.3)
+        blk.out_gate = 1.0 / max(1, n_blocks)
+        blk.plasticity_scale = 1.0
+        blk.neuromod_weights = np.zeros_like(blk.neuromod_weights)
+        for head in blk.auxiliary_prediction_weights:
+            blk.auxiliary_prediction_weights[head] = np.zeros_like(blk.auxiliary_prediction_weights[head])
+    return _reset_transient_modular(controller)
+
+
+def _permuted_template_modular(controller_dict: dict[str, Any], seed: int) -> ModularController:
+    """Shuffle every weight array's entries in place (per-array distribution
+    preserved, arrangement destroyed). Scalar gates/plasticity stay — they are
+    per-block scalars with no arrangement to destroy."""
+    controller = ModularController.from_dict(controller_dict)
+    rs = np.random.RandomState(seed)
+
+    def shuffle(arr: np.ndarray) -> np.ndarray:
+        if arr.size == 0:
+            return arr
+        flat = arr.flatten()
+        rs.shuffle(flat)
+        return flat.reshape(arr.shape)
+
+    controller.encoders = [(shuffle(W), shuffle(b)) for W, b in controller.encoders]
+    controller.bias_o = shuffle(controller.bias_o)
+    controller.wiring = shuffle(controller.wiring) if controller.wiring.size else controller.wiring
+    controller.msg_weights = [shuffle(m) for m in controller.msg_weights]
+    for blk in controller.blocks:
+        blk.weights_in = shuffle(blk.weights_in)
+        blk.token_mix = shuffle(blk.token_mix)
+        blk.bias = shuffle(blk.bias)
+        blk.weights_out = shuffle(blk.weights_out)
+        blk.prediction_weights = shuffle(blk.prediction_weights)
+        blk.neuromod_weights = shuffle(blk.neuromod_weights)
+        for head in blk.auxiliary_prediction_weights:
+            blk.auxiliary_prediction_weights[head] = shuffle(blk.auxiliary_prediction_weights[head])
+    return _reset_transient_modular(controller)
+
+
 @dataclass
 class BrainInstance:
     condition: str
     label: str
-    template: TinyController
+    template: Any  # TinyController or ModularController
 
 
 def build_brain_instances(
-    checkpoint: dict[str, Any], n_random: int, n_permuted: int
+    checkpoint: dict[str, Any], n_random: int, n_permuted: int, n_frozen: int = 0
 ) -> list[BrainInstance]:
     controller_dict = checkpoint["brain"]
-    instances = [BrainInstance("trained", "trained", _trained_template(controller_dict))]
+    modular = _is_modular(controller_dict)
+    trained = _trained_template_modular if modular else _trained_template
+    random_b = _random_template_modular if modular else _random_template
+    permuted_b = _permuted_template_modular if modular else _permuted_template
+
+    instances = [BrainInstance("trained", "trained", trained(controller_dict))]
     for i in range(n_random):
-        instances.append(
-            BrainInstance("random", f"random_{i}", _random_template(controller_dict, seed=1000 + i))
-        )
+        instances.append(BrainInstance("random", f"random_{i}", random_b(controller_dict, seed=1000 + i)))
     for i in range(n_permuted):
-        instances.append(
-            BrainInstance("permuted", f"permuted_{i}", _permuted_template(controller_dict, seed=2000 + i))
-        )
+        instances.append(BrainInstance("permuted", f"permuted_{i}", permuted_b(controller_dict, seed=2000 + i)))
+    # Frozen arm: the trained weights with lifetime learning disabled — the
+    # "is its merit what it knows at birth, or what it keeps re-learning?"
+    # control. The flag survives the per-individual serialization round-trip.
+    for i in range(n_frozen):
+        template = trained(controller_dict)
+        template.learning_frozen = True
+        instances.append(BrainInstance("frozen", f"frozen_{i}", template))
     return instances
 
 
@@ -202,7 +292,7 @@ def _mean(values: list[float]) -> float:
 
 
 def evaluate_run(
-    template: TinyController,
+    template: Any,
     genome_dict: dict[str, Any],
     world_seed: int,
     cohort_size: int,
@@ -210,6 +300,7 @@ def evaluate_run(
     places: int,
     harshness: float,
     start_energy: float,
+    world_refresh_every: int = 0,
 ) -> RunMetrics:
     config = RunConfig.from_profile(
         "smoke",
@@ -222,6 +313,7 @@ def evaluate_run(
         max_ticks=ticks,
         max_wall_seconds=0.0,       # tick-bounded, not wall-bounded
         environment_harshness=harshness,
+        world_refresh_every=world_refresh_every,
         log_every=10**9,
         checkpoint_every=10**9,
         neural_checkpoint_limit=0,  # no checkpoint files
@@ -377,6 +469,10 @@ def main() -> None:
     parser.add_argument("--start-energy", type=float, default=40.0)
     parser.add_argument("--n-random", type=int, default=3)
     parser.add_argument("--n-permuted", type=int, default=3)
+    parser.add_argument("--n-frozen", type=int, default=0,
+                        help="trained weights with lifetime learning disabled (re-learning control)")
+    parser.add_argument("--world-refresh-every", type=int, default=0,
+                        help="rewrite world physics every N ticks inside each probe (0 = never)")
     parser.add_argument("--out", default=str(REPO_ROOT / "transfer" / "probe_worlds_results.json"))
     parser.add_argument("--scratch", default=str(SCRATCH_DIR), help="per-process scratch dir (parallel-safe)")
     args = parser.parse_args()
@@ -391,7 +487,7 @@ def main() -> None:
             f"controller input_size {controller_dict['input_size']} != current OBSERVATION_SIZE {OBSERVATION_SIZE}"
         )
 
-    instances = build_brain_instances(checkpoint, args.n_random, args.n_permuted)
+    instances = build_brain_instances(checkpoint, args.n_random, args.n_permuted, args.n_frozen)
     world_seeds = [args.world_seed_base + i for i in range(args.worlds)]
 
     # Incremental per-run results, so a crash mid-sweep never loses finished
@@ -409,8 +505,13 @@ def main() -> None:
             print(f"resuming   : {len(completed)} completed runs found in {runs_path}")
 
     print(f"checkpoint : {args.checkpoint}")
-    print(f"controller      : in={controller_dict['input_size']} hidden={controller_dict['hidden_size']} "
-          f"out={controller_dict['output_size']} episodic={controller_dict.get('episodic_capacity')}")
+    if _is_modular(controller_dict):
+        sizes = [int(b["hidden_size"]) for b in controller_dict["blocks"]]
+        print(f"controller : modular  in={controller_dict['input_size']} blocks={sizes} "
+              f"out={controller_dict['output_size']}")
+    else:
+        print(f"controller      : in={controller_dict['input_size']} hidden={controller_dict['hidden_size']} "
+              f"out={controller_dict['output_size']} episodic={controller_dict.get('episodic_capacity')}")
     print(f"conditions : {[inst.label for inst in instances]}")
     print(f"worlds     : {len(world_seeds)} held-out seeds  cohort={args.cohort}  ticks={args.ticks}")
     print()
@@ -430,6 +531,7 @@ def main() -> None:
                     inst.template, genome_dict, seed,
                     cohort_size=args.cohort, ticks=args.ticks, places=args.places,
                     harshness=args.harshness, start_energy=args.start_energy,
+                    world_refresh_every=args.world_refresh_every,
                 )
                 with runs_path.open("a") as fh:
                     fh.write(json.dumps({"label": inst.label, "seed": seed, "metrics": vars(m)}) + "\n")
@@ -440,11 +542,11 @@ def main() -> None:
                   f"E={m.mean_energy:6.2f} tools={m.tool_successes:5.2f} "
                   f"causal_unlock={m.causal_unlocks:.2f} dPE={m.pred_err_delta:+.4f}", flush=True)
 
-    # Collapse instances into conditions (trained / random / permuted), paired by seed.
+    # Collapse instances into conditions (trained / random / permuted / frozen), paired by seed.
     def condition_of(label: str) -> str:
         return label.split("_")[0]
 
-    conditions = ["trained", "random", "permuted"]
+    conditions = list(dict.fromkeys(condition_of(inst.label) for inst in instances))
     # per condition, per metric: list of per-seed means (averaged over instances of that condition)
     summary: dict[str, dict[str, float]] = {}
     per_seed_condition: dict[str, dict[int, dict[str, float]]] = {c: {} for c in conditions}
@@ -460,10 +562,12 @@ def main() -> None:
         }
 
     # Paired contrasts vs trained, per metric.
+    others = [c for c in conditions if c != "trained"]
     print("\n" + "=" * 78)
     print("SUMMARY (mean over held-out worlds; paired by seed)")
     print("=" * 78)
-    header = f"{'metric':<16}{'trained':>11}{'random':>11}{'permuted':>11}{'tr-rand':>11}{'tr-perm':>11}"
+    header = f"{'metric':<16}{'trained':>11}" + "".join(f"{c:>11}" for c in others) \
+        + "".join(f"{'tr-' + c[:4]:>11}" for c in others)
     print(header)
     print("-" * len(header))
     def paired(field_name: str, other: str) -> dict[str, float]:
@@ -483,25 +587,26 @@ def main() -> None:
 
     contrasts: dict[str, dict[str, Any]] = {}
     for field_name in METRIC_FIELDS:
-        t = summary["trained"][field_name]
-        r = summary["random"][field_name]
-        p = summary["permuted"][field_name]
-        vr = paired(field_name, "random")
-        vp = paired(field_name, "permuted")
-        contrasts[field_name] = {"trained_minus_random": vr, "trained_minus_permuted": vp}
-        print(f"{field_name:<16}{t:>11.3f}{r:>11.3f}{p:>11.3f}"
-              f"{vr['mean']:>+10.3f}[t{vr['t']:>+5.1f} w{vr['win_rate']*100:>3.0f}]"
-              f"{vp['mean']:>+10.3f}[t{vp['t']:>+5.1f} w{vp['win_rate']*100:>3.0f}]")
+        row = f"{field_name:<16}{summary['trained'][field_name]:>11.3f}"
+        row += "".join(f"{summary[c][field_name]:>11.3f}" for c in others)
+        contrasts[field_name] = {}
+        for c in others:
+            v = paired(field_name, c)
+            contrasts[field_name][f"trained_minus_{c}"] = v
+            row += f"{v['mean']:>+10.3f}[t{v['t']:>+5.1f} w{v['win_rate']*100:>3.0f}]"
+        print(row)
 
     payload = {
         "checkpoint": args.checkpoint,
-        "brain_shape": {k: controller_dict[k] for k in ("input_size", "hidden_size", "output_size")},
+        "brain_shape": {k: controller_dict.get(k) for k in ("input_size", "hidden_size", "output_size", "architecture")},
+        "blocks": [int(b["hidden_size"]) for b in controller_dict["blocks"]] if _is_modular(controller_dict) else None,
         "episodic_capacity": controller_dict.get("episodic_capacity"),
         "config": {
             "worlds": world_seeds, "cohort": args.cohort, "ticks": args.ticks,
             "places": args.places, "harshness": args.harshness,
             "start_energy": args.start_energy,
             "n_random": args.n_random, "n_permuted": args.n_permuted,
+            "n_frozen": args.n_frozen, "world_refresh_every": args.world_refresh_every,
         },
         "summary": summary,
         "contrasts": contrasts,
