@@ -75,3 +75,32 @@ Hygiene for the 6-hour run: launch under
 `systemd-run --user --scope -p MemoryHigh=NG`, keep under the 12 h Kaggle
 bound if cloud, and note runs are not bit-reproducible (PYTHONHASHSEED
 unpinned).
+
+## Resolution (added ~14:30, all inputs landed)
+
+- **E4 mixed-boot validation (seeds 331–333, 45-min walls): 3/3 booted at
+  h1.6**, no extinction. Census moved hard in 2/3 — seed332 blk_mean 5.1 /
+  cap_mean 39 / blk_max 11 at wall; seed333 blk_mean 4.4, modular 1255 vs
+  legacy 1 (fixation). Seed331: modulars lost to legacy (0 by t3100). So:
+  boot is reliable, modular sweep is ~2/3 seed-luck.
+- **s42 (all-modular, rate 0.15, max-blocks 2): survived the full 3-h wall**
+  (tick 6091, 774 neural) — opposite of s41, so all-modular at h1.6 is ~1/2
+  boot luck. But its census stayed FLAT (blk_mean ~1.35 throughout): not
+  remotely competitive with E4's accumulation.
+- **E5 patch-recovery A/B: mechanics verified, calibration saturated.** At
+  pool ~600, window 120 suppresses ~95% of place-ticks — uniform scarcity,
+  not memory pressure (both feature arms survived; fixed vs scrambled is
+  meaningless at saturation). Parked for recalibration (higher trigger
+  threshold or much shorter window); excluded from the 6-h run.
+- **Early genealogy finding (e6 shakedown, new instrumentation):** in
+  seed335, 120 of the first 124 structural steps belong to ONE lineage —
+  census movement looks like a single structural dynasty sweeping, not
+  diffuse drift. The 6-h question sharpens: do refresh cycles ever produce
+  competing structural lineages?
+
+**Decision (per the rule above): option 1, mixed boot** — fraction 0.5,
+r1500, h1.6, rate 0.30, max-blocks 3, grace 150/0.35. Launched ~14:35 EDT:
+local seeds 341–343 (`runs/long6h/`, 21600 s walls, full instrumentation)
+plus Kaggle kernels `mg-long6h-s44/s45` (same config, cloned from this
+branch so they carry the instrumentation). Escalate to ~12 h only if the
+6-h census shows accumulation worth it.
