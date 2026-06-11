@@ -57,6 +57,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="starting fraction of neural upkeep at age 0 when --neural-grace-ticks is set (default 0.35)",
     )
+    run.add_argument(
+        "--modular-fraction",
+        dest="initial_modular_fraction",
+        type=float,
+        default=None,
+        help="fraction of initial agents seeded with the typed modular controller (cpu backend only)",
+    )
     run.add_argument("--backend", choices=["cpu", "torch"], default=None, help="controller compute backend")
     run.add_argument("--device", default=None, help="compute device for --backend torch, such as auto, cpu, cuda, or cuda:0")
     run.add_argument("--garden", action="store_true", help="allow logged interventions")
@@ -89,6 +96,7 @@ def config_from_args(args: argparse.Namespace) -> RunConfig:
         "world_refresh_every": args.world_refresh_every,
         "neural_upkeep_grace_ticks": args.neural_upkeep_grace_ticks,
         "neural_upkeep_grace_floor": args.neural_upkeep_grace_floor,
+        "initial_modular_fraction": args.initial_modular_fraction,
         "compute_backend": args.backend,
         "device": args.device,
         "run_mode": "garden" if args.garden else "sealed",

@@ -90,11 +90,23 @@ class Block:
     weights_out: np.ndarray           # (n_actions, hidden)
     out_gate: float                   # scalar gate on this block's action contribution
     prediction_weights: np.ndarray    # (hidden,) energy-prediction contribution
+    auxiliary_prediction_weights: dict[str, np.ndarray] = field(default_factory=dict)
     hidden: np.ndarray = field(default=None)  # type: ignore[assignment]
+    hidden_trace: np.ndarray = field(default=None)  # type: ignore[assignment]
+    pooled_trace: np.ndarray = field(default=None)  # type: ignore[assignment]
 
     def __post_init__(self) -> None:
         if self.hidden is None:
             self.hidden = np.zeros(self.hidden_size, dtype=_DTYPE)
+        if self.hidden_trace is None:
+            self.hidden_trace = np.zeros(self.hidden_size, dtype=_DTYPE)
+
+    def ensure_auxiliary_heads(self) -> None:
+        from .brain import AUXILIARY_PREDICTION_HEADS
+
+        for head in AUXILIARY_PREDICTION_HEADS:
+            if head not in self.auxiliary_prediction_weights:
+                self.auxiliary_prediction_weights[head] = np.zeros(self.hidden_size, dtype=_DTYPE)
 
 
 class ModularController:
@@ -122,6 +134,12 @@ class ModularController:
         self.msg_weights = msg_weights
         self.bias_o = np.zeros(output_size, dtype=_DTYPE) if bias_o is None else bias_o
         self.last_outputs = np.zeros(output_size, dtype=_DTYPE)
+        self.last_inputs = np.zeros(input_size, dtype=_DTYPE)
+        self.last_attention = np.ones(input_size, dtype=_DTYPE)  # no attention head: full fidelity
+        self.last_prediction_errors: dict[str, float] = {}
+        from .brain import PREDICTION_HEADS
+
+        self.last_prediction_errors = {head: 0.0 for head in PREDICTION_HEADS}
 
     # ------------------------------------------------------------------ #
     # Construction.
@@ -175,6 +193,7 @@ class ModularController:
         if len(inputs) != self.input_size:
             raise ValueError(f"expected {self.input_size} inputs, got {len(inputs)}")
         x = np.asarray(inputs, dtype=_DTYPE)
+        self.last_inputs = x
         tokens = self._encode_tokens(x)
 
         # Messages use last tick's hidden states (synchronous update).
@@ -185,6 +204,10 @@ class ModularController:
             mix = np.exp(blk.token_mix - blk.token_mix.max())
             mix /= mix.sum()
             pooled = tokens.T @ mix  # (token_dim,)
+            if blk.pooled_trace is None:
+                blk.pooled_trace = pooled.copy()
+            else:
+                blk.pooled_trace = blk.pooled_trace * 0.92 + pooled * 0.08
             inv_t = 1.0 / math.sqrt(max(1, self.token_dim))
             drive = blk.bias + 0.62 * prev[j] + (blk.weights_in @ pooled) * inv_t
             if K > 1:
@@ -204,6 +227,7 @@ class ModularController:
             new_hidden.append(np.tanh(drive))
         for blk, h in zip(self.blocks, new_hidden):
             blk.hidden = h
+            blk.hidden_trace = blk.hidden_trace * 0.90 + h * 0.10
 
         outputs = self.bias_o.copy()
         for blk in self.blocks:
@@ -212,6 +236,24 @@ class ModularController:
         self.last_outputs = outputs
         return outputs.tolist()
 
+    # ------------------------------------------------------------------ #
+    # Protocol parity with TinyController (duck-typed by the cpu runtime
+    # and the simulation): prediction heads, learn(), introspection.
+    # ------------------------------------------------------------------ #
+    @property
+    def hidden_size(self) -> int:
+        """Total capacity, for aggregate stats parity with TinyController."""
+        return self.capacity
+
+    def _has_attention(self) -> bool:
+        return False
+
+    def _has_episodic(self) -> bool:
+        return False
+
+    def replay_episode(self, rng: Random) -> None:  # episodic parity stub
+        return None
+
     def predict_next_energy(self) -> float:
         total = 0.0
         for blk in self.blocks:
@@ -219,18 +261,165 @@ class ModularController:
             total += blk.out_gate * float(blk.prediction_weights @ blk.hidden) * inv_h
         return total
 
-    def learn_energy_prediction(self, target: float, learning_rate: float, plasticity: float, prediction_weight: float) -> float:
-        """Same clipped delta rule family as TinyController._learn_prediction_heads."""
+    def predict_outcomes(self) -> dict[str, float]:
+        from .brain import PREDICTION_HEADS
+
+        predictions = {"energy": self.predict_next_energy()}
+        for head in PREDICTION_HEADS:
+            if head == "energy":
+                continue
+            total = 0.0
+            for blk in self.blocks:
+                blk.ensure_auxiliary_heads()
+                inv_h = 1.0 / math.sqrt(max(1, blk.hidden_size))
+                total += blk.out_gate * float(blk.auxiliary_prediction_weights[head] @ blk.hidden) * inv_h
+            predictions[head] = total
+        return predictions
+
+    def _learn_prediction_heads(
+        self,
+        targets: dict[str, float],
+        learning_rate: float,
+        plasticity: float,
+        prediction_weight: float,
+    ) -> dict[str, float]:
+        from .brain import PREDICTION_HEADS
+
         lr = max(0.0, min(0.25, learning_rate)) * max(0.0, min(1.0, plasticity))
         pred_lr = lr * max(0.0, min(1.0, prediction_weight)) * 0.025
-        error = max(-2.0, min(2.0, max(-2.0, min(2.0, target)) - self.predict_next_energy()))
+        predictions = self.predict_outcomes()
+        errors: dict[str, float] = {}
+        for head in PREDICTION_HEADS:
+            if head not in targets:
+                continue
+            target = max(-2.0, min(2.0, targets[head]))
+            error = max(-2.0, min(2.0, target - predictions.get(head, 0.0)))
+            errors[head] = error
+            for blk in self.blocks:
+                if blk.out_gate == 0.0:
+                    continue  # silent blocks neither contribute nor learn the heads
+                if head == "energy":
+                    blk.prediction_weights = np.clip(
+                        blk.prediction_weights + pred_lr * error * blk.hidden, -4.0, 4.0
+                    )
+                else:
+                    blk.ensure_auxiliary_heads()
+                    blk.auxiliary_prediction_weights[head] = np.clip(
+                        blk.auxiliary_prediction_weights[head] + pred_lr * error * blk.hidden, -4.0, 4.0
+                    )
+        self.last_prediction_errors = {head: errors.get(head, 0.0) for head in PREDICTION_HEADS}
+        return errors
+
+    def learn(
+        self,
+        action_index: int,
+        valence: float,
+        energy_delta: float,
+        learning_rate: float,
+        plasticity: float,
+        prediction_weight: float,
+        outcome_targets: dict[str, float] | None = None,
+    ) -> float:
+        """TinyController.learn semantics, distributed over blocks.
+
+        Policy and representation updates are gate-weighted: a block's credit
+        for this tick's outcome is proportional to its share of the output.
+        Zero-gated (freshly added) blocks stay frozen until perturbation opens
+        their gate - neutral additions stay neutral under learning too.
+        """
+        if action_index < 0 or action_index >= self.output_size:
+            return 0.0
+        valence = max(-2.0, min(2.0, valence))
+        lr = max(0.0, min(0.25, learning_rate)) * max(0.0, min(1.0, plasticity))
+        targets = {"energy": energy_delta}
+        if outcome_targets:
+            targets.update(outcome_targets)
+        errors = self._learn_prediction_heads(targets, learning_rate, plasticity, prediction_weight)
+        error = errors.get("energy", 0.0)
+
+        gate_total = sum(abs(blk.out_gate) for blk in self.blocks) or 1.0
+        error_values = list(errors.values())
+        surprise = sum(abs(value) for value in error_values) / max(1, len(error_values))
+        modulation = max(
+            -2.0,
+            min(
+                2.0,
+                valence * 0.55 + error * prediction_weight * 0.35 + surprise * prediction_weight * 0.10,
+            ),
+        )
+        representation_lr = lr * (0.15 + max(0.0, min(1.0, prediction_weight)) * 0.35) * 0.010
         for blk in self.blocks:
             if blk.out_gate == 0.0:
                 continue
-            blk.prediction_weights = np.clip(
-                blk.prediction_weights + pred_lr * error * blk.hidden, -4.0, 4.0
+            credit = abs(blk.out_gate) / gate_total
+            hidden_for_policy = blk.hidden_trace if blk.hidden_trace.size else blk.hidden
+            blk.weights_out[action_index] = np.clip(
+                blk.weights_out[action_index] + lr * valence * 0.035 * credit * hidden_for_policy,
+                -4.0,
+                4.0,
             )
+            if representation_lr > 0.0 and blk.pooled_trace is not None:
+                hidden_active = hidden_for_policy
+                hidden_mask = (np.abs(hidden_active) >= 0.015).astype(_DTYPE)
+                hidden_gate = np.clip(hidden_active, -1.0, 1.0) * hidden_mask
+                delta_in = (representation_lr * modulation * credit) * np.outer(hidden_gate, blk.pooled_trace)
+                blk.weights_in = np.clip(blk.weights_in + delta_in, -4.0, 4.0)
+        self.bias_o[action_index] = max(
+            -4.0, min(4.0, self.bias_o[action_index] + lr * valence * 0.015)
+        )
         return error
+
+    def clone_for_offspring(
+        self,
+        rng: Random,
+        mutation_scale: float = 0.03,
+        target_hidden_size: int | None = None,
+        structural_rate: float = 0.06,
+    ) -> "ModularController":
+        """Perturbed copy with occasional structural mutation.
+
+        `target_hidden_size` is accepted for interface parity but ignored:
+        modular capacity is owned by structure, and the caller is expected to
+        sync the child genome's neural_budget to the clone's capacity instead
+        (the reverse of the TinyController arrangement).
+        """
+        child = ModularController.from_dict(self.to_dict())
+
+        def mutate(arr: np.ndarray) -> np.ndarray:
+            noise = np.array(
+                [rng.gauss(0.0, mutation_scale) for _ in range(arr.size)], dtype=_DTYPE
+            ).reshape(arr.shape)
+            return arr + noise
+
+        child.encoders = [(mutate(W), mutate(b)) for W, b in child.encoders]
+        child.bias_o = mutate(child.bias_o)
+        child.wiring = mutate(child.wiring) if child.wiring.size else child.wiring
+        child.msg_weights = [mutate(m) for m in child.msg_weights]
+        for blk in child.blocks:
+            blk.weights_in = mutate(blk.weights_in)
+            blk.token_mix = mutate(blk.token_mix)
+            blk.bias = mutate(blk.bias)
+            blk.weights_out = mutate(blk.weights_out)
+            blk.prediction_weights = mutate(blk.prediction_weights)
+            blk.out_gate = float(blk.out_gate + rng.gauss(0.0, mutation_scale * 0.5))
+            for head in list(blk.auxiliary_prediction_weights):
+                blk.auxiliary_prediction_weights[head] = mutate(blk.auxiliary_prediction_weights[head])
+        # Structural mutation: rare, and the additive moves are neutral at birth.
+        roll = rng.random()
+        if roll < structural_rate:
+            kind = rng.random()
+            if kind < 0.40:
+                child.duplicate_block(rng.randrange(len(child.blocks)))
+            elif kind < 0.80:
+                child.add_block(rng, hidden_size=max(2, int(rng.gauss(8.0, 3.0))))
+            elif len(child.blocks) > 1:
+                child.prune_block(rng.randrange(len(child.blocks)))
+        # Fresh transient state for the child.
+        for blk in child.blocks:
+            blk.hidden = np.zeros(blk.hidden_size, dtype=_DTYPE)
+            blk.hidden_trace = np.zeros(blk.hidden_size, dtype=_DTYPE)
+            blk.pooled_trace = None
+        return child
 
     # ------------------------------------------------------------------ #
     # Structural operators (the evolvability core).
@@ -283,8 +472,13 @@ class ModularController:
             weights_out=src.weights_out.copy(),
             out_gate=src.out_gate / 2.0,
             prediction_weights=src.prediction_weights.copy(),
+            auxiliary_prediction_weights={
+                head: weights.copy() for head, weights in src.auxiliary_prediction_weights.items()
+            },
         )
         copy.hidden = src.hidden.copy()
+        copy.hidden_trace = src.hidden_trace.copy()
+        copy.pooled_trace = None if src.pooled_trace is None else src.pooled_trace.copy()
         src.out_gate = src.out_gate / 2.0
         K = len(self.blocks)
         wiring = np.zeros((K + 1, K + 1), dtype=_DTYPE)
@@ -309,11 +503,11 @@ class ModularController:
     # ------------------------------------------------------------------ #
     # Serialization (TinyController conventions: nested lists, 7 decimals).
     # ------------------------------------------------------------------ #
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self, include_state: bool = True) -> dict[str, Any]:
         def r(arr: np.ndarray) -> list[float]:
             return [round(float(v), 7) for v in arr.flatten().tolist()]
 
-        return {
+        data: dict[str, Any] = {
             "architecture": "modular_v1",
             "input_size": self.input_size,
             "output_size": self.output_size,
@@ -330,11 +524,19 @@ class ModularController:
                     "weights_out": r(blk.weights_out),
                     "out_gate": round(float(blk.out_gate), 7),
                     "prediction_weights": r(blk.prediction_weights),
+                    "auxiliary_prediction_weights": {
+                        head: r(weights) for head, weights in sorted(blk.auxiliary_prediction_weights.items())
+                    },
                     "msg_weights": r(self.msg_weights[i]),
                 }
                 for i, blk in enumerate(self.blocks)
             ],
         }
+        if include_state:
+            data["block_state"] = [
+                {"hidden": r(blk.hidden), "hidden_trace": r(blk.hidden_trace)} for blk in self.blocks
+            ]
+        return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "ModularController":
@@ -363,15 +565,23 @@ class ModularController:
                     weights_out=np.array(raw["weights_out"], dtype=_DTYPE).reshape(output_size, h),
                     out_gate=float(raw["out_gate"]),
                     prediction_weights=np.array(raw["prediction_weights"], dtype=_DTYPE),
+                    auxiliary_prediction_weights={
+                        head: np.array(weights, dtype=_DTYPE)
+                        for head, weights in raw.get("auxiliary_prediction_weights", {}).items()
+                    },
                 )
             )
             msg_weights.append(np.array(raw["msg_weights"], dtype=_DTYPE).reshape(h, h))
         K = len(blocks)
         wiring = np.array(data["wiring"], dtype=_DTYPE).reshape(K, K)
-        return cls(
+        controller = cls(
             int(data["input_size"]), output_size, token_dim, encoders, blocks, wiring, msg_weights,
             bias_o=np.array(data["bias_o"], dtype=_DTYPE),
         )
+        for blk, state in zip(controller.blocks, data.get("block_state", [])):
+            blk.hidden = np.array(state["hidden"], dtype=_DTYPE)
+            blk.hidden_trace = np.array(state["hidden_trace"], dtype=_DTYPE)
+        return controller
 
 
 def from_tiny(tiny_dict: dict[str, Any]) -> ModularController:
@@ -426,6 +636,10 @@ def from_tiny(tiny_dict: dict[str, Any]) -> ModularController:
         weights_out=np.array(tiny_dict["weights_out"], dtype=_DTYPE).reshape(output_size, hidden_size),
         out_gate=1.0,
         prediction_weights=np.array(tiny_dict["prediction_weights"], dtype=_DTYPE),
+        auxiliary_prediction_weights={
+            head: np.array(weights, dtype=_DTYPE)
+            for head, weights in tiny_dict.get("auxiliary_prediction_weights", {}).items()
+        },
     )
     controller = ModularController(
         input_size,

@@ -45,6 +45,11 @@ class RunConfig:
     # to pay for itself. 0 = disabled (legacy behavior).
     neural_upkeep_grace_ticks: int = 0
     neural_upkeep_grace_floor: float = 0.35
+    # Fraction of initial agents seeded with the typed modular controller
+    # (microcosmic_god/modular.py) instead of the legacy single-layer one.
+    # Modular lineages can grow/duplicate/prune blocks at reproduction;
+    # capacity is structure-owned and the genome budget follows it.
+    initial_modular_fraction: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

@@ -381,6 +381,15 @@ class Individual:
         }
 
 
+def controller_from_dict(data: dict) -> "TinyController":
+    """Deserialize a controller by architecture marker (legacy dicts lack one)."""
+    if data.get("architecture") == "modular_v1":
+        from .modular import ModularController
+
+        return ModularController.from_dict(data)  # type: ignore[return-value]
+    return TinyController.from_dict(data)
+
+
 def make_brain_for_genome(rng: Random, params: ParamVector) -> tuple[TinyController | None, TinyController | None]:
     hidden = int(round(params.neural_budget))
     if hidden < 2:
@@ -388,6 +397,21 @@ def make_brain_for_genome(rng: Random, params: ParamVector) -> tuple[TinyControl
     episodic_capacity = int(round(max(0.0, getattr(params, "episodic_capacity", 0.0))))
     template = TinyController.random(rng, OBSERVATION_SIZE, hidden, len(ACTIONS), episodic_capacity=episodic_capacity)
     controller = TinyController.from_dict(template.to_dict(include_state=False))
+    return controller, template
+
+
+def make_modular_brain_for_genome(rng: Random, params: ParamVector):
+    """Modular counterpart of make_brain_for_genome (Phase 2 wire-in).
+
+    The genome's neural_budget seeds the single starting block's size;
+    afterwards structure owns capacity and the genome budget follows it
+    (synced at reproduction by the optimizer).
+    """
+    from .modular import ModularController
+
+    hidden = max(2, int(round(params.neural_budget)))
+    template = ModularController.random(rng, OBSERVATION_SIZE, len(ACTIONS), n_blocks=1, block_hidden=hidden)
+    controller = ModularController.from_dict(template.to_dict(include_state=False))
     return controller, template
 
 
@@ -406,7 +430,7 @@ def individual_from_genome(
     template: TinyController | None = None
     if controller_template is not None:
         template = controller_template
-        controller = TinyController.from_dict(template.to_dict(include_state=False))
+        controller = controller_from_dict(template.to_dict(include_state=False))
     elif params.neural_budget >= 2.0 and kind == "agent":
         controller, template = make_brain_for_genome(rng, params)
     return Individual(

@@ -29,7 +29,14 @@ from .optimization import Optimizer, OffspringPlan
 from .params import MEMORY_BUDGET_MAX, NEURAL_BUDGET_MAX, ParamVector
 from .interventions import Intervention, load_interventions
 from .observer import EventObserver
-from .organisms import ACTIONS, ACTION_INDEX, OBSERVATION_SIZE, Individual, individual_from_genome
+from .organisms import (
+    ACTIONS,
+    ACTION_INDEX,
+    OBSERVATION_SIZE,
+    Individual,
+    individual_from_genome,
+    make_modular_brain_for_genome,
+)
 from .runlog import RunLogger
 from .world import Place, World
 
@@ -172,7 +179,14 @@ class Simulation:
         for _ in range(self.config.initial_fungi):
             self.add_individual("fungus", ParamVector.fungus(self.rng), self.rng.randrange(len(self.world.places)), self.rng.uniform(8.0, 28.0))
         for _ in range(self.config.initial_agents):
-            self.add_individual("agent", ParamVector.neural(self.rng), self.rng.randrange(len(self.world.places)), self.rng.uniform(22.0, 55.0))
+            params = ParamVector.neural(self.rng)
+            template = None
+            if self.rng.random() < self.config.initial_modular_fraction:
+                _, template = make_modular_brain_for_genome(self.rng, params)
+            self.add_individual(
+                "agent", params, self.rng.randrange(len(self.world.places)), self.rng.uniform(22.0, 55.0),
+                controller_template=template,
+            )
         self.logger.event(0, "seeded", {"population": population_counts(self.organisms)})
 
     def add_individual(

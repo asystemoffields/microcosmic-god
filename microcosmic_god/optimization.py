@@ -115,9 +115,20 @@ class Optimizer:
         # When child params calls for a different controller size, clone_for_offspring
         # resizes the inherited template instead of returning None - the parent's
         # learned function is preserved across size changes.
-        return parent.controller_template.clone_for_offspring(
+        child_template = parent.controller_template.clone_for_offspring(
             self.rng, mutation_scale=mutation_scale, target_hidden_size=target_hidden
         )
+        self._sync_genome_to_structure(child_genome, child_template)
+        return child_template
+
+    @staticmethod
+    def _sync_genome_to_structure(child_genome: ParamVector, template: TinyController | None) -> None:
+        # Modular controllers own their capacity structurally (blocks can be
+        # added/duplicated/pruned at cloning); the genome budget FOLLOWS the
+        # structure so upkeep economics price actual capacity. The legacy
+        # arrangement (budget leads, controller resizes) is unchanged.
+        if template is not None and getattr(template, "capacity", None) is not None:
+            child_genome.neural_budget = float(template.capacity)
 
     def _inherit_template_recombine(self, a: Individual, b: Individual, child_genome: ParamVector) -> TinyController | None:
         target_hidden = int(round(child_genome.neural_budget))
@@ -131,11 +142,13 @@ class Optimizer:
         if not templates:
             return None
         chosen = self.rng.choice(templates)
-        return chosen.clone_for_offspring(
+        child_template = chosen.clone_for_offspring(
             self.rng,
             mutation_scale=0.035 + child_genome.perturbation_rate * 0.20,
             target_hidden_size=target_hidden,
         )
+        self._sync_genome_to_structure(child_genome, child_template)
+        return child_template
 
     def to_summary(self) -> dict[str, object]:
         return {

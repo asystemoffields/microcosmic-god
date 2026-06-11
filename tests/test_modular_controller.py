@@ -120,8 +120,29 @@ class PredictionLearningTest(unittest.TestCase):
         errors = []
         for _ in range(200):
             c.forward(obs)
-            errors.append(abs(c.learn_energy_prediction(0.8, learning_rate=0.2, plasticity=1.0, prediction_weight=1.0)))
+            errors.append(
+                abs(c.learn(action_index=1, valence=0.3, energy_delta=0.8, learning_rate=0.2, plasticity=1.0, prediction_weight=1.0))
+            )
         self.assertLess(errors[-1], errors[0])
+
+    def test_zero_gated_block_does_not_learn(self):
+        c = ModularController.random(Random(83), OBSERVATION_SIZE, len(ACTIONS), n_blocks=1)
+        idx = c.add_block(Random(89), hidden_size=6)
+        frozen_before = c.blocks[idx].weights_out.copy()
+        obs = _obs(Random(97))
+        for _ in range(50):
+            c.forward(obs)
+            c.learn(action_index=2, valence=1.0, energy_delta=0.5, learning_rate=0.2, plasticity=1.0, prediction_weight=1.0)
+        np.testing.assert_array_equal(frozen_before, c.blocks[idx].weights_out)
+
+    def test_clone_for_offspring_perturbs_and_sometimes_grows(self):
+        parent = ModularController.random(Random(101), OBSERVATION_SIZE, len(ACTIONS), n_blocks=2)
+        capacities = set()
+        for i in range(60):
+            child = parent.clone_for_offspring(Random(i), mutation_scale=0.03, structural_rate=0.5)
+            capacities.add(child.capacity)
+            self.assertEqual(len(child.forward(_obs(Random(7)))), len(ACTIONS))
+        self.assertGreater(len(capacities), 1, "structural mutation never fired at rate 0.5 over 60 draws")
 
 
 if __name__ == "__main__":
