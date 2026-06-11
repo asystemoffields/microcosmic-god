@@ -3447,6 +3447,28 @@ class Simulation:
             }
         else:
             brain_capacity = {"count": 0, "mean": 0.0, "max": 0, "min": 0, "p90": 0}
+        # Architecture census: the signal a structural-evolution run is FOR.
+        # Tracks how many lineages run modular controllers, how many blocks
+        # they carry, and how much capacity sits behind nonzero gates.
+        modular = [
+            individual.controller
+            for individual in neural
+            if individual.controller is not None and hasattr(individual.controller, "blocks")
+        ]
+        if modular:
+            block_counts = [len(c.blocks) for c in modular]
+            active_blocks = [sum(1 for b in c.blocks if b.out_gate != 0.0) for c in modular]
+            architecture_stats = {
+                "modular": len(modular),
+                "legacy": len(brain_sizes) - len(modular),
+                "blocks_mean": round(sum(block_counts) / len(block_counts), 3),
+                "blocks_max": max(block_counts),
+                "active_blocks_mean": round(sum(active_blocks) / len(active_blocks), 3),
+                "capacity_mean": round(sum(c.capacity for c in modular) / len(modular), 3),
+                "capacity_max": max(c.capacity for c in modular),
+            }
+        else:
+            architecture_stats = {"modular": 0, "legacy": len(brain_sizes)}
         attention_stats: dict[str, float | int] = {"count": 0}
         attended_brains = [
             individual.controller
@@ -3476,6 +3498,7 @@ class Simulation:
             "avg_complexity": round(avg_complexity, 5),
             "neural_avg_energy": round(sum(o.energy for o in neural) / max(1, len(neural)), 5),
             "brain_capacity": brain_capacity,
+            "architecture": architecture_stats,
             "attention_stats": attention_stats,
             "births": dict(self.births_by_mode),
             "deaths": dict(self.deaths_by_cause),
