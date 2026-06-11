@@ -352,6 +352,20 @@ def main() -> None:
     instances = build_brain_instances(checkpoint, args.n_random, args.n_permuted)
     world_seeds = [args.world_seed_base + i for i in range(args.worlds)]
 
+    # Incremental per-run results, so a crash mid-sweep never loses finished
+    # evaluations. Each (label, seed) run is independent and fully seeded, so
+    # skipping completed pairs on resume reproduces the uninterrupted sweep.
+    runs_path = Path(args.out).with_suffix(".runs.jsonl")
+    completed: dict[tuple[str, int], RunMetrics] = {}
+    if runs_path.exists():
+        for line in runs_path.read_text().splitlines():
+            if not line.strip():
+                continue
+            rec = json.loads(line)
+            completed[(rec["label"], int(rec["seed"]))] = RunMetrics(**rec["metrics"])
+        if completed:
+            print(f"resuming   : {len(completed)} completed runs found in {runs_path}")
+
     print(f"checkpoint : {args.checkpoint}")
     print(f"controller      : in={controller_dict['input_size']} hidden={controller_dict['hidden_size']} "
           f"out={controller_dict['output_size']} episodic={controller_dict.get('episodic_capacity')}")
@@ -365,14 +379,21 @@ def main() -> None:
     done = 0
     for inst in instances:
         for seed in world_seeds:
-            m = evaluate_run(
-                inst.template, genome_dict, seed,
-                cohort_size=args.cohort, ticks=args.ticks, places=args.places,
-                harshness=args.harshness, start_energy=args.start_energy,
-            )
+            key = (inst.label, seed)
+            cached = key in completed
+            if cached:
+                m = completed[key]
+            else:
+                m = evaluate_run(
+                    inst.template, genome_dict, seed,
+                    cohort_size=args.cohort, ticks=args.ticks, places=args.places,
+                    harshness=args.harshness, start_energy=args.start_energy,
+                )
+                with runs_path.open("a") as fh:
+                    fh.write(json.dumps({"label": inst.label, "seed": seed, "metrics": vars(m)}) + "\n")
             results[inst.label][seed] = m
             done += 1
-            print(f"  [{done:>3}/{total}] {inst.label:<12} seed={seed}  "
+            print(f"  [{done:>3}/{total}]{'*' if cached else ' '}{inst.label:<12} seed={seed}  "
                   f"alive={m.alive_fraction:.2f} life={m.mean_lifespan:6.1f} "
                   f"E={m.mean_energy:6.2f} tools={m.tool_successes:5.2f} "
                   f"causal_unlock={m.causal_unlocks:.2f} dPE={m.pred_err_delta:+.4f}", flush=True)

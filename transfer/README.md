@@ -1,5 +1,8 @@
 # Transfer harness
 
+**2026-06-11: the probe-world experiment is done — within-substrate transfer is real,
+structural, and champion-shaped. See `RESULTS.md`.** The Catch material below predates it.
+
 A test rig for evaluating whether controllers evolved in microcosmic-god have transferable representations — does the cognition that emerged in the alife substrate generalize to a different task it has never seen?
 
 ## What's here
