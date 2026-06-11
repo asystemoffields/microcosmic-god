@@ -102,7 +102,7 @@ class Place:
     neighbors: list[int]
     resources: dict[str, float]
     materials: dict[str, int]
-    locked_chemical: float
+    sealed_essence: float
     capacity: int
     sun_exposure: float
     water_flow: float
@@ -127,7 +127,7 @@ class Place:
             "name": self.name,
             "neighbors": self.neighbors,
             "resources": {k: round(v, 4) for k, v in self.resources.items()},
-            "locked_chemical": round(self.locked_chemical, 4),
+            "sealed_essence": round(self.sealed_essence, 4),
             "materials": dict(self.materials),
             "capacity": self.capacity,
             "obstacles": {k: round(v, 4) for k, v in self.obstacles.items()},
@@ -270,36 +270,36 @@ class World:
                 mineral = max(mineral, rng.uniform(0.45, 0.95))
                 elevation = min(elevation, rng.uniform(0.08, 0.40))
             volatility = _clamp(volatility * (1.0 + hardship * 0.55), 0.03, 0.52)
-            resources["radiant"] = 20.0 + sun * 70.0
-            resources["chemical"] = rng.uniform(10.0, 40.0) + water * 15.0
-            resources["biological_storage"] = rng.uniform(4.0, 20.0)
+            resources["solar"] = 20.0 + sun * 70.0
+            resources["essence"] = rng.uniform(10.0, 40.0) + water * 15.0
+            resources["organic_store"] = rng.uniform(4.0, 20.0)
             resources["thermal"] = geo * 65.0 + sun * 10.0
             resources["mechanical"] = water * 45.0 + rng.uniform(0.0, 8.0)
             resources["electrical"] = mineral * rng.uniform(0.0, 4.0)
-            resources["high_density"] = mineral * geo * rng.uniform(0.0, 1.2)
+            resources["dense_node"] = mineral * geo * rng.uniform(0.0, 1.2)
             if archetype in {"reef", "tidal_marsh", "forest_edge"}:
-                resources["biological_storage"] += rng.uniform(10.0, 36.0) * (0.55 + sun * water)
+                resources["organic_store"] += rng.uniform(10.0, 36.0) * (0.55 + sun * water)
             if archetype in {"trench", "hydrothermal_vent"}:
                 resources["thermal"] += rng.uniform(12.0, 52.0) * (0.40 + geo)
-                resources["chemical"] += rng.uniform(8.0, 28.0) * (0.40 + mineral)
-                resources["high_density"] += rng.uniform(0.5, 5.0) * geo * mineral
+                resources["essence"] += rng.uniform(8.0, 28.0) * (0.40 + mineral)
+                resources["dense_node"] += rng.uniform(0.5, 5.0) * geo * mineral
             if archetype in {"pelagic", "tidal_marsh"}:
                 resources["mechanical"] += rng.uniform(8.0, 32.0) * water * volatility
             if archetype in {"high_ridge", "desert_glass"}:
-                resources["radiant"] += rng.uniform(8.0, 28.0) * sun
+                resources["solar"] += rng.uniform(8.0, 28.0) * sun
             if archetype in {"mineral_scree", "cavern"}:
                 resources["electrical"] += rng.uniform(0.5, 8.0) * mineral
-            locked_chemical = rng.uniform(8.0, 55.0) * (0.35 + mineral)
+            sealed_essence = rng.uniform(8.0, 55.0) * (0.35 + mineral)
             if archetype in {"trench", "hydrothermal_vent", "mineral_scree", "cavern"}:
-                locked_chemical *= rng.uniform(1.25, 2.15)
+                sealed_essence *= rng.uniform(1.25, 2.15)
             accessible_factor = max(0.50, 1.0 - hardship * 0.24)
-            biological_factor = max(0.38, 1.0 - hardship * 0.34)
-            resources["radiant"] *= max(0.70, 1.0 - hardship * 0.10)
-            resources["chemical"] *= accessible_factor
-            resources["biological_storage"] *= biological_factor
+            organic_factor = max(0.38, 1.0 - hardship * 0.34)
+            resources["solar"] *= max(0.70, 1.0 - hardship * 0.10)
+            resources["essence"] *= accessible_factor
+            resources["organic_store"] *= organic_factor
             resources["thermal"] *= 1.0 + hardship * 0.06
             resources["mechanical"] *= 1.0 + hardship * 0.08
-            locked_chemical *= 1.0 + hardship * 0.30
+            sealed_essence *= 1.0 + hardship * 0.30
 
             materials = {name: 0 for name in MATERIALS}
             for name in MATERIALS:
@@ -365,7 +365,7 @@ class World:
                 "light": sun,
                 "oxygen": _clamp(0.18 + sun * 0.32 + (1.0 - depth) * 0.18 + water * volatility * 0.10),
                 "acidity": _clamp(0.04 + geo * 0.20 + volatility * 0.10 + rng.random() * 0.08),
-                "biological_activity": _clamp(water * 0.28 + sun * 0.16 + resources["biological_storage"] / 220.0),
+                "organic_activity": _clamp(water * 0.28 + sun * 0.16 + resources["organic_store"] / 220.0),
                 "abrasion": _clamp(volatility * 0.34 + water * 0.14 + abs(elevation - 0.5) * 0.10),
                 "wet_dry_cycle": _clamp(water * (1.0 - water) * 0.70 + volatility * 0.22),
                 "resource_gradient": 0.0,
@@ -392,10 +392,10 @@ class World:
             physics["oxygen"] = _clamp(physics["oxygen"] - hardship * (0.015 + aquatic * 0.030 + depth * 0.020))
             physics["acidity"] = _clamp(physics["acidity"] * (1.0 + hardship * 0.12) + geo * hardship * 0.025)
             physics["resource_gradient"] = _clamp(
-                resources["high_density"] / 8.0
+                resources["dense_node"] / 8.0
                 + resources["thermal"] / 220.0
                 + resources["mechanical"] / 240.0
-                + locked_chemical / 160.0
+                + sealed_essence / 160.0
             )
             physics["terrain_richness"] = _clamp(sum(materials.values()) / 65.0 + mineral * 0.35 + water * 0.12)
             base_capacity = rng.randint(35, 95)
@@ -408,7 +408,7 @@ class World:
                     neighbors=[],
                     resources=resources,
                     materials=materials,
-                    locked_chemical=locked_chemical,
+                    sealed_essence=sealed_essence,
                     capacity=capacity,
                     sun_exposure=sun,
                     water_flow=water,
@@ -424,7 +424,7 @@ class World:
             places[-1].causal_challenge = cls._make_causal_challenge(
                 rng,
                 places[-1].resources,
-                locked_chemical=places[-1].locked_chemical,
+                sealed_essence=places[-1].sealed_essence,
                 water=water,
                 sun=sun,
                 geo=geo,
@@ -461,7 +461,7 @@ class World:
         rng: Random,
         resources: dict[str, float],
         *,
-        locked_chemical: float,
+        sealed_essence: float,
         water: float,
         sun: float,
         geo: float,
@@ -471,41 +471,41 @@ class World:
         physics: dict[str, float],
     ) -> CausalChallenge | None:
         candidates = [
-            (water * 0.55 + physics.get("current_exposure", 0.0) * 0.45, ("contain", "filter"), "chemical"),
-            (mineral * 0.42 + locked_chemical / 180.0 + obstacles.get("height", 0.0) * 0.18, ("crack", "lever"), "chemical"),
-            (sun * 0.35 + geo * 0.38 + mineral * 0.22, ("concentrate_heat", "conduct"), "electrical"),
-            (obstacles.get("thorn", 0.0) * 0.48 + resources.get("biological_storage", 0.0) / 180.0, ("cut", "bind"), "biological_storage"),
-            (physics.get("salinity", 0.0) * 0.30 + mineral * 0.36 + geo * 0.28, ("filter", "conduct"), "high_density"),
+            (water * 0.55 + physics.get("current_exposure", 0.0) * 0.45, ("encase", "winnow"), "essence"),
+            (mineral * 0.42 + sealed_essence / 180.0 + obstacles.get("height", 0.0) * 0.18, ("cleave", "hoist"), "essence"),
+            (sun * 0.35 + geo * 0.38 + mineral * 0.22, ("kindle", "ferry"), "electrical"),
+            (obstacles.get("thorn", 0.0) * 0.48 + resources.get("organic_store", 0.0) / 180.0, ("shear", "lash"), "organic_store"),
+            (physics.get("salinity", 0.0) * 0.30 + mineral * 0.36 + geo * 0.28, ("winnow", "ferry"), "dense_node"),
         ]
         score, sequence, payoff_energy = max(candidates, key=lambda item: item[0] + rng.random() * 0.035)
         if score < 0.16 and rng.random() > 0.30:
             return None
         if score > 0.58 or rng.random() < score * 0.18:
             extra_step = {
-                "chemical": "contain",
-                "biological_storage": "cut",
-                "electrical": "contain",
-                "high_density": "concentrate_heat",
-            }.get(payoff_energy, "bind")
+                "essence": "encase",
+                "organic_store": "shear",
+                "electrical": "encase",
+                "dense_node": "kindle",
+            }.get(payoff_energy, "lash")
             if extra_step not in sequence:
                 sequence = (*sequence, extra_step)
         prep_steps: list[str] = []
         if physics.get("temperature", 0.5) < 0.25:
-            prep_steps.append("concentrate_heat")
+            prep_steps.append("kindle")
         if physics.get("fluid_level", 0.0) > 0.45 and obstacles.get("water", 0.0) > 0.30:
-            if "contain" not in prep_steps:
-                prep_steps.append("contain")
+            if "encase" not in prep_steps:
+                prep_steps.append("encase")
         if physics.get("abrasion", 0.0) > 0.30:
-            if "bind" not in prep_steps:
-                prep_steps.append("bind")
+            if "lash" not in prep_steps:
+                prep_steps.append("lash")
         if physics.get("pressure", 0.0) > 0.40:
-            if "contain" not in prep_steps:
-                prep_steps.append("contain")
+            if "encase" not in prep_steps:
+                prep_steps.append("encase")
         prep_steps = [s for s in prep_steps if s not in sequence]
         if prep_steps:
             sequence = (*prep_steps, *sequence)
         difficulty = _clamp(0.18 + score * 0.42 + volatility * 0.18 + len(prep_steps) * 0.06)
-        payoff = 14.0 + score * 68.0 + min(locked_chemical, 120.0) * 0.16 + max(0, len(sequence) - 2) * 18.0
+        payoff = 14.0 + score * 68.0 + min(sealed_essence, 120.0) * 0.16 + max(0, len(sequence) - 2) * 18.0
         return CausalChallenge(
             sequence=sequence,
             payoff_energy=payoff_energy,
@@ -593,9 +593,9 @@ class World:
             permeable = structure.capabilities.get("permeable", 0.0)
             channel = structure.capabilities.get("channel", 0.0)
             gradient_harvest = structure.capabilities.get("gradient_harvest", 0.0)
-            conduct = structure.capabilities.get("conduct", 0.0)
+            ferry = structure.capabilities.get("ferry", 0.0)
             storage = structure.capabilities.get("energy_storage", 0.0)
-            filter_cap = structure.capabilities.get("filter", 0.0)
+            winnow_cap = structure.capabilities.get("winnow", 0.0)
             reaction_surface = structure.capabilities.get("reaction_surface", 0.0)
             support = structure.capabilities.get("support", 0.0)
             anchor = structure.capabilities.get("anchor", 0.0)
@@ -607,21 +607,21 @@ class World:
                 mechanical = gradient_harvest * flow_gradient * (0.06 + scale * 0.10)
                 place.resources["mechanical"] = min(180.0, place.resources["mechanical"] + mechanical)
                 events["structure_gradient_harvest"] += 1
-                if conduct > 0.08:
-                    electrical = mechanical * conduct * (0.10 + storage * 0.10)
+                if ferry > 0.08:
+                    electrical = mechanical * ferry * (0.10 + storage * 0.10)
                     place.resources["electrical"] = min(180.0, place.resources["electrical"] + electrical)
                     events["structure_gradient_conversion"] += 1
 
-            if filter_cap > 0.08 and (flow_gradient > 0.02 or permeable > 0.25):
-                captured = filter_cap * (flow_gradient + permeable * 0.15) * (0.03 + scale * 0.04)
-                place.resources["chemical"] = min(180.0, place.resources["chemical"] + captured)
-                place.resources["biological_storage"] = min(180.0, place.resources["biological_storage"] + captured * 0.35)
+            if winnow_cap > 0.08 and (flow_gradient > 0.02 or permeable > 0.25):
+                captured = winnow_cap * (flow_gradient + permeable * 0.15) * (0.03 + scale * 0.04)
+                place.resources["essence"] = min(180.0, place.resources["essence"] + captured)
+                place.resources["organic_store"] = min(180.0, place.resources["organic_store"] + captured * 0.35)
                 events["structure_filtration"] += 1
 
             if reaction_surface > 0.08:
                 heat_gradient = abs(physics.get("temperature", 0.5) - 0.48) + place.geothermal * 0.10
                 reaction = reaction_surface * heat_gradient * (0.01 + scale * 0.025)
-                place.resources["chemical"] = min(180.0, place.resources["chemical"] + reaction)
+                place.resources["essence"] = min(180.0, place.resources["essence"] + reaction)
                 events["structure_reaction_surface"] += 1
 
             if channel > 0.05:
@@ -639,7 +639,7 @@ class World:
                 "salinity": physics.get("salinity", 0.0),
                 "oxygen": physics.get("oxygen", 0.35),
                 "acidity": physics.get("acidity", 0.10),
-                "biological_activity": physics.get("biological_activity", 0.0),
+                "organic_activity": physics.get("organic_activity", 0.0),
                 "abrasion": physics.get("abrasion", 0.0),
                 "wet_dry_cycle": physics.get("wet_dry_cycle", 0.0),
                 "current_exposure": physics.get("current_exposure", 0.0),
@@ -690,10 +690,10 @@ class World:
         for place in self.places:
             physics = place.physics
             weather = 1.0 + rng.gauss(0.0, place.volatility * 0.02 * (1.0 + hardship * 0.50))
-            radiant_target = (18.0 + place.sun_exposure * 85.0) * (0.35 + season * 0.85 + self.climate_drift * 0.25)
-            place.resources["radiant"] += (radiant_target * weather - place.resources["radiant"]) * 0.08
-            chemical_regen = (0.010 + place.water_flow * 0.030 + place.mineral_richness * 0.006) * max(0.45, 1.0 - hardship * 0.30)
-            place.resources["chemical"] += chemical_regen
+            solar_target = (18.0 + place.sun_exposure * 85.0) * (0.35 + season * 0.85 + self.climate_drift * 0.25)
+            place.resources["solar"] += (solar_target * weather - place.resources["solar"]) * 0.08
+            essence_regen = (0.010 + place.water_flow * 0.030 + place.mineral_richness * 0.006) * max(0.45, 1.0 - hardship * 0.30)
+            place.resources["essence"] += essence_regen
             thermal_mass = _clamp(physics.get("thermal_mass", 0.4), 0.05, 1.0)
             temperature_target = _clamp(
                 0.06
@@ -713,9 +713,9 @@ class World:
             physics["humidity"] += (physics["fluid_level"] * 0.70 + evaporation * 10.0 - physics.get("humidity", 0.5)) * 0.020
             biology_window = max(0.0, 1.0 - abs(physics["temperature"] - 0.52) * 1.65)
             oxygen_target = _clamp(0.16 + place.sun_exposure * 0.32 + physics["fluid_level"] * physics.get("current_exposure", 0.0) * 0.35 + (1.0 - physics.get("pressure", 0.0)) * 0.12)
-            acidity_target = _clamp(0.04 + place.geothermal * 0.22 + place.volatility * 0.08 + place.resources["chemical"] / 2100.0 + physics.get("salinity", 0.0) * 0.06)
-            biological_target = _clamp(
-                (physics["humidity"] * 0.26 + physics["fluid_level"] * 0.24 + place.resources["biological_storage"] / 240.0 + biology_window * place.sun_exposure * 0.12)
+            acidity_target = _clamp(0.04 + place.geothermal * 0.22 + place.volatility * 0.08 + place.resources["essence"] / 2100.0 + physics.get("salinity", 0.0) * 0.06)
+            organic_target = _clamp(
+                (physics["humidity"] * 0.26 + physics["fluid_level"] * 0.24 + place.resources["organic_store"] / 240.0 + biology_window * place.sun_exposure * 0.12)
                 * max(0.75, 1.0 - hardship * 0.10)
             )
             abrasion_target = _clamp(
@@ -730,14 +730,14 @@ class World:
             )
             physics["oxygen"] += (oxygen_target - physics.get("oxygen", 0.35)) * 0.018
             physics["acidity"] += (acidity_target - physics.get("acidity", 0.10)) * 0.012
-            physics["biological_activity"] += (biological_target - physics.get("biological_activity", 0.0)) * 0.016
+            physics["organic_activity"] += (organic_target - physics.get("organic_activity", 0.0)) * 0.016
             physics["abrasion"] += (abrasion_target - physics.get("abrasion", 0.0)) * 0.018
             physics["wet_dry_cycle"] += (wet_dry_target - physics.get("wet_dry_cycle", 0.0)) * 0.014
             place.resources["thermal"] += ((physics["temperature"] * 150.0 + place.geothermal * 30.0) - place.resources["thermal"]) * 0.012
             place.resources["mechanical"] += ((place.water_flow * 25.0 + physics.get("current_exposure", 0.0) * 75.0 + place.volatility * 18.0) - place.resources["mechanical"]) * 0.010
             place.resources["electrical"] += place.mineral_richness * place.volatility * 0.006
-            place.resources["biological_storage"] *= max(0.9965, 0.9994 - hardship * 0.0008)
-            place.locked_chemical += place.mineral_richness * (0.003 + hardship * 0.001)
+            place.resources["organic_store"] *= max(0.9965, 0.9994 - hardship * 0.0008)
+            place.sealed_essence += place.mineral_richness * (0.003 + hardship * 0.001)
 
             if rng.random() < 0.002 + place.water_flow * 0.002:
                 material = rng.choice(tuple(MATERIALS.keys()))
@@ -745,7 +745,7 @@ class World:
 
             for kind in ENERGY_KINDS:
                 place.resources[kind] = max(0.0, min(180.0, place.resources[kind]))
-            place.locked_chemical = max(0.0, min(260.0, place.locked_chemical))
+            place.sealed_essence = max(0.0, min(260.0, place.sealed_essence))
 
         for edge in self.edges:
             a = edge.a
@@ -761,19 +761,19 @@ class World:
             if fluid_flow > 0.0:
                 salinity_delta[a] -= salinity_mix * 0.25
                 salinity_delta[b] += salinity_mix
-                chemical = min(self.places[a].resources["chemical"], fluid_flow * 12.0)
-                if chemical > 0.03:
-                    self.places[a].resources["chemical"] -= chemical
-                    self.places[b].resources["chemical"] = min(180.0, self.places[b].resources["chemical"] + chemical * 0.92)
-                    events["chemical_advection"] += 1
+                essence = min(self.places[a].resources["essence"], fluid_flow * 12.0)
+                if essence > 0.03:
+                    self.places[a].resources["essence"] -= essence
+                    self.places[b].resources["essence"] = min(180.0, self.places[b].resources["essence"] + essence * 0.92)
+                    events["essence_advection"] += 1
             elif fluid_flow < 0.0:
                 salinity_delta[b] -= salinity_mix * 0.25
                 salinity_delta[a] += salinity_mix
-                chemical = min(self.places[b].resources["chemical"], -fluid_flow * 12.0)
-                if chemical > 0.03:
-                    self.places[b].resources["chemical"] -= chemical
-                    self.places[a].resources["chemical"] = min(180.0, self.places[a].resources["chemical"] + chemical * 0.92)
-                    events["chemical_advection"] += 1
+                essence = min(self.places[b].resources["essence"], -fluid_flow * 12.0)
+                if essence > 0.03:
+                    self.places[b].resources["essence"] -= essence
+                    self.places[a].resources["essence"] = min(180.0, self.places[a].resources["essence"] + essence * 0.92)
+                    events["essence_advection"] += 1
 
         for index, place in enumerate(self.places):
             physics = place.physics
@@ -797,7 +797,7 @@ class World:
             physics["light"] = _clamp(place.sun_exposure * (0.35 + season * 0.85), 0.0, 1.25)
             physics["oxygen"] = _clamp(physics.get("oxygen", 0.35) - hardship * (0.002 + physics["pressure"] * 0.003))
             physics["acidity"] = _clamp(physics.get("acidity", 0.10))
-            physics["biological_activity"] = _clamp(physics.get("biological_activity", 0.0))
+            physics["organic_activity"] = _clamp(physics.get("organic_activity", 0.0))
             physics["abrasion"] = _clamp(physics.get("abrasion", 0.0))
             physics["wet_dry_cycle"] = _clamp(physics.get("wet_dry_cycle", 0.0))
             place.habitat["aquatic"] = _clamp(physics["fluid_level"])

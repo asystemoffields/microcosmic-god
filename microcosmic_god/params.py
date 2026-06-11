@@ -35,10 +35,10 @@ EPISODIC_CAPACITY_MAX = 32.0
 # keep their original strings so existing run artifacts and the transfer harness
 # round-trip unchanged. Map: source (neutral) name -> on-disk (legacy) key.
 _LEGACY_KEYS = {
-    "radiant_energy_gain": "radiant_metabolism",
-    "chemical_energy_gain": "chemical_metabolism",
-    "radiant_capture_area": "photosynthesis_surface",
-    "chemical_conversion": "digestion",
+    "solar_energy_gain": "radiant_metabolism",
+    "essence_energy_gain": "chemical_metabolism",
+    "solar_capture_area": "photosynthesis_surface",
+    "essence_conversion": "digestion",
     "pairing_selectivity": "mate_selectivity",
     "single_parent_threshold": "asexual_threshold",
     "two_parent_threshold": "sexual_threshold",
@@ -49,8 +49,8 @@ _LEGACY_TO_NEUTRAL = {legacy: neutral for neutral, legacy in _LEGACY_KEYS.items(
 
 @dataclass(slots=True)
 class ParamVector:
-    radiant_energy_gain: float
-    chemical_energy_gain: float
+    solar_energy_gain: float
+    essence_energy_gain: float
     thermal_tolerance: float
     mechanical_use: float
     electrical_use: float
@@ -60,8 +60,8 @@ class ParamVector:
     desiccation_tolerance: float
     pressure_tolerance: float
     buoyancy: float
-    radiant_capture_area: float
-    chemical_conversion: float
+    solar_capture_area: float
+    essence_conversion: float
     mobility: float
     manipulator: float
     armor: float
@@ -90,8 +90,8 @@ class ParamVector:
     @classmethod
     def plant(cls, rng: Random) -> "ParamVector":
         return cls(
-            radiant_energy_gain=rng.uniform(0.60, 0.95),
-            chemical_energy_gain=rng.uniform(0.02, 0.20),
+            solar_energy_gain=rng.uniform(0.60, 0.95),
+            essence_energy_gain=rng.uniform(0.02, 0.20),
             thermal_tolerance=rng.uniform(0.35, 0.70),
             mechanical_use=rng.uniform(0.00, 0.05),
             electrical_use=rng.uniform(0.00, 0.02),
@@ -101,8 +101,8 @@ class ParamVector:
             desiccation_tolerance=rng.uniform(0.25, 0.90),
             pressure_tolerance=rng.uniform(0.00, 0.35),
             buoyancy=rng.uniform(0.05, 0.45),
-            radiant_capture_area=rng.uniform(0.55, 1.00),
-            chemical_conversion=rng.uniform(0.00, 0.12),
+            solar_capture_area=rng.uniform(0.55, 1.00),
+            essence_conversion=rng.uniform(0.00, 0.12),
             mobility=rng.uniform(0.00, 0.04),
             manipulator=rng.uniform(0.00, 0.03),
             armor=rng.uniform(0.05, 0.35),
@@ -129,8 +129,8 @@ class ParamVector:
     @classmethod
     def fungus(cls, rng: Random) -> "ParamVector":
         return cls(
-            radiant_energy_gain=rng.uniform(0.00, 0.15),
-            chemical_energy_gain=rng.uniform(0.45, 0.95),
+            solar_energy_gain=rng.uniform(0.00, 0.15),
+            essence_energy_gain=rng.uniform(0.45, 0.95),
             thermal_tolerance=rng.uniform(0.25, 0.85),
             mechanical_use=rng.uniform(0.00, 0.05),
             electrical_use=rng.uniform(0.00, 0.02),
@@ -140,8 +140,8 @@ class ParamVector:
             desiccation_tolerance=rng.uniform(0.05, 0.65),
             pressure_tolerance=rng.uniform(0.05, 0.55),
             buoyancy=rng.uniform(0.10, 0.60),
-            radiant_capture_area=rng.uniform(0.00, 0.15),
-            chemical_conversion=rng.uniform(0.45, 0.90),
+            solar_capture_area=rng.uniform(0.00, 0.15),
+            essence_conversion=rng.uniform(0.45, 0.90),
             mobility=rng.uniform(0.00, 0.06),
             manipulator=rng.uniform(0.00, 0.02),
             armor=rng.uniform(0.00, 0.18),
@@ -168,8 +168,8 @@ class ParamVector:
     @classmethod
     def neural(cls, rng: Random) -> "ParamVector":
         return cls(
-            radiant_energy_gain=rng.uniform(0.00, 0.25),
-            chemical_energy_gain=rng.uniform(0.35, 0.85),
+            solar_energy_gain=rng.uniform(0.00, 0.25),
+            essence_energy_gain=rng.uniform(0.35, 0.85),
             thermal_tolerance=rng.uniform(0.30, 0.75),
             mechanical_use=rng.uniform(0.05, 0.45),
             electrical_use=rng.uniform(0.00, 0.10),
@@ -179,8 +179,8 @@ class ParamVector:
             desiccation_tolerance=rng.uniform(0.20, 0.90),
             pressure_tolerance=rng.uniform(0.00, 0.55),
             buoyancy=rng.uniform(0.00, 0.65),
-            radiant_capture_area=rng.uniform(0.00, 0.16),
-            chemical_conversion=rng.uniform(0.35, 0.90),
+            solar_capture_area=rng.uniform(0.00, 0.16),
+            essence_conversion=rng.uniform(0.35, 0.90),
             mobility=rng.uniform(0.35, 0.90),
             manipulator=rng.uniform(0.15, 0.75),
             armor=rng.uniform(0.02, 0.45),

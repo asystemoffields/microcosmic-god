@@ -59,10 +59,10 @@ class CausalContractTests(unittest.TestCase):
         try:
             mild_capacity = sum(place.capacity for place in mild.world.places)
             harsh_capacity = sum(place.capacity for place in harsh.world.places)
-            mild_easy_energy = sum(place.resources["chemical"] + place.resources["biological_storage"] for place in mild.world.places)
-            harsh_easy_energy = sum(place.resources["chemical"] + place.resources["biological_storage"] for place in harsh.world.places)
-            mild_toolable_energy = sum(place.locked_chemical + place.resources["mechanical"] for place in mild.world.places)
-            harsh_toolable_energy = sum(place.locked_chemical + place.resources["mechanical"] for place in harsh.world.places)
+            mild_easy_energy = sum(place.resources["essence"] + place.resources["organic_store"] for place in mild.world.places)
+            harsh_easy_energy = sum(place.resources["essence"] + place.resources["organic_store"] for place in harsh.world.places)
+            mild_toolable_energy = sum(place.sealed_essence + place.resources["mechanical"] for place in mild.world.places)
+            harsh_toolable_energy = sum(place.sealed_essence + place.resources["mechanical"] for place in harsh.world.places)
             mild_exposure = sum(float(mild._place_exposure_pressure(place)["severity"]) for place in mild.world.places)
             harsh_exposure = sum(float(harsh._place_exposure_pressure(place)["severity"]) for place in harsh.world.places)
 
@@ -270,18 +270,18 @@ class CausalContractTests(unittest.TestCase):
                 return 0.0
 
         self.sim.rng = ZeroRng()  # type: ignore[assignment]
-        base_affordance = "crack"
+        base_affordance = "cleave"
         base_score = self.sim._affordance_score(agent, base_affordance)
 
         affordance, _score, directed, context = self.sim._situation_affordance_choice(agent, place, base_affordance, base_score)
-        self.assertEqual(affordance, "crack")
+        self.assertEqual(affordance, "cleave")
         self.assertFalse(directed)
-        self.assertEqual(context["problem"]["required_affordance"], "contain")
+        self.assertEqual(context["problem"]["required_affordance"], "encase")
 
         agent.record_lesson(
             {
                 "kind": "tool_use",
-                "affordance": "contain",
+                "affordance": "encase",
                 "success": True,
                 "gain": 5.0,
                 "score": 0.4,
@@ -289,23 +289,23 @@ class CausalContractTests(unittest.TestCase):
                     "kind": "obstacle",
                     "obstacle": "water",
                     "severity": 0.8,
-                    "required_affordance": "contain",
+                    "required_affordance": "encase",
                 },
             }
         )
 
         affordance, score, directed, context = self.sim._situation_affordance_choice(agent, place, base_affordance, base_score)
-        self.assertEqual(affordance, "contain")
+        self.assertEqual(affordance, "encase")
         self.assertGreaterEqual(score, 0.08)
         self.assertTrue(directed)
         self.assertGreater(context["recognition"], 0.5)
         self.assertGreater(context["memory_bias"], 0.0)
 
-        place.causal_challenge = CausalChallenge(sequence=("conduct",), payoff_energy="electrical", payoff_remaining=10.0, difficulty=0.4)
+        place.causal_challenge = CausalChallenge(sequence=("ferry",), payoff_energy="electrical", payoff_remaining=10.0, difficulty=0.4)
         affordance, _score, directed, context = self.sim._situation_affordance_choice(agent, place, base_affordance, base_score)
-        self.assertEqual(affordance, "crack")
+        self.assertEqual(affordance, "cleave")
         self.assertFalse(directed)
-        self.assertEqual(context["problem"]["required_affordance"], "conduct")
+        self.assertEqual(context["problem"]["required_affordance"], "ferry")
 
     def test_tool_lessons_store_situation_separately_from_attempt(self) -> None:
         self.sim = make_sim(places=1)
@@ -320,14 +320,14 @@ class CausalContractTests(unittest.TestCase):
             agent,
             place,
             kind="tool_use",
-            affordance="crack",
+            affordance="cleave",
             success=False,
             score=0.4,
         )
 
         lesson = agent.lesson_memory[-1]
-        self.assertEqual(lesson["attempted_affordance"], "crack")
-        self.assertEqual(lesson["problem"]["required_affordance"], "contain")
+        self.assertEqual(lesson["attempted_affordance"], "cleave")
+        self.assertEqual(lesson["problem"]["required_affordance"], "encase")
 
     def test_clone_mutate_capacity_uses_current_local_population(self) -> None:
         self.sim = make_sim(places=2)
@@ -392,7 +392,7 @@ class CausalContractTests(unittest.TestCase):
         self.sim._craft(agent, {"reproduction": 0.0, "social": 0.0})
 
         self.assertLess(agent.inventory_count(), 2)
-        self.assertGreater(agent.tool_skill["bind"], 0.0)
+        self.assertGreater(agent.tool_skill["lash"], 0.0)
 
     def test_successful_craft_counts_as_tool_making(self) -> None:
         self.sim = make_sim()
@@ -421,13 +421,13 @@ class CausalContractTests(unittest.TestCase):
         self.assertGreater(agent.success_profile["tool_make"], 0.0)
 
     def test_method_quality_amplifies_real_material_fit_without_magic(self) -> None:
-        rough_conductor = build_artifact({"crystal": 1, "stone": 1}, target_affordance="conduct")
-        worked_conductor = build_artifact({"crystal": 1, "stone": 1}, method_quality=0.85, target_affordance="conduct")
-        bad_conductor = build_artifact({"fiber": 2}, method_quality=1.0, target_affordance="conduct")
+        rough_conductor = build_artifact({"crystal": 1, "stone": 1}, target_affordance="ferry")
+        worked_conductor = build_artifact({"crystal": 1, "stone": 1}, method_quality=0.85, target_affordance="ferry")
+        bad_conductor = build_artifact({"fiber": 2}, method_quality=1.0, target_affordance="ferry")
 
-        self.assertGreater(worked_conductor.capabilities["conduct"], rough_conductor.capabilities["conduct"])
+        self.assertGreater(worked_conductor.capabilities["ferry"], rough_conductor.capabilities["ferry"])
         self.assertGreater(worked_conductor.durability, rough_conductor.durability)
-        self.assertLess(bad_conductor.capabilities["conduct"], 0.08)
+        self.assertLess(bad_conductor.capabilities["ferry"], 0.08)
 
     def test_only_intentional_marks_transmit_lesson_traces_when_observed(self) -> None:
         self.sim = make_sim()
@@ -445,17 +445,17 @@ class CausalContractTests(unittest.TestCase):
             trace={
                 "schema": "lesson_trace_v1",
                 "intentional": True,
-                "affordance": "filter",
+                "affordance": "winnow",
                 "inscription_quality": 1.0,
                 "method_quality": 0.8,
                 "tool_feedback": 1.0,
                 "lesson": {
                     "kind": "tool_use",
-                    "affordance": "filter",
+                    "affordance": "winnow",
                     "success": True,
                     "gain": 1.0,
                     "score": 0.7,
-                    "problem": {"kind": "resource", "required_affordance": "filter"},
+                    "problem": {"kind": "resource", "required_affordance": "winnow"},
                 },
             },
         )
@@ -466,23 +466,23 @@ class CausalContractTests(unittest.TestCase):
             intensity=1.0,
             durability=160.0,
             trace={
-                "affordance": "conduct",
+                "affordance": "ferry",
                 "inscription_quality": 1.0,
                 "method_quality": 1.0,
                 "tool_feedback": 1.0,
             },
         )
-        before = reader.tool_skill["filter"]
-        before_conduct = reader.tool_skill["conduct"]
+        before = reader.tool_skill["winnow"]
+        before_conduct = reader.tool_skill["ferry"]
 
         self.sim._observe_others(reader, {"reproduction": 0.0, "social": 0.0, "tool": 0.0})
 
-        self.assertGreater(reader.tool_skill["filter"], before)
-        self.assertEqual(reader.tool_skill["conduct"], before_conduct)
-        self.assertEqual(self.sim.mark_lessons["filter"], 1)
+        self.assertGreater(reader.tool_skill["winnow"], before)
+        self.assertEqual(reader.tool_skill["ferry"], before_conduct)
+        self.assertEqual(self.sim.mark_lessons["winnow"], 1)
         self.assertGreater(reader.success_profile["written_learning"], 0.0)
         self.assertGreater(reader.tool_skill["interpret_mark"], 0.0)
-        self.assertEqual(reader.lesson_memory[-1]["affordance"], "filter")
+        self.assertEqual(reader.lesson_memory[-1]["affordance"], "winnow")
         self.assertEqual(self.sim.world.places[0].marks[0].reads, 1)
         self.assertGreater(self.sim.world.places[0].marks[0].value_transmitted, 0.0)
 
@@ -510,7 +510,7 @@ class CausalContractTests(unittest.TestCase):
             trace={
                 "schema": "lesson_trace_v1",
                 "intentional": True,
-                "affordance": "filter",
+                "affordance": "winnow",
                 "inscription_quality": 1.0,
                 "writing_quality": quality,
                 "coherence": quality,
@@ -519,11 +519,11 @@ class CausalContractTests(unittest.TestCase):
                 "tool_feedback": 1.0,
                 "lesson": {
                     "kind": "tool_use",
-                    "affordance": "filter",
+                    "affordance": "winnow",
                     "success": True,
                     "gain": 1.0,
                     "score": 0.7,
-                    "problem": {"kind": "resource", "required_affordance": "filter"},
+                    "problem": {"kind": "resource", "required_affordance": "winnow"},
                 },
             },
         )
@@ -539,7 +539,7 @@ class CausalContractTests(unittest.TestCase):
                 return tuple(values)[0]
 
         self.sim.rng = ZeroRng()  # type: ignore[assignment]
-        before_skill = reader.tool_skill["filter"]
+        before_skill = reader.tool_skill["winnow"]
         before_interpret = reader.tool_skill["interpret_mark"]
 
         self.sim._observe_others(reader, {"reproduction": 0.0, "social": 0.0, "tool": 0.0})
@@ -549,7 +549,7 @@ class CausalContractTests(unittest.TestCase):
         self.sim._tmpdir.cleanup()  # type: ignore[attr-defined]
         self.sim = None  # type: ignore[assignment]
         return {
-            "skill_gain": reader.tool_skill["filter"] - before_skill,
+            "skill_gain": reader.tool_skill["winnow"] - before_skill,
             "interpret_gain": reader.tool_skill["interpret_mark"] - before_interpret,
             "mark_value": mark.value_transmitted,
         }
@@ -572,7 +572,7 @@ class CausalContractTests(unittest.TestCase):
             trace={
                 "schema": "lesson_trace_v1",
                 "intentional": True,
-                "affordance": "filter",
+                "affordance": "winnow",
                 "inscription_quality": 1.0,
                 "writing_quality": 0.95,
                 "coherence": 0.95,
@@ -581,11 +581,11 @@ class CausalContractTests(unittest.TestCase):
                 "tool_feedback": 1.0,
                 "lesson": {
                     "kind": "tool_use",
-                    "affordance": "filter",
+                    "affordance": "winnow",
                     "success": True,
                     "gain": 1.0,
                     "score": 0.7,
-                    "problem": {"kind": "resource", "required_affordance": "filter"},
+                    "problem": {"kind": "resource", "required_affordance": "winnow"},
                 },
             },
         )
@@ -607,7 +607,7 @@ class CausalContractTests(unittest.TestCase):
 
         self.assertGreater(writer.tool_skill["inscribe"], before)
         self.assertGreater(writer.success_profile["knowledge_transmitted"], 0.0)
-        self.assertGreater(self.sim.mark_author_feedbacks["filter"], 0.0)
+        self.assertGreater(self.sim.mark_author_feedbacks["winnow"], 0.0)
 
     def test_self_reading_counts_as_memory_not_knowledge_transmission(self) -> None:
         self.sim = make_sim()
@@ -625,7 +625,7 @@ class CausalContractTests(unittest.TestCase):
             trace={
                 "schema": "lesson_trace_v1",
                 "intentional": True,
-                "affordance": "filter",
+                "affordance": "winnow",
                 "inscription_quality": 1.0,
                 "writing_quality": 0.95,
                 "coherence": 0.95,
@@ -634,11 +634,11 @@ class CausalContractTests(unittest.TestCase):
                 "tool_feedback": 1.0,
                 "lesson": {
                     "kind": "tool_use",
-                    "affordance": "filter",
+                    "affordance": "winnow",
                     "success": True,
                     "gain": 1.0,
                     "score": 0.7,
-                    "problem": {"kind": "resource", "required_affordance": "filter"},
+                    "problem": {"kind": "resource", "required_affordance": "winnow"},
                 },
             },
         )
@@ -655,15 +655,15 @@ class CausalContractTests(unittest.TestCase):
 
         self.sim.rng = ZeroRng()  # type: ignore[assignment]
         before_inscribe = agent.tool_skill["inscribe"]
-        before_filter = agent.tool_skill["filter"]
+        before_filter = agent.tool_skill["winnow"]
 
         self.sim._observe_others(agent, {"reproduction": 0.0, "social": 0.0, "tool": 0.0})
 
         self.assertEqual(agent.tool_skill["inscribe"], before_inscribe)
-        self.assertGreater(agent.tool_skill["filter"], before_filter)
+        self.assertGreater(agent.tool_skill["winnow"], before_filter)
         self.assertGreater(agent.success_profile["written_learning"], 0.0)
         self.assertEqual(agent.success_profile["knowledge_transmitted"], 0.0)
-        self.assertEqual(self.sim.mark_author_feedbacks["filter"], 0.0)
+        self.assertEqual(self.sim.mark_author_feedbacks["winnow"], 0.0)
 
     def test_record_artifact_can_carry_lesson_trace_across_places(self) -> None:
         self.sim = make_sim(places=4)
@@ -677,7 +677,7 @@ class CausalContractTests(unittest.TestCase):
         trace = {
             "schema": "lesson_trace_v1",
             "intentional": True,
-            "affordance": "filter",
+            "affordance": "winnow",
             "inscription_quality": 1.0,
             "writing_quality": 0.95,
             "coherence": 0.95,
@@ -686,11 +686,11 @@ class CausalContractTests(unittest.TestCase):
             "tool_feedback": 1.0,
             "lesson": {
                 "kind": "tool_use",
-                "affordance": "filter",
+                "affordance": "winnow",
                 "success": True,
                 "gain": 1.0,
                 "score": 0.7,
-                "problem": {"kind": "resource", "required_affordance": "filter"},
+                "problem": {"kind": "resource", "required_affordance": "winnow"},
             },
         }
         self.sim._inscribe_portable_mark(agent, artifact, token=3, intensity=1.0, durability=160.0, trace=trace)
@@ -707,14 +707,14 @@ class CausalContractTests(unittest.TestCase):
                 return tuple(values)[0]
 
         self.sim.rng = ZeroRng()  # type: ignore[assignment]
-        before = agent.tool_skill["filter"]
+        before = agent.tool_skill["winnow"]
 
         self.sim._observe_others(agent, {"reproduction": 0.0, "social": 0.0, "tool": 0.0})
 
-        self.assertGreater(agent.tool_skill["filter"], before)
+        self.assertGreater(agent.tool_skill["winnow"], before)
         self.assertEqual(artifact.inscriptions[0]["reads"], 1)
         self.assertGreater(artifact.inscriptions[0]["value_transmitted"], 0.0)
-        self.assertGreater(self.sim.portable_mark_reads["filter"], 0)
+        self.assertGreater(self.sim.portable_mark_reads["winnow"], 0)
 
     def test_carry_artifact_expands_material_capacity(self) -> None:
         self.sim = make_sim()
@@ -778,7 +778,7 @@ class CausalContractTests(unittest.TestCase):
         protected = self.sim.add_individual("agent", fragile, 0, 80.0)
         assert unprotected is not None and protected is not None
         protected.artifacts.append(build_artifact({"fiber": 2, "resin": 1}, method_quality=1.0, target_affordance="insulate"))
-        protected.artifacts.append(build_artifact({"crystal": 1, "stone": 1}, method_quality=1.0, target_affordance="concentrate_heat"))
+        protected.artifacts.append(build_artifact({"crystal": 1, "stone": 1}, method_quality=1.0, target_affordance="kindle"))
 
         self.sim._habitat_stress(unprotected)
         self.sim._habitat_stress(protected)
@@ -871,7 +871,7 @@ class CausalContractTests(unittest.TestCase):
         writer.record_lesson(
             {
                 "kind": "tool_use",
-                "affordance": "filter",
+                "affordance": "winnow",
                 "success": True,
                 "gain": 6.0,
                 "score": 0.8,
@@ -881,8 +881,8 @@ class CausalContractTests(unittest.TestCase):
                     "kind": "obstacle",
                     "obstacle": "water",
                     "severity": 0.8,
-                    "required_affordance": "filter",
-                    "required_capability": "filter",
+                    "required_affordance": "winnow",
+                    "required_capability": "winnow",
                 },
             }
         )
@@ -905,32 +905,32 @@ class CausalContractTests(unittest.TestCase):
         trace = self.sim.world.places[0].marks[-1].trace
         self.assertTrue(trace["intentional"])
         self.assertEqual(trace["schema"], "lesson_trace_v1")
-        self.assertEqual(trace["lesson"]["affordance"], "filter")
+        self.assertEqual(trace["lesson"]["affordance"], "winnow")
         self.assertIn("problem", trace["lesson"])
         self.assertGreater(writer.tool_skill["inscribe"], before)
-        self.assertEqual(self.sim.mark_lesson_packets["filter"], 1)
+        self.assertEqual(self.sim.mark_lesson_packets["winnow"], 1)
 
     def test_causal_challenge_unlocks_after_affordance_sequence(self) -> None:
         self.sim = make_sim()
         agent = self.sim.add_individual("agent", ParamVector.neural(self.sim.rng), 0, 80.0)
         assert agent is not None
         place = self.sim.world.places[0]
-        before = place.resources["chemical"]
+        before = place.resources["essence"]
         place.causal_challenge = CausalChallenge(
-            sequence=("contain", "filter"),
-            payoff_energy="chemical",
+            sequence=("encase", "winnow"),
+            payoff_energy="essence",
             payoff_remaining=10.0,
             difficulty=0.0,
         )
         feedback = {"reproduction": 0.0, "social": 0.0, "tool": 0.0}
 
-        first_gain = self.sim._advance_causal_challenge(agent, place, "contain", competence=1.0, feedback=feedback)
-        second_gain = self.sim._advance_causal_challenge(agent, place, "filter", competence=1.0, feedback=feedback)
+        first_gain = self.sim._advance_causal_challenge(agent, place, "encase", competence=1.0, feedback=feedback)
+        second_gain = self.sim._advance_causal_challenge(agent, place, "winnow", competence=1.0, feedback=feedback)
 
         self.assertGreater(first_gain, 0.0)
         self.assertGreater(second_gain, 0.0)
-        self.assertGreater(place.resources["chemical"], before)
-        self.assertEqual(self.sim.causal_unlocks["contain>filter"], 1)
+        self.assertGreater(place.resources["essence"], before)
+        self.assertEqual(self.sim.causal_unlocks["encase>winnow"], 1)
         self.assertGreater(agent.success_profile["causal_unlock"], 0.0)
         self.sim.logger.flush()
         story_records = [
@@ -981,20 +981,20 @@ class CausalContractTests(unittest.TestCase):
         agent = self.sim.add_individual("agent", ParamVector.neural(self.sim.rng), 0, 80.0)
         assert agent is not None
 
-        self.sim._tool_effect(agent, self.sim.world.places[0], "bind", score=1.0, skill=0.0)
+        self.sim._tool_effect(agent, self.sim.world.places[0], "lash", score=1.0, skill=0.0)
 
-        self.assertGreater(agent.tool_skill["bind"], 0.0)
+        self.assertGreater(agent.tool_skill["lash"], 0.0)
         self.assertGreater(agent.tool_skill["craft"], 0.0)
         self.assertGreater(agent.tool_skill["build"], 0.0)
-        self.assertEqual(agent.tool_skill["conduct"], 0.0)
-        self.assertEqual(agent.tool_skill["concentrate_heat"], 0.0)
+        self.assertEqual(agent.tool_skill["ferry"], 0.0)
+        self.assertEqual(agent.tool_skill["kindle"], 0.0)
 
     def test_specialists_keep_cognitive_credit_from_repeated_practice(self) -> None:
         self.sim = make_sim()
         agent = self.sim.add_individual("agent", ParamVector.neural(self.sim.rng), 0, 80.0)
         assert agent is not None
-        agent.tool_skill["bind"] = 1.0
-        agent.tool_use_counts = {"bind": 96}
+        agent.tool_skill["lash"] = 1.0
+        agent.tool_use_counts = {"lash": 96}
 
         control = self.sim._skill_breadth(agent)
 
@@ -1189,7 +1189,7 @@ class CausalContractTests(unittest.TestCase):
         self.assertGreater(places["trench"].physics["pressure"], 0.75)
         self.assertGreater(places["hydrothermal_vent"].resources["thermal"], 40.0)
         self.assertGreaterEqual(places["high_ridge"].physics["elevation"], 0.72)
-        self.assertGreater(places["mineral_scree"].locked_chemical, 20.0)
+        self.assertGreater(places["mineral_scree"].sealed_essence, 20.0)
 
     def test_structure_decay_couples_materials_to_environment(self) -> None:
         conductive = build_structure({"crystal": 6})
@@ -1200,7 +1200,7 @@ class CausalContractTests(unittest.TestCase):
             "salinity": 0.0,
             "oxygen": 0.25,
             "acidity": 0.04,
-            "biological_activity": 0.02,
+            "organic_activity": 0.02,
             "abrasion": 0.02,
             "wet_dry_cycle": 0.03,
             "current_exposure": 0.0,
@@ -1223,7 +1223,7 @@ class CausalContractTests(unittest.TestCase):
         dry_decay = structure_decay_channels(conductive, dry)
         wet_decay = structure_decay_channels(conductive, salty_wet)
 
-        self.assertGreater(wet_decay["chemical"], dry_decay["chemical"] * 3.0)
+        self.assertGreater(wet_decay["essence"], dry_decay["essence"] * 3.0)
         self.assertGreater(sum(wet_decay.values()), sum(dry_decay.values()))
 
     def test_durable_materials_decay_less_than_organic_materials_in_wet_biology(self) -> None:
@@ -1236,7 +1236,7 @@ class CausalContractTests(unittest.TestCase):
             "salinity": 0.20,
             "oxygen": 0.50,
             "acidity": 0.18,
-            "biological_activity": 0.92,
+            "organic_activity": 0.92,
             "abrasion": 0.10,
             "wet_dry_cycle": 0.30,
             "current_exposure": 0.08,
@@ -1850,7 +1850,7 @@ class TexturedHarshnessTests(unittest.TestCase):
         "salinity": 0.1,
     }
     BASELINE_OBSTACLES = {"water": 0.1, "thorn": 0.1, "height": 0.1, "heat": 0.1}
-    BASELINE_RESOURCES = {"biological_storage": 30.0}
+    BASELINE_RESOURCES = {"organic_store": 30.0}
 
     def _make(self, **overrides) -> "CausalChallenge | None":
         from microcosmic_god.world import World
@@ -1862,7 +1862,7 @@ class TexturedHarshnessTests(unittest.TestCase):
         obstacles.update(overrides.pop("obstacles", {}))
         resources.update(overrides.pop("resources", {}))
         params = dict(
-            locked_chemical=40.0,
+            sealed_essence=40.0,
             water=0.4,
             sun=0.3,
             geo=0.3,
@@ -1879,13 +1879,13 @@ class TexturedHarshnessTests(unittest.TestCase):
         challenge = self._make()
         self.assertIsNotNone(challenge)
         # In a temperate, dry, low-pressure place the sequence should not be
-        # prefixed with concentrate_heat / contain / bind.
-        self.assertNotIn(challenge.sequence[0], {"concentrate_heat", "contain", "bind"})
+        # prefixed with kindle / encase / lash.
+        self.assertNotIn(challenge.sequence[0], {"kindle", "encase", "lash"})
 
-    def test_cold_place_prepends_concentrate_heat(self) -> None:
+    def test_cold_place_prepends_kindle(self) -> None:
         challenge = self._make(physics={"temperature": 0.10})
         self.assertIsNotNone(challenge)
-        self.assertEqual(challenge.sequence[0], "concentrate_heat")
+        self.assertEqual(challenge.sequence[0], "kindle")
 
     def test_flooded_place_prepends_contain(self) -> None:
         challenge = self._make(
@@ -1893,20 +1893,20 @@ class TexturedHarshnessTests(unittest.TestCase):
             obstacles={"water": 0.50},
         )
         self.assertIsNotNone(challenge)
-        # contain may collide with the base sequence (contain, filter); in that
-        # case the dedup keeps the sequence unchanged. Either contain is in
+        # encase may collide with the base sequence (encase, winnow); in that
+        # case the dedup keeps the sequence unchanged. Either encase is in
         # position 0 or the original sequence already starts with it.
-        self.assertEqual(challenge.sequence[0], "contain")
+        self.assertEqual(challenge.sequence[0], "encase")
 
     def test_high_pressure_place_prepends_contain(self) -> None:
         challenge = self._make(physics={"pressure": 0.55})
         self.assertIsNotNone(challenge)
-        self.assertEqual(challenge.sequence[0], "contain")
+        self.assertEqual(challenge.sequence[0], "encase")
 
     def test_unstable_place_prepends_bind(self) -> None:
         challenge = self._make(physics={"abrasion": 0.45})
         self.assertIsNotNone(challenge)
-        self.assertEqual(challenge.sequence[0], "bind")
+        self.assertEqual(challenge.sequence[0], "lash")
 
     def test_cold_and_flooded_stacks_two_prep_steps(self) -> None:
         challenge = self._make(
@@ -1914,19 +1914,19 @@ class TexturedHarshnessTests(unittest.TestCase):
             obstacles={"water": 0.50},
         )
         self.assertIsNotNone(challenge)
-        self.assertEqual(challenge.sequence[0], "concentrate_heat")
-        self.assertEqual(challenge.sequence[1], "contain")
+        self.assertEqual(challenge.sequence[0], "kindle")
+        self.assertEqual(challenge.sequence[1], "encase")
 
     def test_prep_step_not_duplicated_when_base_sequence_already_contains_it(self) -> None:
-        # A water-flow place whose base sequence is (contain, filter) and which
-        # is also high-pressure: prep "contain" should be dropped since it's
+        # A water-flow place whose base sequence is (encase, winnow) and which
+        # is also high-pressure: prep "encase" should be dropped since it's
         # already in the base sequence.
         challenge = self._make(
             water=0.95,
             physics={"pressure": 0.55, "current_exposure": 0.45},
         )
         self.assertIsNotNone(challenge)
-        self.assertEqual(challenge.sequence.count("contain"), 1)
+        self.assertEqual(challenge.sequence.count("encase"), 1)
 
 
 if __name__ == "__main__":

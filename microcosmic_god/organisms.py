@@ -53,7 +53,7 @@ ACTIONS = (
     "rest",
     "move",
     "eat",
-    "absorb_radiant",
+    "absorb_solar",
     "forage",
     "pickup",
     "craft",

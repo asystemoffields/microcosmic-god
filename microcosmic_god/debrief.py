@@ -26,9 +26,9 @@ def world_energy_summary(world: World) -> dict[str, float]:
     for place in world.places:
         for kind in ENERGY_KINDS:
             totals[kind] += place.resources[kind]
-        locked += place.locked_chemical
+        locked += place.sealed_essence
     totals = {kind: round(value, 4) for kind, value in totals.items()}
-    totals["locked_chemical"] = round(locked, 4)
+    totals["sealed_essence"] = round(locked, 4)
     return totals
 
 
@@ -43,7 +43,7 @@ def world_physics_summary(world: World) -> dict[str, Any]:
         "current_exposure",
         "oxygen",
         "acidity",
-        "biological_activity",
+        "organic_activity",
         "abrasion",
         "wet_dry_cycle",
         "interiority",
@@ -130,10 +130,10 @@ def build_debrief(sim: Any, reason: str, elapsed_seconds: float) -> dict[str, An
         likely_causes.append("full extinction")
     if counts.get("neural", 0) == 0:
         likely_causes.append("neural lineage extinction")
-    if energy.get("biological_storage", 0.0) < len(sim.world.places) * 2.0:
-        likely_causes.append("low accessible biological storage")
-    if energy.get("chemical", 0.0) < len(sim.world.places) * 4.0:
-        likely_causes.append("low accessible chemical energy")
+    if energy.get("organic_store", 0.0) < len(sim.world.places) * 2.0:
+        likely_causes.append("low accessible organic storage")
+    if energy.get("essence", 0.0) < len(sim.world.places) * 4.0:
+        likely_causes.append("low accessible essence energy")
     if sim.deaths_by_cause:
         likely_causes.append(f"dominant death cause: {sim.deaths_by_cause.most_common(1)[0][0]}")
     if not likely_causes:

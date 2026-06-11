@@ -42,16 +42,16 @@ from .world import Place, World
 
 
 SKILL_TRANSFER: dict[str, dict[str, float]] = {
-    "bind": {"craft": 0.35, "build": 0.18, "support": 0.12, "contain": 0.08, "carry": 0.08, "record": 0.05},
-    "craft": {"bind": 0.18, "build": 0.12},
-    "build": {"support": 0.24, "anchor": 0.14, "shelter": 0.08, "bind": 0.08},
-    "crack": {"lever": 0.14, "cut": 0.06},
-    "cut": {"crack": 0.06, "filter": 0.05},
-    "contain": {"filter": 0.14, "insulate": 0.08, "energy_storage": 0.08, "carry": 0.05},
-    "filter": {"contain": 0.10, "permeable": 0.08, "reaction_surface": 0.05},
-    "concentrate_heat": {"conduct": 0.12, "insulate": 0.06, "energy_storage": 0.04},
-    "conduct": {"concentrate_heat": 0.08, "energy_storage": 0.08, "gradient_harvest": 0.05},
-    "lever": {"traverse": 0.10, "support": 0.08, "crack": 0.05},
+    "lash": {"craft": 0.35, "build": 0.18, "support": 0.12, "encase": 0.08, "carry": 0.08, "record": 0.05},
+    "craft": {"lash": 0.18, "build": 0.12},
+    "build": {"support": 0.24, "anchor": 0.14, "shelter": 0.08, "lash": 0.08},
+    "cleave": {"hoist": 0.14, "shear": 0.06},
+    "shear": {"cleave": 0.06, "winnow": 0.05},
+    "encase": {"winnow": 0.14, "insulate": 0.08, "energy_storage": 0.08, "carry": 0.05},
+    "winnow": {"encase": 0.10, "permeable": 0.08, "reaction_surface": 0.05},
+    "kindle": {"ferry": 0.12, "insulate": 0.06, "energy_storage": 0.04},
+    "ferry": {"kindle": 0.08, "energy_storage": 0.08, "gradient_harvest": 0.05},
+    "hoist": {"traverse": 0.10, "support": 0.08, "cleave": 0.05},
     "traverse": {"anchor": 0.10, "float": 0.08, "support": 0.06},
     "protect": {"insulate": 0.08, "shelter": 0.05},
     "record": {"inscribe": 0.12, "carry": 0.06},
@@ -117,7 +117,7 @@ class Simulation:
         accumulated resource state.
 
         The point of multi-world is to invalidate controllers' memorized solutions
-        (place 7 needs concentrate_heat first, etc.) so that only controllers with
+        (place 7 needs kindle first, etc.) so that only controllers with
         abstracted causal rules survive. We do NOT want to also reset resource
         depletion, because that's a free buff to the pool — it lets
         energy-depleted lineages get re-supplied every refresh cycle, which masks the
@@ -129,8 +129,8 @@ class Simulation:
           - place.causal_challenge (the prep-step rules that controllers memorize)
           - place.archetype, sun_exposure, water_flow, geothermal, mineral_richness, volatility
         and KEEPS:
-          - place.resources (current chemical / biological_storage / thermal / etc.)
-          - place.locked_chemical (the unlocked-energy reserve)
+          - place.resources (current essence / organic_store / thermal / etc.)
+          - place.sealed_essence (the unlocked-energy reserve)
           - place.materials (currently accumulated materials)
           - place.structures, signals, marks (built artifacts persist across refreshes)
           - place.id, name, neighbors (graph topology preserved so movement stays valid)
@@ -149,7 +149,7 @@ class Simulation:
             old = self.world.places[i]
             new = new_world.places[i]
             new.resources = dict(old.resources)
-            new.locked_chemical = old.locked_chemical
+            new.sealed_essence = old.sealed_essence
             new.materials = dict(old.materials)
             new.structures = list(old.structures)
             new.signals = list(old.signals)
@@ -631,16 +631,16 @@ class Simulation:
         }
         primary = max(components, key=components.get)
         if primary == "cold":
-            required_affordance = "concentrate_heat"
+            required_affordance = "kindle"
             required_capability = "insulate"
         elif primary == "heat":
-            required_affordance = "concentrate_heat"
+            required_affordance = "kindle"
             required_capability = "shelter"
         elif primary == "wet":
-            required_affordance = "contain"
+            required_affordance = "encase"
             required_capability = "enclose"
         else:
-            required_affordance = "bind"
+            required_affordance = "lash"
             required_capability = "protect"
         score = max(0.0, min(1.5, cold * 0.72 + heat * 0.54 + wet * 0.42 + abrasion_pressure * 0.36))
         return {
@@ -681,7 +681,7 @@ class Simulation:
         destination_crowd = len(self._living_ids_at(destination.id)) / max(1.0, destination.capacity)
         origin_hazard = self._place_hazard_pressure(origin)
         destination_hazard = self._place_hazard_pressure(destination)
-        locked_pull = max(0.0, destination.locked_chemical - origin.locked_chemical) / 520.0
+        locked_pull = max(0.0, destination.sealed_essence - origin.sealed_essence) / 520.0
         material_pull = max(0.0, sum(destination.materials.values()) - sum(origin.materials.values())) / 120.0
         motivation = {
             "energy_gradient": max(0.0, destination_energy - origin_energy),
@@ -722,12 +722,12 @@ class Simulation:
         protection = artifact_capability(individual.artifacts, "protect")
         traverse = artifact_capability(individual.artifacts, "traverse")
         insulate = artifact_capability(individual.artifacts, "insulate")
-        contain = artifact_capability(individual.artifacts, "contain")
+        encase = artifact_capability(individual.artifacts, "encase")
         memory = min(1.0, individual.place_memory.get(destination.id, 0.0) * 2.0)
         skill = max(
             individual.tool_skill.get("traverse", 0.0) * 0.20,
             individual.tool_skill.get("protect", 0.0) * 0.18,
-            individual.tool_skill.get("contain", 0.0) * 0.12,
+            individual.tool_skill.get("encase", 0.0) * 0.12,
         )
         mitigation = min(
             0.72,
@@ -736,7 +736,7 @@ class Simulation:
             + protection * 0.20
             + traverse * 0.12
             + insulate * 0.10
-            + contain * 0.08
+            + encase * 0.08
             + skill,
         )
         return max(0.0, raw * (1.0 - mitigation))
@@ -846,12 +846,12 @@ class Simulation:
             }
 
         obstacle_options = [
-            (place.obstacles.get("height", 0.0), "height", "lever", "traverse"),
-            (place.obstacles.get("water", 0.0) + place.physics.get("current_exposure", 0.0) * 0.35, "water", "contain", "float"),
-            (place.obstacles.get("thorn", 0.0), "thorn", "cut", "cut"),
-            (place.obstacles.get("heat", 0.0), "heat", "concentrate_heat", "insulate"),
-            (place.physics.get("salinity", 0.0), "salinity", "filter", "filter"),
-            (place.physics.get("pressure", 0.0), "pressure", "contain", "anchor"),
+            (place.obstacles.get("height", 0.0), "height", "hoist", "traverse"),
+            (place.obstacles.get("water", 0.0) + place.physics.get("current_exposure", 0.0) * 0.35, "water", "encase", "float"),
+            (place.obstacles.get("thorn", 0.0), "thorn", "shear", "shear"),
+            (place.obstacles.get("heat", 0.0), "heat", "kindle", "insulate"),
+            (place.physics.get("salinity", 0.0), "salinity", "winnow", "winnow"),
+            (place.physics.get("pressure", 0.0), "pressure", "encase", "anchor"),
         ]
         exposure = self._place_exposure_pressure(place)
         obstacle_options.append(
@@ -879,11 +879,11 @@ class Simulation:
             }
 
         resource_options = [
-            (place.locked_chemical / 180.0, "locked_chemical", "crack", "chemical"),
-            (place.resources.get("mechanical", 0.0) / 180.0 + place.physics.get("current_exposure", 0.0) * 0.18, "mechanical_gradient", "contain", "mechanical"),
-            (place.resources.get("electrical", 0.0) / 140.0 + place.resources.get("high_density", 0.0) / 80.0, "electrical_source", "conduct", "electrical"),
-            (place.resources.get("radiant", 0.0) / 220.0 + place.resources.get("thermal", 0.0) / 240.0, "heat_source", "concentrate_heat", "thermal"),
-            (place.resources.get("chemical", 0.0) / 220.0 + place.resources.get("biological_storage", 0.0) / 220.0, "surface_food", "filter", "chemical"),
+            (place.sealed_essence / 180.0, "sealed_essence", "cleave", "essence"),
+            (place.resources.get("mechanical", 0.0) / 180.0 + place.physics.get("current_exposure", 0.0) * 0.18, "mechanical_gradient", "encase", "mechanical"),
+            (place.resources.get("electrical", 0.0) / 140.0 + place.resources.get("dense_node", 0.0) / 80.0, "electrical_source", "ferry", "electrical"),
+            (place.resources.get("solar", 0.0) / 220.0 + place.resources.get("thermal", 0.0) / 240.0, "heat_source", "kindle", "thermal"),
+            (place.resources.get("essence", 0.0) / 220.0 + place.resources.get("organic_store", 0.0) / 220.0, "surface_food", "winnow", "essence"),
         ]
         value, resource, required_affordance, energy = max(resource_options, key=lambda item: item[0])
         if target_affordance:
@@ -957,23 +957,23 @@ class Simulation:
         elif kind == "obstacle":
             obstacle = str(problem.get("obstacle") or "")
             alternatives = {
-                "height": {"lever": 0.24, "crack": 0.08, "bind": 0.06},
-                "water": {"contain": 0.25, "filter": 0.16, "bind": 0.06},
-                "thorn": {"cut": 0.26, "bind": 0.08},
-                "heat": {"concentrate_heat": 0.20, "contain": 0.07, "filter": 0.05},
-                "salinity": {"filter": 0.28, "contain": 0.10},
-                "pressure": {"contain": 0.20, "bind": 0.07, "lever": 0.06},
+                "height": {"hoist": 0.24, "cleave": 0.08, "lash": 0.06},
+                "water": {"encase": 0.25, "winnow": 0.16, "lash": 0.06},
+                "thorn": {"shear": 0.26, "lash": 0.08},
+                "heat": {"kindle": 0.20, "encase": 0.07, "winnow": 0.05},
+                "salinity": {"winnow": 0.28, "encase": 0.10},
+                "pressure": {"encase": 0.20, "lash": 0.07, "hoist": 0.06},
             }
             fit += alternatives.get(obstacle, {}).get(affordance, 0.0)
             fit *= 0.78 + min(0.40, float(problem.get("severity", 0.0) or 0.0))
         elif kind == "resource":
             resource = str(problem.get("resource") or "")
             alternatives = {
-                "locked_chemical": {"crack": 0.26, "lever": 0.17, "conduct": 0.04},
-                "mechanical_gradient": {"contain": 0.20, "lever": 0.12, "bind": 0.08},
-                "electrical_source": {"conduct": 0.30, "contain": 0.05},
-                "heat_source": {"concentrate_heat": 0.24, "conduct": 0.08},
-                "surface_food": {"filter": 0.24, "cut": 0.10, "contain": 0.06},
+                "sealed_essence": {"cleave": 0.26, "hoist": 0.17, "ferry": 0.04},
+                "mechanical_gradient": {"encase": 0.20, "hoist": 0.12, "lash": 0.08},
+                "electrical_source": {"ferry": 0.30, "encase": 0.05},
+                "heat_source": {"kindle": 0.24, "ferry": 0.08},
+                "surface_food": {"winnow": 0.24, "shear": 0.10, "encase": 0.06},
             }
             fit += alternatives.get(resource, {}).get(affordance, 0.0)
             fit *= 0.78 + min(0.36, float(problem.get("value", 0.0) or 0.0))
@@ -1185,13 +1185,13 @@ class Simulation:
         anchor = max(artifact_capability(individual.artifacts, "anchor"), structure_capability(place.structures, "anchor") * 0.35)
         traverse = max(artifact_capability(individual.artifacts, "traverse"), structure_capability(place.structures, "support") * 0.25)
         heat_control = max(
-            artifact_capability(individual.artifacts, "concentrate_heat"),
-            structure_capability(place.structures, "concentrate_heat") * 0.45,
+            artifact_capability(individual.artifacts, "kindle"),
+            structure_capability(place.structures, "kindle") * 0.45,
             structure_capability(place.structures, "gradient_harvest") * 0.24,
             structure_capability(place.structures, "energy_storage") * 0.20,
         )
         containment = max(
-            artifact_capability(individual.artifacts, "contain"),
+            artifact_capability(individual.artifacts, "encase"),
             structure_capability(place.structures, "enclose") * 0.42,
             structure_capability(place.structures, "channel") * 0.22,
         )
@@ -1251,8 +1251,8 @@ class Simulation:
             self._wear_artifacts(individual, "insulate", amount=exposure_severity * (0.08 + insulation * 0.10))
             self._increase_skill(individual, "insulate", exposure_severity * 0.006, transfer=0.05)
         if heat_control > 0.0 and exposure_severity > 0.08:
-            self._wear_artifacts(individual, "concentrate_heat", amount=exposure_severity * (0.05 + heat_control * 0.08))
-            self._increase_skill(individual, "concentrate_heat", exposure_severity * 0.005, transfer=0.05)
+            self._wear_artifacts(individual, "kindle", amount=exposure_severity * (0.05 + heat_control * 0.08))
+            self._increase_skill(individual, "kindle", exposure_severity * 0.005, transfer=0.05)
         if tool_exposure_buffer > 0.05 and buffered_exposure > 0.05:
             self.physics_events["tool_buffered_exposure"] += 1
             individual.record_success("tool_use", min(0.12, min(buffered_exposure, tool_exposure_buffer) * 0.03))
@@ -1274,7 +1274,7 @@ class Simulation:
 
     def _observe(self, individual: Individual, rosters: dict[int, list[int]]) -> list[float]:
         place = self.world.places[individual.location]
-        resources = [place.resources[kind] / 120.0 for kind in ("radiant", "chemical", "biological_storage", "thermal", "mechanical", "electrical", "high_density")]
+        resources = [place.resources[kind] / 120.0 for kind in ("solar", "essence", "organic_store", "thermal", "mechanical", "electrical", "dense_node")]
         local_ids = rosters.get(place.id, [])
         local_neural = sum(1 for oid in local_ids if self.organisms[oid].neural)
         best_skill = self._skill_breadth(individual)
@@ -1284,7 +1284,7 @@ class Simulation:
             individual.health,
             min(1.0, individual.age / 2_000.0),
             *resources,
-            place.locked_chemical / 160.0,
+            place.sealed_essence / 160.0,
             len(local_ids) / max(1.0, place.capacity),
             local_neural / max(1.0, len(local_ids)),
             individual.inventory_count() / max(1.0, individual.inventory_limit()),
@@ -1308,7 +1308,7 @@ class Simulation:
             place.physics.get("shelter", 0.0),
             place.physics.get("oxygen", 0.35),
             place.physics.get("acidity", 0.10),
-            place.physics.get("biological_activity", 0.0),
+            place.physics.get("organic_activity", 0.0),
             place.physics.get("abrasion", 0.0),
             place.physics.get("wet_dry_cycle", 0.0),
             place.physics.get("elevation", 0.5),
@@ -1342,7 +1342,7 @@ class Simulation:
             if individual.energy > self.optimization.clone_mutate_reserve_threshold(individual) and self.rng.random() < non_neural_birth_rate:
                 return "clone_mutate"
             if individual.kind == "plant":
-                return "absorb_radiant"
+                return "absorb_solar"
             if individual.kind == "fungus":
                 return "eat" if self.rng.random() < 0.72 else "forage"
             return "rest"
@@ -1408,8 +1408,8 @@ class Simulation:
             self._move(individual, feedback)
         elif action == "eat":
             self._eat(individual)
-        elif action == "absorb_radiant":
-            self._absorb_radiant(individual)
+        elif action == "absorb_solar":
+            self._absorb_solar(individual)
         elif action == "forage":
             self._forage(individual)
         elif action == "pickup":
@@ -1468,7 +1468,7 @@ class Simulation:
         insulation = max(artifact_capability(individual.artifacts, "insulate"), structure_capability(destination.structures, "shelter") * 0.35)
         float_cap = artifact_capability(individual.artifacts, "float")
         anchor = max(artifact_capability(individual.artifacts, "anchor"), structure_capability(place.structures, "anchor") * 0.25)
-        cut = max(individual.tool_skill.get("cut", 0.0), artifact_capability(individual.artifacts, "cut"))
+        shear = max(individual.tool_skill.get("shear", 0.0), artifact_capability(individual.artifacts, "shear"))
         aquatic_fit = individual.params.aquatic_affinity
         slope = edge.slope_from(place.id) if edge else 0.0
         current = edge.current_from(place.id) if edge else 0.0
@@ -1482,13 +1482,13 @@ class Simulation:
         barrier = (
             destination.obstacles.get("water", 0.0) * (1.0 - max(traverse, aquatic_fit))
             + destination.obstacles.get("height", 0.0) * (1.0 - max(traverse, individual.params.mobility))
-            + destination.obstacles.get("thorn", 0.0) * (1.0 - max(cut, individual.params.armor))
+            + destination.obstacles.get("thorn", 0.0) * (1.0 - max(shear, individual.params.armor))
             + destination.obstacles.get("heat", 0.0) * (1.0 - max(insulation, individual.params.thermal_tolerance))
             + edge_required * (1.0 - max(traverse, float_cap, anchor * 0.65, individual.params.mobility))
             + uphill * (1.0 - max(traverse, individual.params.mobility))
             + against_current * (1.0 - max(traverse, float_cap, aquatic_fit, anchor * 0.55))
             + downhill * (1.0 - max(traverse, anchor, individual.params.mobility)) * 0.35
-            + boundary * (1.0 - max(traverse, individual.params.manipulator * 0.35, cut * 0.25))
+            + boundary * (1.0 - max(traverse, individual.params.manipulator * 0.35, shear * 0.25))
         ) / 6.10
         solo_success = (
             individual.params.mobility
@@ -1621,7 +1621,7 @@ class Simulation:
                     continue
                 chosen = max(
                     choices,
-                    key=lambda name: MATERIALS[name].properties.get("bindable", 0.0)
+                    key=lambda name: MATERIALS[name].properties.get("lashable", 0.0)
                     + MATERIALS[name].properties.get("hard", 0.0) * 0.55
                     + MATERIALS[name].properties.get("length", 0.0) * 0.22
                     + self.rng.random() * 0.03,
@@ -1642,21 +1642,21 @@ class Simulation:
 
     def _eat(self, individual: Individual) -> None:
         place = self.world.places[individual.location]
-        appetite = 2.0 + individual.params.chemical_conversion * 7.0 + individual.params.chemical_energy_gain * 3.0
-        chemical = min(place.resources["chemical"], appetite * 0.55)
-        place.resources["chemical"] -= chemical
-        biological = min(place.resources["biological_storage"], appetite - chemical)
-        place.resources["biological_storage"] -= biological
-        gain = chemical * individual.params.chemical_energy_gain + biological * (0.45 + individual.params.chemical_conversion * 0.80)
+        appetite = 2.0 + individual.params.essence_conversion * 7.0 + individual.params.essence_energy_gain * 3.0
+        essence = min(place.resources["essence"], appetite * 0.55)
+        place.resources["essence"] -= essence
+        organic = min(place.resources["organic_store"], appetite - essence)
+        place.resources["organic_store"] -= organic
+        gain = essence * individual.params.essence_energy_gain + organic * (0.45 + individual.params.essence_conversion * 0.80)
         individual.energy += gain
 
-    def _absorb_radiant(self, individual: Individual) -> None:
+    def _absorb_solar(self, individual: Individual) -> None:
         place = self.world.places[individual.location]
-        gain = place.resources["radiant"] * 0.018 * individual.params.radiant_energy_gain * (0.2 + individual.params.radiant_capture_area)
+        gain = place.resources["solar"] * 0.018 * individual.params.solar_energy_gain * (0.2 + individual.params.solar_capture_area)
         thermal_stress = max(0.0, place.resources["thermal"] / 120.0 - individual.params.thermal_tolerance)
         individual.energy += gain
         individual.health -= thermal_stress * 0.003
-        place.resources["biological_storage"] += gain * 0.18
+        place.resources["organic_store"] += gain * 0.18
         if individual.health <= 0.0:
             self._deactivate(individual, "thermal_stress")
 
@@ -1665,7 +1665,7 @@ class Simulation:
         planning = self._interaction_control(individual)
         individual.energy -= (0.025 + individual.params.sensor_range * 0.020) * (1.0 - planning * 0.10)
         if self.rng.random() < 0.18 + individual.params.sensor_range * 0.45 + planning * 0.09:
-            found = self.rng.choice(("chemical", "biological_storage", "mechanical"))
+            found = self.rng.choice(("essence", "organic_store", "mechanical"))
             amount = self.rng.uniform(0.2, 1.6) * (0.5 + individual.params.sensor_range) * (1.0 + planning * 0.25)
             place.resources[found] = min(180.0, place.resources[found] + amount)
         if self.rng.random() < 0.08 + individual.params.sensor_range * 0.12 + planning * 0.04:
@@ -1696,14 +1696,14 @@ class Simulation:
         exposure_severity = float(exposure["severity"])
         cold_exposure = float(exposure["components"].get("cold", 0.0)) if isinstance(exposure.get("components"), dict) else 0.0
         scores = {
-            "crack": place.locked_chemical / 180.0 + place.mineral_richness * 0.25,
-            "cut": place.obstacles.get("thorn", 0.0) * 0.62 + place.resources["biological_storage"] / 220.0,
-            "bind": individual.tool_skill.get("craft", 0.0) * 0.35 + individual.inventory_count() / max(1.0, individual.inventory_limit()) * 0.16,
-            "contain": place.obstacles.get("water", 0.0) * 0.30 + place.physics.get("current_exposure", 0.0) * 0.34 + place.resources["mechanical"] / 240.0,
-            "concentrate_heat": place.resources["radiant"] / 220.0 + place.resources["thermal"] / 260.0 + place.obstacles.get("heat", 0.0) * 0.12 + cold_exposure * 0.42,
-            "conduct": place.resources["electrical"] / 160.0 + place.resources["high_density"] / 90.0 + place.mineral_richness * place.geothermal * 0.55,
-            "lever": place.locked_chemical / 230.0 + place.obstacles.get("height", 0.0) * 0.40,
-            "filter": place.physics.get("current_exposure", 0.0) * 0.36 + place.physics.get("salinity", 0.0) * 0.18 + place.resources["chemical"] / 260.0,
+            "cleave": place.sealed_essence / 180.0 + place.mineral_richness * 0.25,
+            "shear": place.obstacles.get("thorn", 0.0) * 0.62 + place.resources["organic_store"] / 220.0,
+            "lash": individual.tool_skill.get("craft", 0.0) * 0.35 + individual.inventory_count() / max(1.0, individual.inventory_limit()) * 0.16,
+            "encase": place.obstacles.get("water", 0.0) * 0.30 + place.physics.get("current_exposure", 0.0) * 0.34 + place.resources["mechanical"] / 240.0,
+            "kindle": place.resources["solar"] / 220.0 + place.resources["thermal"] / 260.0 + place.obstacles.get("heat", 0.0) * 0.12 + cold_exposure * 0.42,
+            "ferry": place.resources["electrical"] / 160.0 + place.resources["dense_node"] / 90.0 + place.mineral_richness * place.geothermal * 0.55,
+            "hoist": place.sealed_essence / 230.0 + place.obstacles.get("height", 0.0) * 0.40,
+            "winnow": place.physics.get("current_exposure", 0.0) * 0.36 + place.physics.get("salinity", 0.0) * 0.18 + place.resources["essence"] / 260.0,
             "carry": max(0.0, individual.inventory_count() / max(1.0, individual.inventory_limit()) - 0.55) + individual.tool_skill.get("pickup", 0.0) * 0.04,
             "insulate": exposure_severity * 0.56 + cold_exposure * 0.35 + max(0.0, 0.42 - place.physics.get("temperature", 0.5)) * 0.20,
             "protect": (
@@ -1747,10 +1747,10 @@ class Simulation:
         properties = component_properties(trial)
         capabilities = derive_artifact_capabilities(properties)
         target_fit = capabilities.get(target, 0.0)
-        bind_fit = capabilities.get("bind", 0.0)
-        durability_fit = properties.get("hard", 0.0) * 0.20 + properties.get("bindable", 0.0) * 0.12 + properties.get("flexible", 0.0) * 0.05
+        lash_fit = capabilities.get("lash", 0.0)
+        durability_fit = properties.get("hard", 0.0) * 0.20 + properties.get("lashable", 0.0) * 0.12 + properties.get("flexible", 0.0) * 0.05
         diversity = len(trial) / max(1.0, sum(trial.values()))
-        return target_fit * 0.60 + bind_fit * 0.16 + durability_fit + diversity * planning * 0.08 + self.rng.random() * (0.10 - planning * 0.06)
+        return target_fit * 0.60 + lash_fit * 0.16 + durability_fit + diversity * planning * 0.08 + self.rng.random() * (0.10 - planning * 0.06)
 
     def _craft(self, individual: Individual, feedback: dict[str, float]) -> None:
         if individual.params.manipulator < 0.12 or individual.inventory_count() < 2 or len(individual.artifacts) >= individual.artifact_limit():
@@ -1768,12 +1768,12 @@ class Simulation:
             individual.energy -= 0.020
             return
         component_affordances = derive_affordances(components)
-        bind_help = component_affordances.get("bind", 0.0)
+        lash_help = component_affordances.get("lash", 0.0)
         target_fit = derive_artifact_capabilities(component_properties(components)).get(target, 0.0)
         best_skill = self._skill_breadth(individual)
         craft_skill = individual.tool_skill.get("craft", 0.0)
         target_skill = individual.tool_skill.get(target, 0.0)
-        material_gate = max(0.0, min(1.0, target_fit * 0.78 + bind_help * 0.16 + min(1.0, len(components) / max(1, sum(components.values()))) * 0.06))
+        material_gate = max(0.0, min(1.0, target_fit * 0.78 + lash_help * 0.16 + min(1.0, len(components) / max(1, sum(components.values()))) * 0.06))
         method_quality = max(
             0.0,
             min(
@@ -1783,7 +1783,7 @@ class Simulation:
                     planning * 0.30
                     + craft_skill * 0.24
                     + target_skill * 0.18
-                    + bind_help * 0.10
+                    + lash_help * 0.10
                     + target_fit * 0.18
                 ),
             ),
@@ -1791,7 +1791,7 @@ class Simulation:
         chance = min(
             0.96,
             individual.params.manipulator * 0.26
-            + bind_help * 0.22
+            + lash_help * 0.22
             + best_skill * 0.08
             + planning * 0.12
             + method_quality * 0.20
@@ -1799,9 +1799,9 @@ class Simulation:
         )
         individual.energy -= (0.12 + 0.04 * sum(components.values())) * (1.0 - method_quality * 0.18)
         if self.rng.random() > chance:
-            lost = self._lose_failed_craft_components(individual, components, bind_help)
+            lost = self._lose_failed_craft_components(individual, components, lash_help)
             skill_gain = 0.0015 + lost * 0.0035
-            self._increase_skill(individual, "bind", skill_gain, transfer=0.18)
+            self._increase_skill(individual, "lash", skill_gain, transfer=0.18)
             self._increase_skill(individual, "craft", skill_gain * 0.80, transfer=0.10)
             feedback["tool"] = feedback.get("tool", 0.0) + skill_gain
             self._record_tool_lesson(
@@ -1897,14 +1897,14 @@ class Simulation:
             return
 
         affordances = derive_affordances(components)
-        bind_help = affordances.get("bind", 0.0)
+        lash_help = affordances.get("lash", 0.0)
         build_skill = individual.tool_skill.get("build", 0.0)
         general_skill = self._skill_breadth(individual)
         mass_bonus = min(1.0, material_count / 8.0) * 0.12
         chance = min(
             0.94,
             individual.params.manipulator * 0.30
-            + bind_help * 0.26
+            + lash_help * 0.26
             + build_skill * 0.22
             + general_skill * 0.08
             + planning * 0.16
@@ -1913,12 +1913,12 @@ class Simulation:
         )
         individual.energy -= (0.16 + 0.035 * material_count) * (1.0 - planning * 0.10) * max(0.80, 1.0 - support * 0.18)
         if self.rng.random() > chance:
-            lost = self._lose_failed_craft_components(individual, actor_components, bind_help)
+            lost = self._lose_failed_craft_components(individual, actor_components, lash_help)
             self._increase_skill(individual, "build", 0.003 + lost * 0.003 + helper_components * 0.0008, transfer=0.14)
-            self._increase_skill(individual, "bind", 0.0015 + lost * 0.002, transfer=0.10)
+            self._increase_skill(individual, "lash", 0.0015 + lost * 0.002, transfer=0.10)
             feedback["tool"] = feedback.get("tool", 0.0) + 0.04 + lost * 0.01 + support * 0.04
             if support > 0.01:
-                self._apply_collaboration_effects(individual, "build", "failed_build", collaboration, bind_help)
+                self._apply_collaboration_effects(individual, "build", "failed_build", collaboration, lash_help)
             self.demonstrations[individual.location].append((individual.id, "build", False))
             self._record_tool_lesson(
                 individual,
@@ -1926,7 +1926,7 @@ class Simulation:
                 kind="build",
                 affordance="build",
                 success=False,
-                score=bind_help,
+                score=lash_help,
                 components=components,
             )
             return
@@ -1963,7 +1963,7 @@ class Simulation:
         feedback["tool"] = feedback.get("tool", 0.0) + 0.75 + support * 0.14
         if support > 0.01:
             feedback["social"] += support * 0.20
-            self._apply_collaboration_effects(individual, "build", "build", collaboration, bind_help + mass_bonus)
+            self._apply_collaboration_effects(individual, "build", "build", collaboration, lash_help + mass_bonus)
         self.demonstrations[place.id].append((individual.id, "build", True))
         self._record_tool_lesson(
             individual,
@@ -2111,67 +2111,67 @@ class Simulation:
 
     def _affordance_resistance(self, place: Place, affordance: str) -> float:
         physics = place.physics
-        if affordance in {"crack", "lever"}:
-            return min(1.0, 0.22 + place.mineral_richness * 0.45 + place.locked_chemical / 420.0 + physics.get("pressure", 0.0) * 0.05)
-        if affordance == "cut":
+        if affordance in {"cleave", "hoist"}:
+            return min(1.0, 0.22 + place.mineral_richness * 0.45 + place.sealed_essence / 420.0 + physics.get("pressure", 0.0) * 0.05)
+        if affordance == "shear":
             return min(1.0, 0.10 + place.obstacles.get("thorn", 0.0) * 0.60)
-        if affordance == "contain":
+        if affordance == "encase":
             return min(1.0, 0.10 + place.obstacles.get("water", 0.0) * 0.22 + physics.get("pressure", 0.0) * 0.10 + physics.get("current_exposure", 0.0) * 0.12)
-        if affordance == "concentrate_heat":
+        if affordance == "kindle":
             return min(1.0, 0.15 + place.obstacles.get("heat", 0.0) * 0.25 + place.volatility * 0.20 + physics.get("humidity", 0.5) * 0.06)
-        if affordance == "conduct":
+        if affordance == "ferry":
             return min(1.0, 0.30 + place.mineral_richness * 0.25 + physics.get("fluid_level", 0.0) * 0.08)
-        if affordance == "filter":
+        if affordance == "winnow":
             return min(1.0, 0.10 + physics.get("current_exposure", 0.0) * 0.18 + physics.get("salinity", 0.0) * 0.10)
-        if affordance == "bind":
+        if affordance == "lash":
             return 0.18
         return 0.25
 
     def _tool_effect(self, individual: Individual, place: Place, affordance: str, score: float, skill: float) -> float:
         competence = 0.45 + score * 0.35 + skill * 0.20
-        if affordance == "crack":
-            amount = min(place.locked_chemical, 2.0 + competence * 9.0)
-            place.locked_chemical -= amount
-            return amount * (0.25 + individual.params.chemical_energy_gain * 0.65 + individual.params.chemical_conversion * 0.30)
-        if affordance == "cut":
-            amount = min(place.resources["biological_storage"], 1.5 + competence * 8.0)
-            place.resources["biological_storage"] -= amount
-            return amount * (0.35 + individual.params.chemical_conversion * 0.85)
-        if affordance == "bind":
-            self._increase_skill(individual, "bind", 0.004, transfer=0.55)
+        if affordance == "cleave":
+            amount = min(place.sealed_essence, 2.0 + competence * 9.0)
+            place.sealed_essence -= amount
+            return amount * (0.25 + individual.params.essence_energy_gain * 0.65 + individual.params.essence_conversion * 0.30)
+        if affordance == "shear":
+            amount = min(place.resources["organic_store"], 1.5 + competence * 8.0)
+            place.resources["organic_store"] -= amount
+            return amount * (0.35 + individual.params.essence_conversion * 0.85)
+        if affordance == "lash":
+            self._increase_skill(individual, "lash", 0.004, transfer=0.55)
             return 0.5 + competence * 1.4
-        if affordance == "contain":
+        if affordance == "encase":
             amount = min(place.resources["mechanical"], 0.8 + competence * 4.0 + place.physics.get("current_exposure", 0.0) * 2.5)
             place.resources["mechanical"] -= amount * 0.15
             place.physics["fluid_level"] = max(0.0, place.physics.get("fluid_level", 0.0) - amount * 0.0008)
             return amount * (0.15 + individual.params.storage_capacity * 0.25)
-        if affordance == "concentrate_heat":
-            radiant = min(place.resources["radiant"], 2.0 + competence * 10.0)
-            place.resources["thermal"] = min(180.0, place.resources["thermal"] + radiant * 0.15)
-            place.physics["temperature"] = min(1.45, place.physics.get("temperature", 0.5) + radiant * 0.0008)
-            return radiant * (0.04 + individual.params.thermal_tolerance * 0.09 + individual.params.radiant_energy_gain * 0.06)
-        if affordance == "conduct":
+        if affordance == "kindle":
+            solar = min(place.resources["solar"], 2.0 + competence * 10.0)
+            place.resources["thermal"] = min(180.0, place.resources["thermal"] + solar * 0.15)
+            place.physics["temperature"] = min(1.45, place.physics.get("temperature", 0.5) + solar * 0.0008)
+            return solar * (0.04 + individual.params.thermal_tolerance * 0.09 + individual.params.solar_energy_gain * 0.06)
+        if affordance == "ferry":
             amount = min(place.resources["electrical"], 0.5 + competence * 5.0 + place.mineral_richness * 1.5)
             place.resources["electrical"] -= amount
-            structure_conduct = structure_capability(place.structures, "conduct")
+            structure_ferry = structure_capability(place.structures, "ferry")
             storage = structure_capability(place.structures, "energy_storage")
             gradient = max(structure_capability(place.structures, "gradient_harvest"), place.geothermal * place.mineral_richness)
-            tap_pressure = max(0.0, competence + structure_conduct * 0.45 + storage * 0.25 + gradient * 0.35 - 0.92)
-            high_density = min(place.resources["high_density"], tap_pressure * (1.0 + competence * 3.0))
-            place.resources["high_density"] -= high_density
-            place.resources["electrical"] = min(180.0, place.resources["electrical"] + high_density * (0.25 + storage * 0.25))
-            return amount * (0.1 + individual.params.electrical_use * 1.3) + high_density * (0.35 + individual.params.electrical_use * 1.8)
-        if affordance == "lever":
-            amount = min(place.locked_chemical, 1.0 + competence * 5.5)
-            place.locked_chemical -= amount
-            return amount * (0.15 + individual.params.mechanical_use * 0.55 + individual.params.chemical_energy_gain * 0.25)
-        if affordance == "filter":
+            tap_pressure = max(0.0, competence + structure_ferry * 0.45 + storage * 0.25 + gradient * 0.35 - 0.92)
+            dense_node = min(place.resources["dense_node"], tap_pressure * (1.0 + competence * 3.0))
+            place.resources["dense_node"] -= dense_node
+            place.resources["electrical"] = min(180.0, place.resources["electrical"] + dense_node * (0.25 + storage * 0.25))
+            return amount * (0.1 + individual.params.electrical_use * 1.3) + dense_node * (0.35 + individual.params.electrical_use * 1.8)
+        if affordance == "hoist":
+            amount = min(place.sealed_essence, 1.0 + competence * 5.5)
+            place.sealed_essence -= amount
+            return amount * (0.15 + individual.params.mechanical_use * 0.55 + individual.params.essence_energy_gain * 0.25)
+        if affordance == "winnow":
             flow_bonus = place.physics.get("current_exposure", 0.0) * 3.0 + place.physics.get("fluid_level", 0.0) * 1.5
-            chemical = min(place.resources["chemical"], 0.5 + competence * 3.0 + flow_bonus)
-            biological = min(place.resources["biological_storage"], 0.3 + competence * 1.8 + flow_bonus * 0.40)
-            place.resources["chemical"] -= chemical * 0.55
-            place.resources["biological_storage"] -= biological * 0.45
-            return chemical * (0.12 + individual.params.chemical_energy_gain * 0.45) + biological * (0.15 + individual.params.chemical_conversion * 0.38)
+            essence = min(place.resources["essence"], 0.5 + competence * 3.0 + flow_bonus)
+            organic = min(place.resources["organic_store"], 0.3 + competence * 1.8 + flow_bonus * 0.40)
+            place.resources["essence"] -= essence * 0.55
+            place.resources["organic_store"] -= organic * 0.45
+            return essence * (0.12 + individual.params.essence_energy_gain * 0.45) + organic * (0.15 + individual.params.essence_conversion * 0.38)
         return 0.0
 
     def _advance_causal_challenge(
@@ -2280,13 +2280,13 @@ class Simulation:
                 kept.append(artifact)
             else:
                 self.artifacts_broken[artifact.name] += 1
-                self.world.places[individual.location].resources["chemical"] += 0.1
+                self.world.places[individual.location].resources["essence"] += 0.1
         individual.artifacts = kept
 
-    def _lose_failed_craft_components(self, individual: Individual, components: dict[str, int], bind_help: float) -> int:
+    def _lose_failed_craft_components(self, individual: Individual, components: dict[str, int], lash_help: float) -> int:
         place = self.world.places[individual.location]
         lost = 0
-        break_chance = max(0.18, min(0.72, 0.48 - bind_help * 0.20 + (1.0 - individual.params.manipulator) * 0.12))
+        break_chance = max(0.18, min(0.72, 0.48 - lash_help * 0.20 + (1.0 - individual.params.manipulator) * 0.12))
         for name, qty in components.items():
             for _ in range(qty):
                 if individual.inventory.get(name, 0) <= 0 or self.rng.random() >= break_chance:
@@ -2340,7 +2340,7 @@ class Simulation:
                 if individual.health <= 0.0:
                     self._deactivate(individual, "counterattack")
         if target.health <= 0.0 and individual.alive:
-            gained = target.energy * (0.30 + individual.params.chemical_conversion * 0.45)
+            gained = target.energy * (0.30 + individual.params.essence_conversion * 0.45)
             individual.energy += max(0.0, gained)
             self._deactivate(target, "predation")
 
@@ -2379,7 +2379,7 @@ class Simulation:
             return
         token = individual.choose_signal_token()
         affordances = derive_affordances(individual.inventory)
-        inscription_help = max(affordances.get("cut", 0.0), affordances.get("bind", 0.0), affordances.get("concentrate_heat", 0.0))
+        inscription_help = max(affordances.get("shear", 0.0), affordances.get("lash", 0.0), affordances.get("kindle", 0.0))
         intensity = 0.20 + individual.params.signal_strength * 0.35 + individual.params.memory_budget / 40.0
         durability = 45.0 + individual.params.manipulator * 90.0 + individual.params.memory_budget * 12.0 + inscription_help * 180.0
         trace_intent = self._trace_inscription_intent(individual, inscription_help)
@@ -3077,7 +3077,7 @@ class Simulation:
         place = self.world.places[individual.location]
         value = (
             place.total_accessible_energy() / 420.0
-            + place.locked_chemical / 500.0
+            + place.sealed_essence / 500.0
             + place.physics.get("shelter", 0.0) * 0.08
             + place.physics.get("interiority", 0.0) * place.physics.get("boundary_permeability", 0.0) * 0.04
         )
@@ -3099,7 +3099,7 @@ class Simulation:
         self.deaths_by_cause[cause] += 1
         self.deaths_by_kind_cause[f"{individual.kind}:{cause}"] += 1
         place = self.world.places[individual.location]
-        place.resources["biological_storage"] = min(180.0, place.resources["biological_storage"] + max(0.0, individual.energy) * 0.35 + 2.0)
+        place.resources["organic_store"] = min(180.0, place.resources["organic_store"] + max(0.0, individual.energy) * 0.35 + 2.0)
         if cause in {"predation", "starvation"}:
             place.materials["bone"] = min(99, place.materials.get("bone", 0) + 1)
         checkpoint_score = self._checkpoint_score(individual) if individual.controller is not None else 0.0
@@ -3159,7 +3159,7 @@ class Simulation:
         payload = intervention.payload
         if intervention.kind == "add_resource":
             place = self.world.places[int(payload.get("place", 0)) % len(self.world.places)]
-            energy = str(payload.get("energy", "chemical"))
+            energy = str(payload.get("energy", "essence"))
             amount = float(payload.get("amount", 10.0))
             if energy in place.resources:
                 place.resources[energy] = min(180.0, place.resources[energy] + amount)

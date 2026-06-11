@@ -53,7 +53,7 @@ _DTYPE = np.float64
 # drift in the observation builder fails loudly here.
 _FIXED_GROUPS: tuple[tuple[str, int], ...] = (
     ("self_state", 3),        # energy, health, age
-    ("resources", 8),         # 7 resource channels + locked_chemical
+    ("resources", 8),         # 7 resource channels + sealed_essence
     ("social", 2),            # crowding, neural fraction
     ("inventory", 1),
     ("body", 8),              # mobility .. plasticity_rate (genome introspection)

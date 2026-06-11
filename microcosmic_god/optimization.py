@@ -34,7 +34,7 @@ class Optimizer:
 
     The simulation handles world constraints such as local capacity and deactivation.
     This class owns the search operators: which inherited material is copied,
-    mutated, recombined, or eventually selected by non-biological farm policies.
+    mutated, recombined, or eventually selected by non-organic farm policies.
     """
 
     def __init__(self, rng: Random, config: RunConfig):
@@ -164,5 +164,5 @@ class Optimizer:
             "clone_complexity_soft_limit": getattr(self.config, "clone_complexity_soft_limit", self.config.asexual_complexity_ceiling),
             "recombine_genome_distance_limit": 0.50,
             "sealed_run_policy": "operators are triggered by in-world action and interaction",
-            "future_farm_policy": "archive-driven ranking can add non-biological operators without changing world physics",
+            "future_farm_policy": "archive-driven ranking can add non-organic operators without changing world physics",
         }

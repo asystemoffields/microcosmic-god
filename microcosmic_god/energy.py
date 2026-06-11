@@ -5,20 +5,20 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping
 
 ENERGY_KINDS = (
-    "radiant",
-    "chemical",
-    "biological_storage",
+    "solar",
+    "essence",
+    "organic_store",
     "thermal",
     "mechanical",
     "electrical",
-    "high_density",
+    "dense_node",
 )
 
 STRUCTURE_DECAY_CHANNELS = (
     "baseline",
     "mechanical",
-    "chemical",
-    "biological",
+    "essence",
+    "organic",
     "thermal",
     "solubility",
     "radiation",
@@ -122,7 +122,7 @@ MATERIALS: dict[str, Material] = {
             "heavy": 0.18,
             "sharp": 0.05,
             "flexible": 0.40,
-            "bindable": 0.20,
+            "lashable": 0.20,
             "grippable": 0.85,
             "length": 0.90,
             "combustible": 0.65,
@@ -147,7 +147,7 @@ MATERIALS: dict[str, Material] = {
             "heavy": 0.82,
             "sharp": 0.28,
             "flexible": 0.00,
-            "bindable": 0.05,
+            "lashable": 0.05,
             "grippable": 0.30,
             "length": 0.12,
             "thermal_mass": 0.70,
@@ -170,7 +170,7 @@ MATERIALS: dict[str, Material] = {
             "heavy": 0.03,
             "sharp": 0.00,
             "flexible": 0.95,
-            "bindable": 0.96,
+            "lashable": 0.96,
             "grippable": 0.35,
             "length": 0.70,
             "combustible": 0.45,
@@ -196,7 +196,7 @@ MATERIALS: dict[str, Material] = {
             "heavy": 0.22,
             "sharp": 0.18,
             "flexible": 0.05,
-            "bindable": 0.15,
+            "lashable": 0.15,
             "container": 0.80,
             "grippable": 0.45,
             "buoyant": 0.36,
@@ -240,7 +240,7 @@ MATERIALS: dict[str, Material] = {
             "hard": 0.10,
             "heavy": 0.12,
             "flexible": 0.30,
-            "bindable": 0.75,
+            "lashable": 0.75,
             "sticky": 0.95,
             "combustible": 0.82,
             "grippable": 0.10,
@@ -282,19 +282,19 @@ MATERIALS: dict[str, Material] = {
     ),
 }
 
-AFFORDANCES = ("crack", "cut", "bind", "contain", "concentrate_heat", "conduct", "lever", "filter")
+AFFORDANCES = ("cleave", "shear", "lash", "encase", "kindle", "ferry", "hoist", "winnow")
 ARTIFACT_CAPABILITIES = (
-    "crack",
-    "cut",
-    "bind",
-    "contain",
-    "concentrate_heat",
-    "conduct",
-    "lever",
+    "cleave",
+    "shear",
+    "lash",
+    "encase",
+    "kindle",
+    "ferry",
+    "hoist",
     "traverse",
     "insulate",
     "energy_storage",
-    "filter",
+    "winnow",
     "float",
     "anchor",
     "carry",
@@ -343,7 +343,7 @@ def derive_affordances_from_properties(props: Mapping[str, float]) -> dict[str, 
     heavy = props.get("heavy", 0.0)
     sharp = props.get("sharp", 0.0)
     flexible = props.get("flexible", 0.0)
-    bindable = props.get("bindable", 0.0)
+    lashable = props.get("lashable", 0.0)
     container = props.get("container", 0.0)
     reflective = props.get("reflective", 0.0)
     conductive = props.get("conductive", 0.0)
@@ -352,14 +352,14 @@ def derive_affordances_from_properties(props: Mapping[str, float]) -> dict[str, 
     length = props.get("length", 0.0)
     grippable = props.get("grippable", 0.0)
     return {
-        "crack": min(1.0, hard * 0.55 + heavy * 0.35 + grippable * 0.10),
-        "cut": min(1.0, sharp * 0.70 + hard * 0.20 + grippable * 0.10),
-        "bind": min(1.0, flexible * 0.45 + bindable * 0.45 + length * 0.10),
-        "contain": min(1.0, container * 0.85 + hard * 0.05 + bindable * 0.10),
-        "concentrate_heat": min(1.0, reflective * 0.70 + hard * 0.15 + grippable * 0.15),
-        "conduct": min(1.0, conductive * 0.85 + hard * 0.05 + grippable * 0.10),
-        "lever": min(1.0, length * 0.55 + hard * 0.25 + grippable * 0.20),
-        "filter": min(1.0, porous * 0.55 + absorbent * 0.20 + flexible * 0.10 + bindable * 0.10 + container * 0.05),
+        "cleave": min(1.0, hard * 0.55 + heavy * 0.35 + grippable * 0.10),
+        "shear": min(1.0, sharp * 0.70 + hard * 0.20 + grippable * 0.10),
+        "lash": min(1.0, flexible * 0.45 + lashable * 0.45 + length * 0.10),
+        "encase": min(1.0, container * 0.85 + hard * 0.05 + lashable * 0.10),
+        "kindle": min(1.0, reflective * 0.70 + hard * 0.15 + grippable * 0.15),
+        "ferry": min(1.0, conductive * 0.85 + hard * 0.05 + grippable * 0.10),
+        "hoist": min(1.0, length * 0.55 + hard * 0.25 + grippable * 0.20),
+        "winnow": min(1.0, porous * 0.55 + absorbent * 0.20 + flexible * 0.10 + lashable * 0.10 + container * 0.05),
     }
 
 
@@ -369,7 +369,7 @@ def derive_artifact_capabilities(properties: Mapping[str, float]) -> dict[str, f
     heavy = properties.get("heavy", 0.0)
     sharp = properties.get("sharp", 0.0)
     flexible = properties.get("flexible", 0.0)
-    bindable = properties.get("bindable", 0.0)
+    lashable = properties.get("lashable", 0.0)
     container = properties.get("container", 0.0)
     reflective = properties.get("reflective", 0.0)
     conductive = properties.get("conductive", 0.0)
@@ -388,23 +388,23 @@ def derive_artifact_capabilities(properties: Mapping[str, float]) -> dict[str, f
     sealant = properties.get("sealant", 0.0)
     lightness = max(0.0, 1.0 - max(density, heavy * 0.85))
     capabilities = dict(affordances)
-    capabilities["traverse"] = min(1.0, length * 0.35 + hard * 0.20 + flexible * 0.15 + bindable * 0.15 + sticky * 0.15)
+    capabilities["traverse"] = min(1.0, length * 0.35 + hard * 0.20 + flexible * 0.15 + lashable * 0.15 + sticky * 0.15)
     capabilities["insulate"] = min(1.0, flexible * 0.20 + container * 0.18 + thermal_capacity * 0.20 + hard * 0.08 + sticky * 0.08 + insulating * 0.35 + porous * 0.08)
     capabilities["energy_storage"] = min(1.0, container * 0.35 + conductive * 0.18 + thermal_capacity * 0.28 + hard * 0.10 + sealant * 0.12)
-    capabilities["filter"] = min(1.0, capabilities["filter"] + porous * 0.25 + absorbent * 0.12 + container * 0.08)
+    capabilities["winnow"] = min(1.0, capabilities["winnow"] + porous * 0.25 + absorbent * 0.12 + container * 0.08)
     capabilities["float"] = max(0.0, min(1.0, buoyant * 0.62 + container * 0.18 + flexible * 0.10 + sealant * 0.10 - density * 0.24))
     capabilities["anchor"] = min(1.0, density * 0.42 + heavy * 0.32 + hard * 0.20 + length * 0.06)
-    capabilities["contain"] = min(1.0, capabilities["contain"] + sealant * 0.16 + absorbent * 0.04)
+    capabilities["encase"] = min(1.0, capabilities["encase"] + sealant * 0.16 + absorbent * 0.04)
     capabilities["traverse"] = min(1.0, capabilities["traverse"] + capabilities["float"] * 0.20 + capabilities["anchor"] * 0.08)
-    capabilities["concentrate_heat"] = min(1.0, capabilities["concentrate_heat"] + reflective * hard * 0.25)
-    capabilities["conduct"] = min(1.0, capabilities["conduct"] + conductive * length * 0.25)
-    capabilities["cut"] = min(1.0, capabilities["cut"] + sharp * hard * 0.15)
-    capabilities["crack"] = min(1.0, capabilities["crack"] + hard * heavy * 0.15)
+    capabilities["kindle"] = min(1.0, capabilities["kindle"] + reflective * hard * 0.25)
+    capabilities["ferry"] = min(1.0, capabilities["ferry"] + conductive * length * 0.25)
+    capabilities["shear"] = min(1.0, capabilities["shear"] + sharp * hard * 0.15)
+    capabilities["cleave"] = min(1.0, capabilities["cleave"] + hard * heavy * 0.15)
     capabilities["carry"] = min(
         1.0,
         container * 0.38
         + flexible * 0.22
-        + bindable * 0.20
+        + lashable * 0.20
         + length * 0.08
         + lightness * 0.10
         + fatigue_resistance * 0.08
@@ -419,7 +419,7 @@ def derive_artifact_capabilities(properties: Mapping[str, float]) -> dict[str, f
         + insulating * 0.12
         + sealant * 0.10
         + corrosion_resistance * 0.08
-        + bindable * 0.06,
+        + lashable * 0.06,
     )
     capabilities["record"] = min(
         1.0,
@@ -427,7 +427,7 @@ def derive_artifact_capabilities(properties: Mapping[str, float]) -> dict[str, f
         + absorbent * 0.18
         + flexible * 0.12
         + hard * 0.10
-        + bindable * 0.12
+        + lashable * 0.12
         + sealant * 0.08
         + container * 0.06
         + lightness * 0.08,
@@ -458,8 +458,8 @@ def build_artifact(
         35.0
         + properties.get("hard", 0.0) * 70.0
         + properties.get("flexible", 0.0) * 25.0
-        + properties.get("bindable", 0.0) * 35.0
-        + method_quality * (18.0 + properties.get("bindable", 0.0) * 20.0)
+        + properties.get("lashable", 0.0) * 35.0
+        + method_quality * (18.0 + properties.get("lashable", 0.0) * 20.0)
     )
     return Artifact(
         name=name,
@@ -479,7 +479,7 @@ def derive_structure_capabilities(properties: Mapping[str, float], scale: int) -
     hard = properties.get("hard", 0.0)
     heavy = properties.get("heavy", 0.0)
     flexible = properties.get("flexible", 0.0)
-    bindable = properties.get("bindable", 0.0)
+    lashable = properties.get("lashable", 0.0)
     container = properties.get("container", 0.0)
     conductive = properties.get("conductive", 0.0)
     porous = properties.get("porous", 0.0)
@@ -493,17 +493,17 @@ def derive_structure_capabilities(properties: Mapping[str, float], scale: int) -
     thermal_capacity = max(properties.get("thermal_mass", 0.0), properties.get("thermal_capacity", 0.0))
     scale_gain = _scale_factor(scale)
     capabilities = {name: base.get(name, 0.0) for name in STRUCTURE_CAPABILITIES}
-    capabilities["support"] = min(1.0, hard * 0.30 + density * 0.25 + bindable * 0.15 + length * 0.12 + sticky * 0.08 + scale_gain * 0.20)
-    capabilities["channel"] = min(1.0, container * 0.28 + hard * 0.16 + length * 0.18 + bindable * 0.10 + sealant * 0.16 + scale_gain * 0.18)
-    capabilities["enclose"] = min(1.0, container * 0.25 + sealant * 0.25 + hard * 0.16 + bindable * 0.14 + scale_gain * 0.20)
-    capabilities["permeable"] = min(1.0, porous * 0.45 + absorbent * 0.16 + capabilities["filter"] * 0.24 + flexible * 0.08)
+    capabilities["support"] = min(1.0, hard * 0.30 + density * 0.25 + lashable * 0.15 + length * 0.12 + sticky * 0.08 + scale_gain * 0.20)
+    capabilities["channel"] = min(1.0, container * 0.28 + hard * 0.16 + length * 0.18 + lashable * 0.10 + sealant * 0.16 + scale_gain * 0.18)
+    capabilities["enclose"] = min(1.0, container * 0.25 + sealant * 0.25 + hard * 0.16 + lashable * 0.14 + scale_gain * 0.20)
+    capabilities["permeable"] = min(1.0, porous * 0.45 + absorbent * 0.16 + capabilities["winnow"] * 0.24 + flexible * 0.08)
     capabilities["shelter"] = min(1.0, capabilities["enclose"] * 0.30 + capabilities["support"] * 0.20 + capabilities["insulate"] * 0.25 + capabilities["anchor"] * 0.15 + scale_gain * 0.10)
     capabilities["gradient_harvest"] = min(
         1.0,
         capabilities["anchor"] * 0.22
         + capabilities["channel"] * 0.25
         + capabilities["float"] * 0.10
-        + capabilities["conduct"] * 0.15
+        + capabilities["ferry"] * 0.15
         + capabilities["energy_storage"] * 0.10
         + length * 0.08
         + scale_gain * 0.18,
@@ -526,7 +526,7 @@ def build_structure(components: Mapping[str, int], builder_id: int | None = None
     durability = (
         70.0
         + properties.get("hard", 0.0) * 120.0
-        + properties.get("bindable", 0.0) * 70.0
+        + properties.get("lashable", 0.0) * 70.0
         + properties.get("sealant", 0.0) * 45.0
         + _scale_factor(scale) * 120.0
     )
@@ -610,7 +610,7 @@ def structure_decay_channels(structure: Structure, environment: Mapping[str, flo
     salinity = _clamp01(environment.get("salinity", 0.0))
     oxygen = _clamp01(environment.get("oxygen", 0.35))
     acidity = _clamp01(environment.get("acidity", 0.10))
-    biological_activity = _clamp01(environment.get("biological_activity", 0.0))
+    organic_activity = _clamp01(environment.get("organic_activity", 0.0))
     abrasion = _clamp01(environment.get("abrasion", 0.0))
     wet_dry_cycle = _clamp01(environment.get("wet_dry_cycle", 0.0))
     current = _clamp01(environment.get("current_exposure", 0.0))
@@ -626,29 +626,29 @@ def structure_decay_channels(structure: Structure, environment: Mapping[str, flo
     channel = caps.get("channel", 0.0)
     gradient_harvest = caps.get("gradient_harvest", 0.0)
     reaction_surface = caps.get("reaction_surface", 0.0)
-    filter_cap = caps.get("filter", 0.0)
+    winnow_cap = caps.get("winnow", 0.0)
 
     coating = _clamp01(sealant * 0.48 + enclose * 0.12 + shelter * 0.10)
     exposed_surface = _clamp01(0.42 + permeable * 0.22 + porous * 0.24 + absorbent * 0.12 - coating * 0.32)
     mechanical_resistance = _clamp01(abrasion_resistance * 0.55 + support * 0.22 + anchor * 0.16 + flexible * 0.10)
-    chemical_resistance = _clamp01(corrosion_resistance * 0.62 + coating * 0.28 + density * 0.08)
-    biological_resistance = _clamp01(coating * 0.40 + corrosion_resistance * 0.16 + hard * 0.16 + max(0.0, 1.0 - porous) * 0.10)
+    essence_resistance = _clamp01(corrosion_resistance * 0.62 + coating * 0.28 + density * 0.08)
+    organic_resistance = _clamp01(coating * 0.40 + corrosion_resistance * 0.16 + hard * 0.16 + max(0.0, 1.0 - porous) * 0.10)
     thermal_resistance = _clamp01(thermal_stability * 0.62 + caps.get("insulate", 0.0) * 0.14 + density * 0.10)
     fatigue_resistance = _clamp01(fatigue_resistance * 0.58 + support * 0.18 + flexible * 0.10 + anchor * 0.08)
 
     wet_contact = _clamp01(fluid * 0.48 + humidity * 0.32 + wet_dry_cycle * 0.20)
     corrosion_env = _clamp01(salinity * 0.42 + acidity * 0.38 + oxygen * humidity * 0.25 + wet_dry_cycle * 0.12)
-    biological_window = _clamp01(1.0 - abs(temperature - 0.46) * 1.65)
+    organic_window = _clamp01(1.0 - abs(temperature - 0.46) * 1.65)
     thermal_env = _clamp01(heat_excess * 1.20 + cold_excess * 1.50 + wet_dry_cycle * 0.18 + light * 0.08)
     movement_env = _clamp01(current * 0.42 + pressure * 0.18 + abrasion * 0.34 + flow_gradient * 0.22)
-    use_env = _clamp01(flow_gradient * (channel * 0.35 + gradient_harvest * 0.45) + reaction_surface * acidity * 0.20 + filter_cap * wet_contact * 0.10)
+    use_env = _clamp01(flow_gradient * (channel * 0.35 + gradient_harvest * 0.45) + reaction_surface * acidity * 0.20 + winnow_cap * wet_contact * 0.10)
     size_load = 0.72 + scale * 0.42
 
     channels = {
         "baseline": 0.0010 + exposed_surface * 0.0009,
         "mechanical": movement_env * size_load * max(0.04, 1.0 - mechanical_resistance * 0.82) * 0.026,
-        "chemical": corrosion_env * wet_contact * oxidizable * exposed_surface * max(0.03, 1.0 - chemical_resistance * 0.86) * 0.040,
-        "biological": biological_activity * wet_contact * biodegradable * biological_window * max(0.04, 1.0 - biological_resistance * 0.78) * 0.030,
+        "essence": corrosion_env * wet_contact * oxidizable * exposed_surface * max(0.03, 1.0 - essence_resistance * 0.86) * 0.040,
+        "organic": organic_activity * wet_contact * biodegradable * organic_window * max(0.04, 1.0 - organic_resistance * 0.78) * 0.030,
         "thermal": thermal_env * (combustible * 0.22 + brittle * 0.14 + 0.16) * max(0.04, 1.0 - thermal_resistance * 0.80) * 0.025,
         "solubility": fluid * (acidity * 0.42 + salinity * 0.22 + current * 0.18 + wet_dry_cycle * 0.18) * water_soluble * exposed_surface * max(0.05, 1.0 - coating * 0.72) * 0.034,
         "radiation": light * uv_sensitivity * max(0.04, 1.0 - shelter * 0.55 - enclose * 0.18) * 0.010,
@@ -663,7 +663,7 @@ def best_affordance(inventory: Mapping[str, int], skills: Mapping[str, float], a
         artifact_potentials = artifact_affordances(artifacts)
         for name, value in artifact_potentials.items():
             potentials[name] = max(potentials[name], value)
-    best_name = "crack"
+    best_name = "cleave"
     best_score = 0.0
     for name, potential in potentials.items():
         score = potential * (0.65 + 0.35 * skills.get(name, 0.0))
