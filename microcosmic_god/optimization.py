@@ -115,8 +115,11 @@ class Optimizer:
         # When child params calls for a different controller size, clone_for_offspring
         # resizes the inherited template instead of returning None - the parent's
         # learned function is preserved across size changes.
+        kwargs = {}
+        if hasattr(parent.controller_template, "blocks"):
+            kwargs["structural_rate"] = self.config.structural_mutation_rate
         child_template = parent.controller_template.clone_for_offspring(
-            self.rng, mutation_scale=mutation_scale, target_hidden_size=target_hidden
+            self.rng, mutation_scale=mutation_scale, target_hidden_size=target_hidden, **kwargs
         )
         self._sync_genome_to_structure(child_genome, child_template)
         return child_template
@@ -142,10 +145,14 @@ class Optimizer:
         if not templates:
             return None
         chosen = self.rng.choice(templates)
+        kwargs = {}
+        if hasattr(chosen, "blocks"):
+            kwargs["structural_rate"] = self.config.structural_mutation_rate
         child_template = chosen.clone_for_offspring(
             self.rng,
             mutation_scale=0.035 + child_genome.perturbation_rate * 0.20,
             target_hidden_size=target_hidden,
+            **kwargs,
         )
         self._sync_genome_to_structure(child_genome, child_template)
         return child_template

@@ -50,6 +50,14 @@ class RunConfig:
     # Modular lineages can grow/duplicate/prune blocks at reproduction;
     # capacity is structure-owned and the genome budget follows it.
     initial_modular_fraction: float = 0.0
+    # Block count for seeded modular controllers: each founder draws uniformly
+    # from [1, initial_modular_max_blocks]. >1 lets head-start experiments ask
+    # whether multi-block bodies pay before mutation has to discover them.
+    initial_modular_max_blocks: int = 1
+    # Probability that a modular clone_mutate child takes a structural mutation
+    # (duplicate / neutral add / prune). The Phase 2 default was a hunch;
+    # the E2 sweep picks the real value.
+    structural_mutation_rate: float = 0.06
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

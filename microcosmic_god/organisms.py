@@ -400,17 +400,18 @@ def make_brain_for_genome(rng: Random, params: ParamVector) -> tuple[TinyControl
     return controller, template
 
 
-def make_modular_brain_for_genome(rng: Random, params: ParamVector):
+def make_modular_brain_for_genome(rng: Random, params: ParamVector, n_blocks: int = 1):
     """Modular counterpart of make_brain_for_genome (Phase 2 wire-in).
 
-    The genome's neural_budget seeds the single starting block's size;
-    afterwards structure owns capacity and the genome budget follows it
-    (synced at reproduction by the optimizer).
+    The genome's neural_budget seeds per-block size; afterwards structure owns
+    capacity and the genome budget follows it (synced at reproduction by the
+    optimizer, and at seeding by the caller for n_blocks > 1).
     """
     from .modular import ModularController
 
     hidden = max(2, int(round(params.neural_budget)))
-    template = ModularController.random(rng, OBSERVATION_SIZE, len(ACTIONS), n_blocks=1, block_hidden=hidden)
+    template = ModularController.random(rng, OBSERVATION_SIZE, len(ACTIONS), n_blocks=max(1, n_blocks), block_hidden=hidden)
+    params.neural_budget = float(template.capacity)
     controller = ModularController.from_dict(template.to_dict(include_state=False))
     return controller, template
 

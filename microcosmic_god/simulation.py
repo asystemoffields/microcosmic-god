@@ -182,7 +182,8 @@ class Simulation:
             params = ParamVector.neural(self.rng)
             template = None
             if self.rng.random() < self.config.initial_modular_fraction:
-                _, template = make_modular_brain_for_genome(self.rng, params)
+                n_blocks = self.rng.randint(1, max(1, self.config.initial_modular_max_blocks))
+                _, template = make_modular_brain_for_genome(self.rng, params, n_blocks=n_blocks)
             self.add_individual(
                 "agent", params, self.rng.randrange(len(self.world.places)), self.rng.uniform(22.0, 55.0),
                 controller_template=template,
@@ -3458,6 +3459,10 @@ class Simulation:
         if modular:
             block_counts = [len(c.blocks) for c in modular]
             active_blocks = [sum(1 for b in c.blocks if b.out_gate != 0.0) for c in modular]
+            gates = [c.neuromodulation() for c in modular]
+            plasticity = [
+                sum(b.plasticity_scale for b in c.blocks) / len(c.blocks) for c in modular
+            ]
             architecture_stats = {
                 "modular": len(modular),
                 "legacy": len(brain_sizes) - len(modular),
@@ -3466,6 +3471,12 @@ class Simulation:
                 "active_blocks_mean": round(sum(active_blocks) / len(active_blocks), 3),
                 "capacity_mean": round(sum(c.capacity for c in modular) / len(modular), 3),
                 "capacity_max": max(c.capacity for c in modular),
+                # Learning-gate evolution: drift away from the neutral 1.0
+                # means context-dependent learning is being selected.
+                "neuromod_mean": round(sum(gates) / len(gates), 4),
+                "neuromod_min": round(min(gates), 4),
+                "neuromod_max": round(max(gates), 4),
+                "plasticity_scale_mean": round(sum(plasticity) / len(plasticity), 4),
             }
         else:
             architecture_stats = {"modular": 0, "legacy": len(brain_sizes)}
