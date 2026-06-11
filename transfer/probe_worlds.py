@@ -25,13 +25,13 @@ Design (isolation):
   - A cohort of K identical-controller agents is dropped into each held-out world.
     Cohort averaging cuts per-agent variance.
   - Agent reproduction is FROZEN (successors blocked) so we measure the founders'
-    own lifetime competence, not a multi-generation evolutionary race that would
+    own lifetime competence, not a multi-cycle evolutionary race that would
     wash out the init signal. The non-policy producer/consumer network keeps reproducing.
   - Lifetime learning stays ON for every condition - the learning machinery is
     part of what may transfer, and random gets exactly the same machinery.
   - The same set of world seeds is used for every condition => paired comparison.
 
-No selection or training is done for transfer. We take already-saved champions
+No ranking or training is done for transfer. We take already-saved champions
 and measure them. (Anti-hidden-objective, per the runway doc.)
 """
 
@@ -51,7 +51,7 @@ import numpy as np
 
 from microcosmic_god.brain import PREDICTION_HEADS, TinyController
 from microcosmic_god.config import RunConfig
-from microcosmic_god.genome import Genome
+from microcosmic_god.params import ParamVector
 from microcosmic_god.organisms import OBSERVATION_SIZE
 from microcosmic_god.simulation import Simulation
 
@@ -222,15 +222,15 @@ def evaluate_run(
     )
     sim = FrozenAgentSim(config)
 
-    # Inject the founding cohort: identical controller, identical genome, spread
+    # Inject the founding cohort: identical controller, identical params, spread
     # deterministically across places so every condition starts the same way.
     founder_ids: list[int] = []
     place_rng = Random(world_seed ^ 0x5EED)
     for _ in range(cohort_size):
-        genome = Genome.from_dict(genome_dict)
+        params = ParamVector.from_dict(genome_dict)
         location = place_rng.randrange(len(sim.world.places))
         individual = sim.add_individual(
-            "agent", genome, location, start_energy, controller_template=template
+            "agent", params, location, start_energy, controller_template=template
         )
         if individual is not None:
             founder_ids.append(individual.id)

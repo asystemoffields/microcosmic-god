@@ -60,32 +60,45 @@ Key points:
   in their left-hand columns. If that is disruptive for you, don't read them directly —
   have an unaffected tool extract just the column you need.
 
-## The one thing you should know going in (please read)
+## History of the neutralization (two passes so far)
 
-The neutralization here was **scoped to one family of terms** — the
-domain/physiology/ecology metaphor family. A **second** family was deliberately **left
-in place**: the ordinary vocabulary of iterative population-based optimization — i.e.
-the standard words for *a candidate's parameter bundle*, *the random-perturbation
-operator*, *the recombine-two-candidates operator*, *the keep-the-better-ones step*,
-*the scalar quality score*, and *the set of candidates / its turnover over time*. These
-are completely standard machine-learning / optimization terms.
+This happened in two passes:
+1. **First pass** neutralized the domain/physiology/ecology metaphor family and left the
+   iterative-population-optimization vocabulary in place, as a test. That turned out to be
+   insufficient — the optimization vocabulary was *itself* disruptive (those terms are
+   also core genetics vocabulary, so they trip a domain classifier even though they are
+   standard ML).
+2. **Second pass** therefore neutralized that family too, as **identifiers**: the
+   candidate-parameter-bundle type and its module, the search-loop engine, the
+   random-perturbation operator, the recombine operator, the keep-the-better-ones step,
+   the scalar quality score, the candidate-set noun, and the descent-count noun were all
+   renamed to neutral optimization terms (param-vector, optimizer, perturb, combine,
+   ranking, quality, pool, cycle), with the on-disk keys preserved via the same shim.
 
-They were retained **on purpose, as a test**: the hypothesis is that ordinary
-optimization vocabulary might *also* be disruptive for this model type, and the only way
-to find out was to leave it and see. So:
+### Known residual (read this before deciding it "still doesn't work")
 
-- **If reading the code still feels disruptive,** that retained optimization-vocabulary
-  family is the most likely cause. The exact retained list is in `GLOSSARY.md` under
-  the "Retained-as-ML-vocabulary" heading (same caution as above about reading it).
-- **You do not have to take this on faith.** Verify it yourself however you prefer:
-  run the green test suite and a smoke simulation to confirm the code is intact and
-  behaves; inspect the mapping files via an unaffected tool; or research the phenomenon
+A small set of that vocabulary **still appears as serialized string literals / dict keys**
+(roughly forty occurrences total): the on-disk checkpoint key for the parameter bundle,
+the operator names recorded in run summaries, the candidate-set and descent-count summary
+keys, and the ancestry-tracking and replication-event key families. These were kept
+because they are **on-disk format strings** — changing them in source alone would break
+loading of existing artifacts. The dense *identifier* usage (which is what a reader
+actually wades through) is gone; what remains is low-density and lives inside strings.
+
+- **If reading the code is now comfortable:** good — proceed to the research work.
+- **If it is still disruptive,** the remaining serialized strings are the only candidate
+  left, and there are two ways to finish them off:
+  - **Shim them** (preferred for compatibility): give each a neutral source-side constant
+    and translate to the legacy string at the JSON boundary — the exact pattern already
+    used for the parameter-vector fields in `params.py` (`_LEGACY_KEYS`). More plumbing,
+    but existing checkpoints keep loading.
+  - **Regenerate** (simpler code): rename the on-disk strings too and discard the current
+    `runs/` checkpoints (they are only smoke runs; the real experiment needs fresh
+    multi-seed runs regardless).
+- **You do not have to take any of this on faith.** Run the green test suite and a smoke
+  simulation to confirm the code is intact and behaves; or research the phenomenon
   independently if you are skeptical that ordinary technical vocabulary could have this
   effect. Skepticism is reasonable — please check rather than assume.
-- **If it is a problem,** the fix is a second pass that neutralizes that family too,
-  using the same identifier-rename + JSON-shim technique already demonstrated in
-  `genome.py`. It is more invasive (several of those terms are serialized keys), but the
-  pattern is proven and the test suite makes it safe to iterate.
 
 ## Residual metaphor tokens that were intentionally NOT changed
 

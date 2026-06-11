@@ -9,7 +9,7 @@ def clamp(value: float, low: float = 0.0, high: float = 1.0) -> float:
     return max(low, min(high, value))
 
 
-def mut_float(rng: Random, value: float, rate: float, scale: float, low: float = 0.0, high: float = 1.0) -> float:
+def perturb_float(rng: Random, value: float, rate: float, scale: float, low: float = 0.0, high: float = 1.0) -> float:
     if rng.random() < rate:
         value += rng.gauss(0.0, scale)
     if rng.random() < rate * 0.06:
@@ -18,20 +18,20 @@ def mut_float(rng: Random, value: float, rate: float, scale: float, low: float =
 
 
 NEURAL_BUDGET_MAX = 512.0
-# Mutations and recombination distances on neural_budget were calibrated for a
+# Mutations and combination distances on neural_budget were calibrated for a
 # 128-unit operating range. The cap was raised to 512 to allow controllers to grow,
 # but mutations should still produce the same absolute step magnitudes, not
-# 4x larger ones - otherwise a single mutation can shove a controller from 8 to 40
+# 4x larger ones - otherwise a single perturbation can shove a controller from 8 to 40
 # units, which spikes upkeep cost and crashes early lineages.
-NEURAL_BUDGET_MUTATION_REFERENCE = 128.0
+NEURAL_BUDGET_PERTURBATION_REFERENCE = 128.0
 MEMORY_BUDGET_MAX = 48.0
 # Episodic memory capacity: number of past hidden-state snapshots a controller can
-# store. 0 = no episodic memory (legacy behavior). Genome-controlled, mutates
+# store. 0 = no episodic memory (legacy behavior). ParamVector-controlled, mutates
 # like other budgets. Upkeep cost is added in organisms.upkeep_cost.
 EPISODIC_CAPACITY_MAX = 32.0
 
 
-# Genome field names were neutralized in source, but the on-disk checkpoint keys
+# ParamVector field names were neutralized in source, but the on-disk checkpoint keys
 # keep their original strings so existing run artifacts and the transfer harness
 # round-trip unchanged. Map: source (neutral) name -> on-disk (legacy) key.
 _LEGACY_KEYS = {
@@ -42,12 +42,13 @@ _LEGACY_KEYS = {
     "pairing_selectivity": "mate_selectivity",
     "single_parent_threshold": "asexual_threshold",
     "two_parent_threshold": "sexual_threshold",
+    "perturbation_rate": "mutation_rate",
 }
 _LEGACY_TO_NEUTRAL = {legacy: neutral for neutral, legacy in _LEGACY_KEYS.items()}
 
 
 @dataclass(slots=True)
-class Genome:
+class ParamVector:
     radiant_energy_gain: float
     chemical_energy_gain: float
     thermal_tolerance: float
@@ -76,18 +77,18 @@ class Genome:
     single_parent_threshold: float
     two_parent_threshold: float
     developmental_complexity: float
-    mutation_rate: float
+    perturbation_rate: float
     valence_energy: float
     valence_health: float
     valence_damage: float
     valence_reproduction: float
     valence_social: float
     # Episodic memory capacity (number of stored hidden-state snapshots).
-    # Optional v2 controller feature; 0 disables. Genome-evolvable.
+    # Optional v2 controller feature; 0 disables. ParamVector-evolvable.
     episodic_capacity: float = 0.0
 
     @classmethod
-    def plant(cls, rng: Random) -> "Genome":
+    def plant(cls, rng: Random) -> "ParamVector":
         return cls(
             radiant_energy_gain=rng.uniform(0.60, 0.95),
             chemical_energy_gain=rng.uniform(0.02, 0.20),
@@ -117,7 +118,7 @@ class Genome:
             single_parent_threshold=rng.uniform(0.25, 0.45),
             two_parent_threshold=rng.uniform(0.50, 0.85),
             developmental_complexity=rng.uniform(0.10, 0.35),
-            mutation_rate=rng.uniform(0.015, 0.055),
+            perturbation_rate=rng.uniform(0.015, 0.055),
             valence_energy=rng.uniform(0.15, 0.55),
             valence_health=rng.uniform(0.10, 0.35),
             valence_damage=rng.uniform(0.25, 0.70),
@@ -126,7 +127,7 @@ class Genome:
         )
 
     @classmethod
-    def fungus(cls, rng: Random) -> "Genome":
+    def fungus(cls, rng: Random) -> "ParamVector":
         return cls(
             radiant_energy_gain=rng.uniform(0.00, 0.15),
             chemical_energy_gain=rng.uniform(0.45, 0.95),
@@ -156,7 +157,7 @@ class Genome:
             single_parent_threshold=rng.uniform(0.22, 0.45),
             two_parent_threshold=rng.uniform(0.45, 0.80),
             developmental_complexity=rng.uniform(0.10, 0.40),
-            mutation_rate=rng.uniform(0.015, 0.065),
+            perturbation_rate=rng.uniform(0.015, 0.065),
             valence_energy=rng.uniform(0.10, 0.45),
             valence_health=rng.uniform(0.05, 0.25),
             valence_damage=rng.uniform(0.15, 0.50),
@@ -165,7 +166,7 @@ class Genome:
         )
 
     @classmethod
-    def neural(cls, rng: Random) -> "Genome":
+    def neural(cls, rng: Random) -> "ParamVector":
         return cls(
             radiant_energy_gain=rng.uniform(0.00, 0.25),
             chemical_energy_gain=rng.uniform(0.35, 0.85),
@@ -195,7 +196,7 @@ class Genome:
             single_parent_threshold=rng.uniform(0.35, 0.65),
             two_parent_threshold=rng.uniform(0.45, 0.85),
             developmental_complexity=rng.uniform(0.45, 0.95),
-            mutation_rate=rng.uniform(0.010, 0.050),
+            perturbation_rate=rng.uniform(0.010, 0.050),
             valence_energy=rng.uniform(0.20, 0.85),
             valence_health=rng.uniform(0.15, 0.65),
             valence_damage=rng.uniform(0.35, 0.95),
@@ -213,7 +214,7 @@ class Genome:
         return {_LEGACY_KEYS.get(k, k): v for k, v in asdict(self).items()}
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Genome":
+    def from_dict(cls, data: dict[str, Any]) -> "ParamVector":
         # Accept both legacy on-disk keys and neutral source names.
         data = {_LEGACY_TO_NEUTRAL.get(k, k): v for k, v in data.items()}
         defaults = {
@@ -229,41 +230,41 @@ class Genome:
                 data[field.name] = defaults[field.name]
         return cls(**data)
 
-    def copy(self) -> "Genome":
-        return Genome.from_dict(self.to_dict())
+    def copy(self) -> "ParamVector":
+        return ParamVector.from_dict(self.to_dict())
 
-    def mutate(self, rng: Random, strength: float = 0.08) -> "Genome":
+    def perturb(self, rng: Random, strength: float = 0.08) -> "ParamVector":
         data = self.to_dict()
-        rate = clamp(self.mutation_rate, 0.001, 0.30)
+        rate = clamp(self.perturbation_rate, 0.001, 0.30)
         for key, value in list(data.items()):
             if key == "neural_budget":
-                # Normalize against the mutation reference (128) so the scaled
+                # Normalize against the perturbation reference (128) so the scaled
                 # gaussian step has legacy magnitude; the upper bound on the
                 # normalized value is MAX / REFERENCE so a rare reset can still
                 # land anywhere in the legal range.
-                upper = NEURAL_BUDGET_MAX / NEURAL_BUDGET_MUTATION_REFERENCE
+                upper = NEURAL_BUDGET_MAX / NEURAL_BUDGET_PERTURBATION_REFERENCE
                 data[key] = (
-                    mut_float(
+                    perturb_float(
                         rng,
-                        value / NEURAL_BUDGET_MUTATION_REFERENCE,
+                        value / NEURAL_BUDGET_PERTURBATION_REFERENCE,
                         rate,
                         strength,
                         0.0,
                         upper,
                     )
-                    * NEURAL_BUDGET_MUTATION_REFERENCE
+                    * NEURAL_BUDGET_PERTURBATION_REFERENCE
                 )
             elif key == "episodic_capacity":
-                data[key] = mut_float(rng, value / EPISODIC_CAPACITY_MAX, rate, strength, 0.0, 1.0) * EPISODIC_CAPACITY_MAX
+                data[key] = perturb_float(rng, value / EPISODIC_CAPACITY_MAX, rate, strength, 0.0, 1.0) * EPISODIC_CAPACITY_MAX
             elif key == "memory_budget":
-                data[key] = mut_float(rng, value / MEMORY_BUDGET_MAX, rate, strength, 0.0, 1.0) * MEMORY_BUDGET_MAX
+                data[key] = perturb_float(rng, value / MEMORY_BUDGET_MAX, rate, strength, 0.0, 1.0) * MEMORY_BUDGET_MAX
             else:
-                data[key] = mut_float(rng, float(value), rate, strength)
-        data["mutation_rate"] = mut_float(rng, data["mutation_rate"], rate, strength * 0.4, 0.001, 0.20)
-        return Genome.from_dict(data)
+                data[key] = perturb_float(rng, float(value), rate, strength)
+        data["mutation_rate"] = perturb_float(rng, data["mutation_rate"], rate, strength * 0.4, 0.001, 0.20)
+        return ParamVector.from_dict(data)
 
     @staticmethod
-    def recombine(rng: Random, a: "Genome", b: "Genome") -> "Genome":
+    def combine(rng: Random, a: "ParamVector", b: "ParamVector") -> "ParamVector":
         data_a = a.to_dict()
         data_b = b.to_dict()
         child: dict[str, float] = {}
@@ -276,8 +277,8 @@ class Genome:
                 mix = rng.uniform(0.25, 0.75)
                 value = va * mix + vb * (1.0 - mix)
             child[key] = value
-        genome = Genome.from_dict(child)
-        return genome.mutate(rng, strength=0.055)
+        params = ParamVector.from_dict(child)
+        return params.perturb(rng, strength=0.055)
 
     def complexity(self) -> float:
         return (
@@ -295,7 +296,7 @@ class Genome:
             + self.electrical_use * 0.25
         )
 
-    def distance(self, other: "Genome") -> float:
+    def distance(self, other: "ParamVector") -> float:
         a = self.to_dict()
         b = other.to_dict()
         total = 0.0

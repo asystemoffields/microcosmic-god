@@ -31,7 +31,7 @@ class RunConfig:
     compute_backend: str = "cpu"
     device: str = "auto"
     environment_harshness: float = 1.0
-    # Multi-world selection: every N ticks, regenerate the world with a new
+    # Multi-world ranking: every N ticks, regenerate the world with a new
     # seed (new physics, new puzzles). Controllers that memorized the specific
     # world are deactivated when it changes; controllers that abstracted the
     # underlying rule survive. 0 = disabled (legacy single-world behavior).

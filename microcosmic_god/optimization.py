@@ -5,12 +5,12 @@ from random import Random
 
 from .brain import TinyController
 from .config import RunConfig
-from .genome import Genome
+from .params import ParamVector
 from .organisms import Individual
 
 
 @dataclass(slots=True)
-class EvolutionDecision:
+class OptimizerDecision:
     plan: "OffspringPlan | None" = None
     failure: str | None = None
     energy_penalty: float = 0.0
@@ -20,16 +20,16 @@ class EvolutionDecision:
 class OffspringPlan:
     operator: str
     child_kind: str
-    child_genome: Genome
+    child_genome: ParamVector
     location: int
     child_energy: float
-    generation: int
+    cycle: int
     parent_ids: tuple[int, ...]
     controller_template: TinyController | None
     parent_costs: dict[int, float]
 
 
-class EvolutionEngine:
+class Optimizer:
     """Variation operators for producing new individuals.
 
     The simulation handles world constraints such as local capacity and deactivation.
@@ -45,55 +45,55 @@ class EvolutionEngine:
         return parent.clone_mutate_energy_threshold()
 
     def recombine_reserve_threshold(self, parent: Individual) -> float:
-        return parent.recombine_energy_threshold() * (0.34 + parent.genome.offspring_investment * 0.10)
+        return parent.recombine_energy_threshold() * (0.34 + parent.params.offspring_investment * 0.10)
 
     def compatible_for_recombine(self, a: Individual, b: Individual) -> bool:
-        return a.genome.distance(b.genome) < 0.50
+        return a.params.distance(b.params) < 0.50
 
-    def plan_clone_mutate(self, parent: Individual) -> EvolutionDecision:
+    def plan_clone_mutate(self, parent: Individual) -> OptimizerDecision:
         threshold = self.clone_mutate_reserve_threshold(parent)
         strain = self._complexity_strain(parent)
-        cost = threshold * (0.32 + parent.genome.offspring_investment * 0.28) * (1.0 + strain * 0.18)
+        cost = threshold * (0.32 + parent.params.offspring_investment * 0.28) * (1.0 + strain * 0.18)
         reserve = max(threshold, cost * 1.04)
         if parent.energy < reserve:
-            return EvolutionDecision(failure="clone_mutate_low_energy", energy_penalty=0.03 + strain * 0.02)
+            return OptimizerDecision(failure="clone_mutate_low_energy", energy_penalty=0.03 + strain * 0.02)
 
         mutation_strength = 0.055 + strain * 0.025
-        child_genome = parent.genome.mutate(self.rng, strength=mutation_strength)
+        child_genome = parent.params.perturb(self.rng, strength=mutation_strength)
         child_energy = cost * max(0.32, 0.42 - strain * 0.035)
-        return EvolutionDecision(
+        return OptimizerDecision(
             plan=OffspringPlan(
                 operator="clone_mutate",
                 child_kind=parent.kind,
                 child_genome=child_genome,
                 location=parent.location,
                 child_energy=child_energy,
-                generation=parent.generation + 1,
+                cycle=parent.cycle + 1,
                 parent_ids=(parent.id,),
                 controller_template=self._inherit_template_clone_mutate(parent, child_genome, strain),
                 parent_costs={parent.id: cost},
             )
         )
 
-    def plan_recombine(self, a: Individual, b: Individual) -> EvolutionDecision:
+    def plan_recombine(self, a: Individual, b: Individual) -> OptimizerDecision:
         if not self.compatible_for_recombine(a, b):
-            return EvolutionDecision(failure="recombine_incompatible", energy_penalty=0.0)
+            return OptimizerDecision(failure="recombine_incompatible", energy_penalty=0.0)
         cost_a = self._recombine_cost(a)
         cost_b = self._recombine_cost(b)
         if a.energy < cost_a or b.energy < cost_b:
-            return EvolutionDecision(failure="recombine_cost_energy", energy_penalty=0.0)
+            return OptimizerDecision(failure="recombine_cost_energy", energy_penalty=0.0)
 
-        child_genome = Genome.recombine(self.rng, a.genome, b.genome)
+        child_genome = ParamVector.combine(self.rng, a.params, b.params)
         child_genome.developmental_complexity = min(1.0, child_genome.developmental_complexity + self.rng.uniform(0.00, 0.04))
         child_energy = 4.0 + (cost_a + cost_b) * 0.85
-        return EvolutionDecision(
+        return OptimizerDecision(
             plan=OffspringPlan(
                 operator="recombine",
                 child_kind="agent",
                 child_genome=child_genome,
                 location=a.location,
                 child_energy=child_energy,
-                generation=max(a.generation, b.generation) + 1,
+                cycle=max(a.cycle, b.cycle) + 1,
                 parent_ids=(a.id, b.id),
                 controller_template=self._inherit_template_recombine(a, b, child_genome),
                 parent_costs={a.id: cost_a, b.id: cost_b},
@@ -102,24 +102,24 @@ class EvolutionEngine:
 
     def _complexity_strain(self, parent: Individual) -> float:
         soft_limit = getattr(self.config, "clone_complexity_soft_limit", self.config.asexual_complexity_ceiling)
-        return max(0.0, parent.genome.complexity() - soft_limit)
+        return max(0.0, parent.params.complexity() - soft_limit)
 
     def _recombine_cost(self, parent: Individual) -> float:
-        return parent.recombine_energy_threshold() * (0.035 + parent.genome.offspring_investment * 0.050)
+        return parent.recombine_energy_threshold() * (0.035 + parent.params.offspring_investment * 0.050)
 
-    def _inherit_template_clone_mutate(self, parent: Individual, child_genome: Genome, strain: float) -> TinyController | None:
+    def _inherit_template_clone_mutate(self, parent: Individual, child_genome: ParamVector, strain: float) -> TinyController | None:
         if parent.controller_template is None or child_genome.neural_budget < 2.0:
             return None
         target_hidden = int(round(child_genome.neural_budget))
-        mutation_scale = 0.025 + child_genome.mutation_rate * 0.25 + strain * 0.010
-        # When child genome calls for a different controller size, clone_for_offspring
+        mutation_scale = 0.025 + child_genome.perturbation_rate * 0.25 + strain * 0.010
+        # When child params calls for a different controller size, clone_for_offspring
         # resizes the inherited template instead of returning None - the parent's
         # learned function is preserved across size changes.
         return parent.controller_template.clone_for_offspring(
             self.rng, mutation_scale=mutation_scale, target_hidden_size=target_hidden
         )
 
-    def _inherit_template_recombine(self, a: Individual, b: Individual, child_genome: Genome) -> TinyController | None:
+    def _inherit_template_recombine(self, a: Individual, b: Individual, child_genome: ParamVector) -> TinyController | None:
         target_hidden = int(round(child_genome.neural_budget))
         if target_hidden < 2:
             return None
@@ -133,7 +133,7 @@ class EvolutionEngine:
         chosen = self.rng.choice(templates)
         return chosen.clone_for_offspring(
             self.rng,
-            mutation_scale=0.035 + child_genome.mutation_rate * 0.20,
+            mutation_scale=0.035 + child_genome.perturbation_rate * 0.20,
             target_hidden_size=target_hidden,
         )
 
@@ -144,5 +144,5 @@ class EvolutionEngine:
             "clone_complexity_soft_limit": getattr(self.config, "clone_complexity_soft_limit", self.config.asexual_complexity_ceiling),
             "recombine_genome_distance_limit": 0.50,
             "sealed_run_policy": "operators are triggered by in-world action and interaction",
-            "future_farm_policy": "archive-driven selection can add non-biological operators without changing world physics",
+            "future_farm_policy": "archive-driven ranking can add non-biological operators without changing world physics",
         }

@@ -59,7 +59,7 @@ class CheckpointManager:
             "bucket": bucket,
             "score": None if score is None else round(score, 6),
             "organism": individual.to_summary(),
-            "genome": individual.genome.to_dict(),
+            "genome": individual.params.to_dict(),
             "brain": individual.controller.to_dict(include_state=True),
             "brain_template": individual.controller_template.to_dict(include_state=False) if individual.controller_template else None,
             "inventory": dict(individual.inventory),

@@ -6,7 +6,7 @@ from typing import Any
 
 from .brain import PREDICTION_HEADS, TinyController
 from .energy import AFFORDANCES, STRUCTURE_CAPABILITIES, Artifact
-from .genome import Genome
+from .params import ParamVector
 
 SIGNAL_VALUE_SIZE = 8
 COMMUNICATION_SKILLS = ("inscribe", "interpret_mark")
@@ -78,12 +78,12 @@ def _clip(value: float, low: float = -1.0, high: float = 1.5) -> float:
 class Individual:
     id: int
     kind: str
-    genome: Genome
+    params: ParamVector
     location: int
     energy: float
     health: float = 1.0
     age: int = 0
-    generation: int = 0
+    cycle: int = 0
     parent_ids: tuple[int, ...] = ()
     lineage_root_id: int = 0
     parent_lineage_ids: tuple[int, ...] = ()
@@ -124,10 +124,10 @@ class Individual:
         return self.controller is not None
 
     def hidden_size(self) -> int:
-        return max(0, int(round(self.genome.neural_budget)))
+        return max(0, int(round(self.params.neural_budget)))
 
     def storage_limit(self) -> float:
-        return 24.0 + self.genome.storage_capacity * 95.0 + self.genome.developmental_complexity * 25.0
+        return 24.0 + self.params.storage_capacity * 95.0 + self.params.developmental_complexity * 25.0
 
     def carried_capability(self, capability: str) -> float:
         best = 0.0
@@ -139,38 +139,38 @@ class Individual:
     def inventory_limit(self) -> int:
         carry = self.carried_capability("carry")
         carry_skill = self.tool_skill.get("carry", 0.0)
-        return max(0, int(1 + self.genome.manipulator * 6.0 + self.genome.developmental_complexity * 3.0 + carry * (3.0 + carry_skill * 3.0)))
+        return max(0, int(1 + self.params.manipulator * 6.0 + self.params.developmental_complexity * 3.0 + carry * (3.0 + carry_skill * 3.0)))
 
     def inventory_count(self) -> int:
         return sum(max(0, qty) for qty in self.inventory.values())
 
     def artifact_limit(self) -> int:
         carry = self.carried_capability("carry")
-        return max(0, int(1 + self.genome.manipulator * 4.0 + self.genome.developmental_complexity * 2.0 + carry * 2.0))
+        return max(0, int(1 + self.params.manipulator * 4.0 + self.params.developmental_complexity * 2.0 + carry * 2.0))
 
     def upkeep_cost(self) -> float:
         base = 0.018
         body = (
-            self.genome.mobility * 0.030
-            + self.genome.manipulator * 0.020
-            + self.genome.armor * 0.015
-            + self.genome.sensor_range * 0.010
-            + self.genome.developmental_complexity * 0.020
+            self.params.mobility * 0.030
+            + self.params.manipulator * 0.020
+            + self.params.armor * 0.015
+            + self.params.sensor_range * 0.010
+            + self.params.developmental_complexity * 0.020
         )
         # neural_budget coefficient lowered 0.0045 -> 0.0030 so a 64-unit controller
         # costs 0.192/tick instead of 0.288. Bigger controllers need a long enough
         # active span to bootstrap their learned representations; if they run out of
-        # energy before cognition pays off, selection drives capacity down regardless of
+        # energy before cognition pays off, ranking drives capacity down regardless of
         # the world's puzzle complexity. This relief lets the experiment run.
         # Episodic capacity at 0.0035/slot - moderate cost since each slot is
         # a hidden_size-dim vector (a controller at neural_budget=8 with
         # episodic_capacity=8 holds 64 floats of episodic memory).
-        episodic = max(0.0, getattr(self.genome, "episodic_capacity", 0.0)) * 0.0035
+        episodic = max(0.0, getattr(self.params, "episodic_capacity", 0.0)) * 0.0035
         neural = (
-            self.genome.neural_budget * 0.0030
-            + self.genome.memory_budget * 0.0028
-            + self.genome.prediction_weight * 0.018
-            + self.genome.plasticity_rate * 0.010
+            self.params.neural_budget * 0.0030
+            + self.params.memory_budget * 0.0028
+            + self.params.prediction_weight * 0.018
+            + self.params.plasticity_rate * 0.010
             + episodic
         )
         if self.kind in {"plant", "fungus"}:
@@ -182,10 +182,10 @@ class Individual:
         return self.age >= 25 and self.health > 0.35
 
     def clone_mutate_energy_threshold(self) -> float:
-        return 22.0 + self.genome.single_parent_threshold * 45.0 + self.genome.complexity() * 7.0
+        return 22.0 + self.params.single_parent_threshold * 45.0 + self.params.complexity() * 7.0
 
     def recombine_energy_threshold(self) -> float:
-        return 26.0 + self.genome.two_parent_threshold * 55.0 + self.genome.complexity() * 8.0
+        return 26.0 + self.params.two_parent_threshold * 55.0 + self.params.complexity() * 8.0
 
     def asexual_energy_threshold(self) -> float:
         return self.clone_mutate_energy_threshold()
@@ -264,9 +264,9 @@ class Individual:
     ) -> None:
         if len(self.event_memory) != EVENT_MEMORY_SIZE:
             self.event_memory = [0.0 for _ in range(EVENT_MEMORY_SIZE)]
-        memory_gate = _clip(self.genome.memory_budget / 12.0, 0.0, 1.0)
+        memory_gate = _clip(self.params.memory_budget / 12.0, 0.0, 1.0)
         decay = 0.86 + memory_gate * 0.10
-        write = (0.03 + memory_gate * 0.12) * (0.75 + min(1.0, self.genome.plasticity_rate * 2.5) * 0.25)
+        write = (0.03 + memory_gate * 0.12) * (0.75 + min(1.0, self.params.plasticity_rate * 2.5) * 0.25)
         surprise = sum(abs(prediction_errors.get(head, 0.0)) for head in PREDICTION_HEADS) / max(1, len(PREDICTION_HEADS))
         event = [
             _clip(max(0.0, energy_delta) / 10.0, 0.0, 1.5),
@@ -311,7 +311,7 @@ class Individual:
         if self.energy > self.storage_limit():
             self.energy = self.storage_limit()
         if self.energy > self.upkeep_cost() * 20.0 and self.health < 1.0:
-            repair = min(1.0 - self.health, 0.003 + self.genome.storage_capacity * 0.004)
+            repair = min(1.0 - self.health, 0.003 + self.params.storage_capacity * 0.004)
             self.health += repair
             self.energy -= repair * 5.0
 
@@ -321,7 +321,7 @@ class Individual:
             "kind": self.kind,
             "location": self.location,
             "age": self.age,
-            "generation": self.generation,
+            "generation": self.cycle,
             "lineage_root_id": self.lineage_root_id,
             "parent_lineage_ids": list(self.parent_lineage_ids),
             "inherited_brain_template": self.inherited_brain_template,
@@ -340,7 +340,7 @@ class Individual:
             "last_valence": round(self.last_valence, 4),
             "last_energy_delta": round(self.last_energy_delta, 4),
             "artifacts": [artifact.to_dict() for artifact in self.artifacts],
-            "complexity": round(self.genome.complexity(), 4),
+            "complexity": round(self.params.complexity(), 4),
             "parents": list(self.parent_ids),
         }
 
@@ -370,11 +370,11 @@ class Individual:
         }
 
 
-def make_brain_for_genome(rng: Random, genome: Genome) -> tuple[TinyController | None, TinyController | None]:
-    hidden = int(round(genome.neural_budget))
+def make_brain_for_genome(rng: Random, params: ParamVector) -> tuple[TinyController | None, TinyController | None]:
+    hidden = int(round(params.neural_budget))
     if hidden < 2:
         return None, None
-    episodic_capacity = int(round(max(0.0, getattr(genome, "episodic_capacity", 0.0))))
+    episodic_capacity = int(round(max(0.0, getattr(params, "episodic_capacity", 0.0))))
     template = TinyController.random(rng, OBSERVATION_SIZE, hidden, len(ACTIONS), episodic_capacity=episodic_capacity)
     controller = TinyController.from_dict(template.to_dict(include_state=False))
     return controller, template
@@ -384,10 +384,10 @@ def individual_from_genome(
     rng: Random,
     id_: int,
     kind: str,
-    genome: Genome,
+    params: ParamVector,
     location: int,
     energy: float,
-    generation: int = 0,
+    cycle: int = 0,
     parent_ids: tuple[int, ...] = (),
     controller_template: TinyController | None = None,
 ) -> Individual:
@@ -396,15 +396,15 @@ def individual_from_genome(
     if controller_template is not None:
         template = controller_template
         controller = TinyController.from_dict(template.to_dict(include_state=False))
-    elif genome.neural_budget >= 2.0 and kind == "agent":
-        controller, template = make_brain_for_genome(rng, genome)
+    elif params.neural_budget >= 2.0 and kind == "agent":
+        controller, template = make_brain_for_genome(rng, params)
     return Individual(
         id=id_,
         kind=kind,
-        genome=genome,
+        params=params,
         location=location,
         energy=energy,
-        generation=generation,
+        cycle=cycle,
         parent_ids=parent_ids,
         inherited_brain_template=controller_template is not None,
         controller=controller,

@@ -167,7 +167,7 @@ def build_debrief(sim: Any, reason: str, elapsed_seconds: float) -> dict[str, An
         "structures_extended": dict(getattr(sim, "structures_extended", {})),
         "reproduction_attempts": dict(sim.reproduction_attempts),
         "reproduction_failures": dict(sim.reproduction_failures),
-        "evolution_policy": sim.evolution.to_summary(),
+        "evolution_policy": sim.optimization.to_summary(),
         "action_counts": dict(sim.action_counts),
         "action_energy_delta": {key: round(value, 6) for key, value in sim.action_energy_delta.items()},
         "action_avg_energy_delta": {

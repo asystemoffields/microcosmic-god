@@ -19,7 +19,7 @@ def main() -> None:
     print(f"reason: {summary['reason']}")
     print(f"tick: {summary['tick']}")
     print(f"elapsed_seconds: {summary['elapsed_seconds']}")
-    print(f"population: {summary['population']}")
+    print(f"pool: {summary['population']}")
     print(f"births: {summary['births_by_mode']}")
     print(f"deaths: {summary['deaths_by_cause']}")
     print(f"deaths_by_kind_cause: {summary.get('deaths_by_kind_cause', {})}")

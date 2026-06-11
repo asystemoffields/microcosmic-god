@@ -9,7 +9,7 @@ from microcosmic_god.backends import BrainLearningCase
 from microcosmic_god.brain import PREDICTION_HEADS, TinyController
 from microcosmic_god.config import RunConfig
 from microcosmic_god.energy import build_artifact, build_structure, structure_decay_channels
-from microcosmic_god.genome import Genome
+from microcosmic_god.params import ParamVector
 from microcosmic_god.organisms import ACTIONS, OBSERVATION_SIZE
 from microcosmic_god.simulation import Simulation
 from microcosmic_god.world import CausalChallenge
@@ -100,10 +100,10 @@ class CausalContractTests(unittest.TestCase):
                     }
                 )
                 place.habitat.update({"aquatic": 0.0, "depth": 0.0, "humidity": 0.95, "salinity": 0.0})
-                genome = Genome.neural(sim.rng)
-                genome.thermal_tolerance = 0.0
-                genome.armor = 0.0
-                agent = sim.add_individual("agent", genome, 0, 80.0)
+                params = ParamVector.neural(sim.rng)
+                params.thermal_tolerance = 0.0
+                params.armor = 0.0
+                agent = sim.add_individual("agent", params, 0, 80.0)
                 assert agent is not None
 
                 sim._habitat_stress(agent)
@@ -119,7 +119,7 @@ class CausalContractTests(unittest.TestCase):
 
     def test_all_signal_tokens_are_observed(self) -> None:
         self.sim = make_sim()
-        agent = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 50.0)
+        agent = self.sim.add_individual("agent", ParamVector.neural(self.sim.rng), 0, 50.0)
         assert agent is not None
         agent.event_memory = [index / 20.0 for index in range(8)]
         agent.signal_values = [index / 10.0 for index in range(8)]
@@ -132,7 +132,7 @@ class CausalContractTests(unittest.TestCase):
 
     def test_action_results_feed_short_event_memory(self) -> None:
         self.sim = make_sim()
-        agent = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 50.0)
+        agent = self.sim.add_individual("agent", ParamVector.neural(self.sim.rng), 0, 50.0)
         assert agent is not None
 
         agent.record_action_result(
@@ -154,7 +154,7 @@ class CausalContractTests(unittest.TestCase):
 
     def test_checkpoints_capture_cognitive_context(self) -> None:
         self.sim = make_sim()
-        agent = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 50.0)
+        agent = self.sim.add_individual("agent", ParamVector.neural(self.sim.rng), 0, 50.0)
         assert agent is not None
         agent.record_action_result(8, 3.0, 0.0, 0.0, 0.25, 0.0, 0.1, 1.0)
         saved = self.sim.checkpoints.save_brain(42, agent, "test_cognition", {}, bucket="general")
@@ -170,15 +170,15 @@ class CausalContractTests(unittest.TestCase):
 
     def test_lineage_metadata_tracks_inherited_agent_templates(self) -> None:
         self.sim = make_sim(places=1)
-        parent = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        parent = self.sim.add_individual("agent", ParamVector.neural(self.sim.rng), 0, 80.0)
         assert parent is not None and parent.controller_template is not None
 
         child = self.sim.add_individual(
             "agent",
-            Genome.neural(self.sim.rng),
+            ParamVector.neural(self.sim.rng),
             0,
             40.0,
-            generation=parent.generation + 1,
+            cycle=parent.cycle + 1,
             parent_ids=(parent.id,),
             controller_template=parent.controller_template,
         )
@@ -198,8 +198,8 @@ class CausalContractTests(unittest.TestCase):
 
     def test_attack_uses_current_location_not_tick_start_roster(self) -> None:
         self.sim = make_sim(places=2)
-        attacker = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
-        target = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        attacker = self.sim.add_individual("agent", ParamVector.neural(self.sim.rng), 0, 80.0)
+        target = self.sim.add_individual("agent", ParamVector.neural(self.sim.rng), 0, 80.0)
         assert attacker is not None and target is not None
         _stale_roster = self.sim._rosters()
         target.location = 1
@@ -212,15 +212,15 @@ class CausalContractTests(unittest.TestCase):
 
     def test_agent_defense_can_block_and_counter_predation(self) -> None:
         self.sim = make_sim(places=1)
-        attacker_genome = Genome.neural(self.sim.rng)
+        attacker_genome = ParamVector.neural(self.sim.rng)
         attacker_genome.mobility = 0.20
         attacker_genome.manipulator = 0.20
         attacker_genome.mechanical_use = 0.20
-        target_genome = Genome.neural(self.sim.rng)
+        target_genome = ParamVector.neural(self.sim.rng)
         target_genome.armor = 0.30
         target_genome.mobility = 0.40
         target_genome.manipulator = 1.00
-        helper_genome = Genome.neural(self.sim.rng)
+        helper_genome = ParamVector.neural(self.sim.rng)
         helper_genome.armor = 1.00
         helper_genome.mobility = 1.00
         helper_genome.manipulator = 1.00
@@ -257,7 +257,7 @@ class CausalContractTests(unittest.TestCase):
 
     def test_tool_choice_uses_recognized_situation_without_magic(self) -> None:
         self.sim = make_sim(places=1)
-        agent = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        agent = self.sim.add_individual("agent", ParamVector.neural(self.sim.rng), 0, 80.0)
         assert agent is not None
         agent.inventory = {"stone": 1, "shell": 1}
         place = self.sim.world.places[0]
@@ -309,7 +309,7 @@ class CausalContractTests(unittest.TestCase):
 
     def test_tool_lessons_store_situation_separately_from_attempt(self) -> None:
         self.sim = make_sim(places=1)
-        agent = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        agent = self.sim.add_individual("agent", ParamVector.neural(self.sim.rng), 0, 80.0)
         assert agent is not None
         place = self.sim.world.places[0]
         place.causal_challenge = None
@@ -331,9 +331,9 @@ class CausalContractTests(unittest.TestCase):
 
     def test_clone_mutate_capacity_uses_current_local_population(self) -> None:
         self.sim = make_sim(places=2)
-        parent_genome = Genome.plant(self.sim.rng)
+        parent_genome = ParamVector.plant(self.sim.rng)
         parent = self.sim.add_individual("plant", parent_genome, 0, 200.0)
-        neighbor = self.sim.add_individual("plant", Genome.plant(self.sim.rng), 0, 20.0)
+        neighbor = self.sim.add_individual("plant", ParamVector.plant(self.sim.rng), 0, 20.0)
         assert parent is not None and neighbor is not None
         self.sim.world.places[0].capacity = 2
         parent.age = 100
@@ -353,7 +353,7 @@ class CausalContractTests(unittest.TestCase):
     def test_complex_neural_agents_can_clone_with_soft_strain(self) -> None:
         self.sim = make_sim()
         self.sim.config.clone_complexity_soft_limit = 0.0
-        parent_genome = Genome.neural(self.sim.rng)
+        parent_genome = ParamVector.neural(self.sim.rng)
         parent_genome.neural_budget = 32.0
         parent_genome.memory_budget = 16.0
         parent = self.sim.add_individual("agent", parent_genome, 0, 1_000.0)
@@ -367,7 +367,7 @@ class CausalContractTests(unittest.TestCase):
 
     def test_failed_craft_risks_material_loss(self) -> None:
         self.sim = make_sim()
-        agent_genome = Genome.neural(self.sim.rng)
+        agent_genome = ParamVector.neural(self.sim.rng)
         agent_genome.manipulator = 0.12
         agent = self.sim.add_individual("agent", agent_genome, 0, 100.0)
         assert agent is not None
@@ -396,7 +396,7 @@ class CausalContractTests(unittest.TestCase):
 
     def test_successful_craft_counts_as_tool_making(self) -> None:
         self.sim = make_sim()
-        agent_genome = Genome.neural(self.sim.rng)
+        agent_genome = ParamVector.neural(self.sim.rng)
         agent_genome.manipulator = 1.0
         agent = self.sim.add_individual("agent", agent_genome, 0, 100.0)
         assert agent is not None
@@ -431,7 +431,7 @@ class CausalContractTests(unittest.TestCase):
 
     def test_only_intentional_marks_transmit_lesson_traces_when_observed(self) -> None:
         self.sim = make_sim()
-        agent_genome = Genome.neural(self.sim.rng)
+        agent_genome = ParamVector.neural(self.sim.rng)
         agent_genome.sensor_range = 1.0
         agent_genome.memory_budget = 12.0
         reader = self.sim.add_individual("agent", agent_genome, 0, 80.0)
@@ -496,7 +496,7 @@ class CausalContractTests(unittest.TestCase):
 
     def _mark_read_gain_for_quality(self, quality: float) -> dict[str, float]:
         self.sim = make_sim(seed=int(100 + quality * 100))
-        agent_genome = Genome.neural(self.sim.rng)
+        agent_genome = ParamVector.neural(self.sim.rng)
         agent_genome.sensor_range = 1.0
         agent_genome.memory_budget = 12.0
         reader = self.sim.add_individual("agent", agent_genome, 0, 80.0)
@@ -556,8 +556,8 @@ class CausalContractTests(unittest.TestCase):
 
     def test_useful_reads_feed_back_to_present_authors(self) -> None:
         self.sim = make_sim()
-        writer_genome = Genome.neural(self.sim.rng)
-        reader_genome = Genome.neural(self.sim.rng)
+        writer_genome = ParamVector.neural(self.sim.rng)
+        reader_genome = ParamVector.neural(self.sim.rng)
         reader_genome.sensor_range = 1.0
         reader_genome.memory_budget = 12.0
         writer = self.sim.add_individual("agent", writer_genome, 0, 80.0)
@@ -611,10 +611,10 @@ class CausalContractTests(unittest.TestCase):
 
     def test_self_reading_counts_as_memory_not_knowledge_transmission(self) -> None:
         self.sim = make_sim()
-        genome = Genome.neural(self.sim.rng)
-        genome.sensor_range = 1.0
-        genome.memory_budget = 12.0
-        agent = self.sim.add_individual("agent", genome, 0, 80.0)
+        params = ParamVector.neural(self.sim.rng)
+        params.sensor_range = 1.0
+        params.memory_budget = 12.0
+        agent = self.sim.add_individual("agent", params, 0, 80.0)
         assert agent is not None
         self.sim.world.create_mark(
             0,
@@ -667,10 +667,10 @@ class CausalContractTests(unittest.TestCase):
 
     def test_record_artifact_can_carry_lesson_trace_across_places(self) -> None:
         self.sim = make_sim(places=4)
-        genome = Genome.neural(self.sim.rng)
-        genome.sensor_range = 1.0
-        genome.memory_budget = 12.0
-        agent = self.sim.add_individual("agent", genome, 0, 80.0)
+        params = ParamVector.neural(self.sim.rng)
+        params.sensor_range = 1.0
+        params.memory_budget = 12.0
+        agent = self.sim.add_individual("agent", params, 0, 80.0)
         assert agent is not None
         artifact = build_artifact({"fiber": 1, "resin": 1}, method_quality=1.0, target_affordance="record")
         agent.artifacts.append(artifact)
@@ -718,10 +718,10 @@ class CausalContractTests(unittest.TestCase):
 
     def test_carry_artifact_expands_material_capacity(self) -> None:
         self.sim = make_sim()
-        genome = Genome.neural(self.sim.rng)
-        genome.manipulator = 0.2
-        genome.developmental_complexity = 0.0
-        agent = self.sim.add_individual("agent", genome, 0, 80.0)
+        params = ParamVector.neural(self.sim.rng)
+        params.manipulator = 0.2
+        params.developmental_complexity = 0.0
+        agent = self.sim.add_individual("agent", params, 0, 80.0)
         assert agent is not None
         base_limit = agent.inventory_limit()
         artifact = build_artifact({"fiber": 1, "shell": 1, "resin": 1}, method_quality=1.0, target_affordance="carry")
@@ -736,11 +736,11 @@ class CausalContractTests(unittest.TestCase):
         place = self.sim.world.places[0]
         place.physics["pressure"] = 1.0
         place.physics["abrasion"] = 0.7
-        genome = Genome.neural(self.sim.rng)
-        genome.pressure_tolerance = 0.05
-        genome.armor = 0.0
-        unprotected = self.sim.add_individual("agent", genome, 0, 80.0)
-        protected = self.sim.add_individual("agent", genome, 0, 80.0)
+        params = ParamVector.neural(self.sim.rng)
+        params.pressure_tolerance = 0.05
+        params.armor = 0.0
+        unprotected = self.sim.add_individual("agent", params, 0, 80.0)
+        protected = self.sim.add_individual("agent", params, 0, 80.0)
         assert unprotected is not None and protected is not None
         protected.artifacts.append(build_artifact({"shell": 2, "fiber": 1}, method_quality=1.0, target_affordance="protect"))
 
@@ -771,7 +771,7 @@ class CausalContractTests(unittest.TestCase):
             }
         )
         place.habitat.update({"aquatic": 0.0, "depth": 0.0, "humidity": 0.95, "salinity": 0.0})
-        fragile = Genome.neural(self.sim.rng)
+        fragile = ParamVector.neural(self.sim.rng)
         fragile.thermal_tolerance = 0.0
         fragile.armor = 0.0
         unprotected = self.sim.add_individual("agent", fragile, 0, 80.0)
@@ -810,19 +810,19 @@ class CausalContractTests(unittest.TestCase):
                 }
             )
             place.habitat.update({"aquatic": 0.0, "depth": 0.0, "humidity": 0.95, "salinity": 0.0})
-        fragile = Genome.neural(self.sim.rng)
+        fragile = ParamVector.neural(self.sim.rng)
         fragile.thermal_tolerance = 0.0
         fragile.armor = 0.0
         alone = self.sim.add_individual("agent", fragile, 1, 80.0)
         helped = self.sim.add_individual("agent", fragile, 0, 80.0)
-        helper = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        helper = self.sim.add_individual("agent", ParamVector.neural(self.sim.rng), 0, 80.0)
         assert alone is not None and helped is not None and helper is not None
         helper.last_action = "signal"
         helper.tool_skill["protect"] = 1.0
         helper.tool_skill["support"] = 1.0
-        helper.genome.signal_strength = 1.0
-        helper.genome.sensor_range = 1.0
-        helper.genome.manipulator = 1.0
+        helper.params.signal_strength = 1.0
+        helper.params.sensor_range = 1.0
+        helper.params.manipulator = 1.0
 
         self.sim._habitat_stress(alone)
         self.sim._habitat_stress(helped)
@@ -834,7 +834,7 @@ class CausalContractTests(unittest.TestCase):
 
     def test_plain_marks_do_not_automatically_encode_recent_lessons(self) -> None:
         self.sim = make_sim()
-        agent_genome = Genome.neural(self.sim.rng)
+        agent_genome = ParamVector.neural(self.sim.rng)
         agent_genome.manipulator = 1.0
         agent_genome.memory_budget = 18.0
         agent_genome.signal_strength = 1.0
@@ -860,7 +860,7 @@ class CausalContractTests(unittest.TestCase):
 
     def test_agents_can_discover_intentional_lesson_inscription_as_a_skill(self) -> None:
         self.sim = make_sim()
-        agent_genome = Genome.neural(self.sim.rng)
+        agent_genome = ParamVector.neural(self.sim.rng)
         agent_genome.manipulator = 1.0
         agent_genome.memory_budget = 18.0
         agent_genome.signal_strength = 1.0
@@ -912,7 +912,7 @@ class CausalContractTests(unittest.TestCase):
 
     def test_causal_challenge_unlocks_after_affordance_sequence(self) -> None:
         self.sim = make_sim()
-        agent = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        agent = self.sim.add_individual("agent", ParamVector.neural(self.sim.rng), 0, 80.0)
         assert agent is not None
         place = self.sim.world.places[0]
         before = place.resources["chemical"]
@@ -950,7 +950,7 @@ class CausalContractTests(unittest.TestCase):
 
     def test_build_action_creates_persistent_structure(self) -> None:
         self.sim = make_sim()
-        agent_genome = Genome.neural(self.sim.rng)
+        agent_genome = ParamVector.neural(self.sim.rng)
         agent_genome.manipulator = 1.0
         agent = self.sim.add_individual("agent", agent_genome, 0, 100.0)
         assert agent is not None
@@ -978,7 +978,7 @@ class CausalContractTests(unittest.TestCase):
 
     def test_bind_practice_transfers_only_to_related_skills(self) -> None:
         self.sim = make_sim()
-        agent = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        agent = self.sim.add_individual("agent", ParamVector.neural(self.sim.rng), 0, 80.0)
         assert agent is not None
 
         self.sim._tool_effect(agent, self.sim.world.places[0], "bind", score=1.0, skill=0.0)
@@ -991,7 +991,7 @@ class CausalContractTests(unittest.TestCase):
 
     def test_specialists_keep_cognitive_credit_from_repeated_practice(self) -> None:
         self.sim = make_sim()
-        agent = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        agent = self.sim.add_individual("agent", ParamVector.neural(self.sim.rng), 0, 80.0)
         assert agent is not None
         agent.tool_skill["bind"] = 1.0
         agent.tool_use_counts = {"bind": 96}
@@ -1003,9 +1003,9 @@ class CausalContractTests(unittest.TestCase):
 
     def test_active_helpers_can_supply_build_materials(self) -> None:
         self.sim = make_sim()
-        actor_genome = Genome.neural(self.sim.rng)
+        actor_genome = ParamVector.neural(self.sim.rng)
         actor_genome.manipulator = 1.0
-        helper_genome = Genome.neural(self.sim.rng)
+        helper_genome = ParamVector.neural(self.sim.rng)
         helper_genome.manipulator = 1.0
         helper_genome.mobility = 1.0
         helper_genome.sensor_range = 1.0
@@ -1042,12 +1042,12 @@ class CausalContractTests(unittest.TestCase):
 
     def test_collective_support_and_relocation_shock_are_tracked_for_moves(self) -> None:
         self.sim = make_sim(places=2)
-        actor_genome = Genome.neural(self.sim.rng)
+        actor_genome = ParamVector.neural(self.sim.rng)
         actor_genome.mobility = 0.40
         actor_genome.manipulator = 0.25
         actor_genome.sensor_range = 0.0
         actor_genome.aquatic_affinity = 0.0
-        helper_genome = Genome.neural(self.sim.rng)
+        helper_genome = ParamVector.neural(self.sim.rng)
         helper_genome.mobility = 1.0
         helper_genome.manipulator = 1.0
         helper_genome.sensor_range = 1.0
@@ -1099,10 +1099,10 @@ class CausalContractTests(unittest.TestCase):
 
     def test_successful_movement_spends_energy_even_when_easy(self) -> None:
         self.sim = make_sim(places=2)
-        genome = Genome.neural(self.sim.rng)
-        genome.mobility = 1.0
-        genome.sensor_range = 0.0
-        agent = self.sim.add_individual("agent", genome, 0, 100.0)
+        params = ParamVector.neural(self.sim.rng)
+        params.mobility = 1.0
+        params.sensor_range = 0.0
+        agent = self.sim.add_individual("agent", params, 0, 100.0)
         assert agent is not None
         origin = self.sim.world.places[0]
         destination = self.sim.world.places[1]
@@ -1138,13 +1138,13 @@ class CausalContractTests(unittest.TestCase):
 
     def test_failed_movement_spends_energy(self) -> None:
         self.sim = make_sim(places=2)
-        genome = Genome.neural(self.sim.rng)
-        genome.mobility = 0.02
-        genome.sensor_range = 0.0
-        genome.aquatic_affinity = 0.0
-        genome.thermal_tolerance = 0.0
-        genome.pressure_tolerance = 0.0
-        agent = self.sim.add_individual("agent", genome, 0, 100.0)
+        params = ParamVector.neural(self.sim.rng)
+        params.mobility = 0.02
+        params.sensor_range = 0.0
+        params.aquatic_affinity = 0.0
+        params.thermal_tolerance = 0.0
+        params.pressure_tolerance = 0.0
+        agent = self.sim.add_individual("agent", params, 0, 100.0)
         assert agent is not None
         origin = self.sim.world.places[0]
         destination = self.sim.world.places[1]
@@ -1315,15 +1315,15 @@ class CausalContractTests(unittest.TestCase):
 
     def test_death_checkpoints_do_not_crowd_out_living_champions(self) -> None:
         self.sim = make_sim()
-        death_candidate = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
-        tool_champion = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
-        reproductive_champion = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
-        lineage_founder = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        death_candidate = self.sim.add_individual("agent", ParamVector.neural(self.sim.rng), 0, 80.0)
+        tool_champion = self.sim.add_individual("agent", ParamVector.neural(self.sim.rng), 0, 80.0)
+        reproductive_champion = self.sim.add_individual("agent", ParamVector.neural(self.sim.rng), 0, 80.0)
+        lineage_founder = self.sim.add_individual("agent", ParamVector.neural(self.sim.rng), 0, 80.0)
         assert death_candidate is not None and tool_champion is not None and reproductive_champion is not None and lineage_founder is not None
         tool_champion.successful_tools = 80
         reproductive_champion.offspring_count = 18
-        reproductive_champion.generation = 3
-        lineage_founder.generation = 9
+        reproductive_champion.cycle = 3
+        lineage_founder.cycle = 9
         lineage_founder.offspring_count = 4
 
         for index in range(30):
@@ -1462,7 +1462,7 @@ class CausalContractTests(unittest.TestCase):
 class AttentionTests(unittest.TestCase):
     """Information-as-attention: controllers learn during their active span what to attend to.
     Total fidelity is bounded; what isn't attended to gets noise. The mechanism
-    must be neuroplastic (lifetime learning), inheritable (clone with mutation),
+    must be neuroplastic (lifetime learning), inheritable (clone with perturbation),
     backward-compatible (legacy checkpoints work), and not require marks/signals
     (transfer-clean to environments without durable symbol encoding)."""
 
@@ -1577,7 +1577,7 @@ class AttentionTests(unittest.TestCase):
 
 class BrainGrowthTests(unittest.TestCase):
     """Controllers can grow or shrink across reproduction without losing the parent's
-    learned function. This gives evolution real freedom to find appropriate
+    learned function. This gives optimization real freedom to find appropriate
     capacity for each operating regime, rather than capping all controllers at one
     fixed size."""
 

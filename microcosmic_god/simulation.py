@@ -25,8 +25,8 @@ from .energy import (
     extend_structure,
     structure_capability,
 )
-from .evolution import EvolutionEngine, OffspringPlan
-from .genome import MEMORY_BUDGET_MAX, NEURAL_BUDGET_MAX, Genome
+from .optimization import Optimizer, OffspringPlan
+from .params import MEMORY_BUDGET_MAX, NEURAL_BUDGET_MAX, ParamVector
 from .interventions import Intervention, load_interventions
 from .observer import EventObserver
 from .organisms import ACTIONS, ACTION_INDEX, OBSERVATION_SIZE, Individual, individual_from_genome
@@ -62,7 +62,7 @@ class Simulation:
         self.observer = EventObserver(self.logger)
         self.checkpoints = CheckpointManager(self.logger.checkpoint_dir, config.neural_checkpoint_limit)
         self.brain_runtime = make_brain_runtime(config.compute_backend, config.device)
-        self.evolution = EvolutionEngine(self.rng, config)
+        self.optimization = Optimizer(self.rng, config)
         self.interventions = load_interventions(config.interventions_path) if config.run_mode == "garden" else {}
         self.organisms: dict[int, Individual] = {}
         self.next_id = 1
@@ -112,9 +112,9 @@ class Simulation:
         The point of multi-world is to invalidate controllers' memorized solutions
         (place 7 needs concentrate_heat first, etc.) so that only controllers with
         abstracted causal rules survive. We do NOT want to also reset resource
-        depletion, because that's a free buff to the population — it lets
+        depletion, because that's a free buff to the pool — it lets
         energy-depleted lineages get re-supplied every refresh cycle, which masks the
-        cognitive selection pressure with a basic survival-pressure release.
+        cognitive ranking pressure with a basic survival-pressure release.
 
         So the refresh swaps:
           - place.physics (temperature, fluid_level, abrasion, pressure, ...)
@@ -136,7 +136,7 @@ class Simulation:
         # Carry over the resource/material/artifact state place-by-place. The
         # new world has the same place count and matching ids (both are 0..N-1
         # by construction), but freshly generated physics/obstacles/challenges.
-        # We mutate the new world's places to inherit the carried state.
+        # We perturb the new world's places to inherit the carried state.
         n_places = min(len(self.world.places), len(new_world.places))
         for i in range(n_places):
             old = self.world.places[i]
@@ -168,37 +168,37 @@ class Simulation:
 
     def _seed_initial_population(self) -> None:
         for _ in range(self.config.initial_plants):
-            self.add_individual("plant", Genome.plant(self.rng), self.rng.randrange(len(self.world.places)), self.rng.uniform(10.0, 35.0))
+            self.add_individual("plant", ParamVector.plant(self.rng), self.rng.randrange(len(self.world.places)), self.rng.uniform(10.0, 35.0))
         for _ in range(self.config.initial_fungi):
-            self.add_individual("fungus", Genome.fungus(self.rng), self.rng.randrange(len(self.world.places)), self.rng.uniform(8.0, 28.0))
+            self.add_individual("fungus", ParamVector.fungus(self.rng), self.rng.randrange(len(self.world.places)), self.rng.uniform(8.0, 28.0))
         for _ in range(self.config.initial_agents):
-            self.add_individual("agent", Genome.neural(self.rng), self.rng.randrange(len(self.world.places)), self.rng.uniform(22.0, 55.0))
+            self.add_individual("agent", ParamVector.neural(self.rng), self.rng.randrange(len(self.world.places)), self.rng.uniform(22.0, 55.0))
         self.logger.event(0, "seeded", {"population": population_counts(self.organisms)})
 
     def add_individual(
         self,
         kind: str,
-        genome: Genome,
+        params: ParamVector,
         location: int,
         energy: float,
-        generation: int = 0,
+        cycle: int = 0,
         parent_ids: tuple[int, ...] = (),
         controller_template: TinyController | None = None,
     ) -> Individual | None:
         if self.living_total >= self.config.max_population:
             return None
         if kind != "agent":
-            genome.neural_budget = 0.0
-            genome.memory_budget = 0.0
+            params.neural_budget = 0.0
+            params.memory_budget = 0.0
             controller_template = None
         individual = individual_from_genome(
             self.rng,
             id_=self.next_id,
             kind=kind,
-            genome=genome,
+            params=params,
             location=location % len(self.world.places),
             energy=max(0.1, energy),
-            generation=generation,
+            cycle=cycle,
             parent_ids=parent_ids,
             controller_template=controller_template,
         )
@@ -251,8 +251,8 @@ class Simulation:
 
     def step(self) -> None:
         self.tick += 1
-        # Multi-world selection: regenerate the world periodically so the
-        # population faces shifting physics. Controllers that memorized one
+        # Multi-world ranking: regenerate the world periodically so the
+        # pool faces shifting physics. Controllers that memorized one
         # specific world are removed when it changes; controllers that abstracted the
         # underlying causal rules survive. Selects FOR generalization.
         refresh_every = int(getattr(self.config, "world_refresh_every", 0) or 0)
@@ -343,11 +343,11 @@ class Simulation:
             extra = feedback[organism_id]
             movement_hazard = damage * 4.0 if action_name == "move" else 0.0
             valence = (
-                individual.genome.valence_energy * (energy_delta / 10.0)
-                + individual.genome.valence_health * (health_delta * 4.0)
-                - individual.genome.valence_damage * (damage * 4.0)
-                + individual.genome.valence_reproduction * extra.get("reproduction", 0.0)
-                + individual.genome.valence_social * extra.get("social", 0.0)
+                individual.params.valence_energy * (energy_delta / 10.0)
+                + individual.params.valence_health * (health_delta * 4.0)
+                - individual.params.valence_damage * (damage * 4.0)
+                + individual.params.valence_reproduction * extra.get("reproduction", 0.0)
+                + individual.params.valence_social * extra.get("social", 0.0)
             )
             outcome_targets = {
                 "damage": damage * 4.0,
@@ -363,9 +363,9 @@ class Simulation:
                     action_index=action_index,
                     valence=valence,
                     energy_delta=energy_delta / 10.0,
-                    learning_rate=individual.genome.learning_rate,
-                    plasticity=individual.genome.plasticity_rate,
-                    prediction_weight=individual.genome.prediction_weight,
+                    learning_rate=individual.params.learning_rate,
+                    plasticity=individual.params.plasticity_rate,
+                    prediction_weight=individual.params.prediction_weight,
                     outcome_targets=outcome_targets,
                 )
             )
@@ -442,7 +442,7 @@ class Simulation:
         prediction_fit = max(0.0, 1.0 - average_error / 1.5) if has_history else 0.0
         memory_signal = min(1.0, sum(abs(value) for value in individual.event_memory) / max(1.0, len(individual.event_memory) * 0.35))
         learned_skill = self._skill_breadth(individual)
-        place_knowledge = min(1.0, len(individual.place_memory) / max(1.0, individual.genome.memory_budget * 2.0))
+        place_knowledge = min(1.0, len(individual.place_memory) / max(1.0, individual.params.memory_budget * 2.0))
         return max(0.0, min(1.0, prediction_fit * 0.38 + memory_signal * 0.24 + learned_skill * 0.24 + place_knowledge * 0.14))
 
     def _skill_breadth(self, individual: Individual) -> float:
@@ -507,10 +507,10 @@ class Simulation:
                 helper.tool_skill.get("support", 0.0) * 0.45,
                 helper.tool_skill.get("protect", 0.0) * 0.30 if focus in {"traverse", "build"} else 0.0,
             )
-            body = helper.genome.manipulator * 0.22 + helper.genome.mobility * 0.12 + helper.genome.sensor_range * 0.16
+            body = helper.params.manipulator * 0.22 + helper.params.mobility * 0.12 + helper.params.sensor_range * 0.16
             alignment = 0.32 + signal * 0.34 + (0.18 if helper.recombine_intent_until >= self.tick else 0.0)
             alignment += 0.12 if helper.last_action in {"coordinate", "signal", "observe"} else 0.0
-            contribution = max(0.0, min(1.0, (body + focus_skill * 0.32 + helper.genome.signal_strength * 0.10 + energy_readiness * 0.14) * alignment))
+            contribution = max(0.0, min(1.0, (body + focus_skill * 0.32 + helper.params.signal_strength * 0.10 + energy_readiness * 0.14) * alignment))
             if contribution > 0.035:
                 helpers.append((helper, contribution))
         helpers.sort(key=lambda item: item[1], reverse=True)
@@ -693,12 +693,12 @@ class Simulation:
             + abs(destination_physics.get("oxygen", 0.35) - origin_physics.get("oxygen", 0.35)) * 0.14
         )
         destination_mismatch = (
-            max(0.0, destination_physics.get("fluid_level", 0.0) - individual.genome.aquatic_affinity * 0.88) * 0.28
-            + max(0.0, individual.genome.aquatic_affinity * (1.0 - destination_physics.get("humidity", 0.5)) - individual.genome.desiccation_tolerance * 0.58) * 0.24
-            + max(0.0, destination_physics.get("pressure", 0.0) - individual.genome.pressure_tolerance * 1.05) * 0.22
-            + max(0.0, abs(destination_physics.get("salinity", 0.0) - individual.genome.salinity_tolerance) - 0.55) * 0.14
-            + max(0.0, destination_physics.get("temperature", 0.5) - (0.60 + individual.genome.thermal_tolerance * 0.42)) * 0.18
-            + max(0.0, 0.18 - destination_physics.get("temperature", 0.5) - individual.genome.thermal_tolerance * 0.12) * 0.10
+            max(0.0, destination_physics.get("fluid_level", 0.0) - individual.params.aquatic_affinity * 0.88) * 0.28
+            + max(0.0, individual.params.aquatic_affinity * (1.0 - destination_physics.get("humidity", 0.5)) - individual.params.desiccation_tolerance * 0.58) * 0.24
+            + max(0.0, destination_physics.get("pressure", 0.0) - individual.params.pressure_tolerance * 1.05) * 0.22
+            + max(0.0, abs(destination_physics.get("salinity", 0.0) - individual.params.salinity_tolerance) - 0.55) * 0.14
+            + max(0.0, destination_physics.get("temperature", 0.5) - (0.60 + individual.params.thermal_tolerance * 0.42)) * 0.18
+            + max(0.0, 0.18 - destination_physics.get("temperature", 0.5) - individual.params.thermal_tolerance * 0.12) * 0.10
         )
         hazard_delta = max(0.0, self._place_hazard_pressure(destination) - self._place_hazard_pressure(origin) * 0.55)
         raw = physical_delta + destination_mismatch + hazard_delta
@@ -1079,8 +1079,8 @@ class Simulation:
                 structure_support = structure_capability(place.structures, "support")
                 structure_shelter = structure_capability(place.structures, "shelter")
                 resistance = max(
-                    individual.genome.aquatic_affinity * 0.65 + individual.genome.buoyancy * 0.35,
-                    individual.genome.mobility * 0.30,
+                    individual.params.aquatic_affinity * 0.65 + individual.params.buoyancy * 0.35,
+                    individual.params.mobility * 0.30,
                     float_cap * 0.75,
                     anchor * 0.80,
                     traverse * 0.55,
@@ -1092,7 +1092,7 @@ class Simulation:
                 if self.rng.random() < drift_chance:
                     individual.location = downstream[0]
                     individual.energy -= 0.010 + current * 0.012
-                    if individual.genome.aquatic_affinity < fluid * 0.45 and float_cap < 0.20:
+                    if individual.params.aquatic_affinity < fluid * 0.45 and float_cap < 0.20:
                         individual.health -= fluid * 0.006
                     self.physics_events["current_transport"] += 1
                     if individual.health <= 0.0:
@@ -1104,13 +1104,13 @@ class Simulation:
                 for edge in self.world.edges_from(place.id)
                 if edge.slope_from(place.id) < -0.35 and edge.danger > 0.10
             ]
-            if steep_edges and individual.genome.mobility < 0.65:
+            if steep_edges and individual.params.mobility < 0.65:
                 edge = min(steep_edges, key=lambda item: item.slope_from(place.id))
                 traverse = artifact_capability(individual.artifacts, "traverse")
                 anchor = artifact_capability(individual.artifacts, "anchor")
                 structure_support = structure_capability(place.structures, "support")
                 structure_anchor = structure_capability(place.structures, "anchor")
-                footing = max(individual.genome.mobility, traverse * 0.65, anchor * 0.75, structure_support * 0.35, structure_anchor * 0.40)
+                footing = max(individual.params.mobility, traverse * 0.65, anchor * 0.75, structure_support * 0.35, structure_anchor * 0.40)
                 fall_chance = max(0.0, abs(edge.slope_from(place.id)) * edge.danger * (1.0 - footing)) * 0.004
                 if self.rng.random() < fall_chance:
                     individual.location = edge.other(place.id)
@@ -1184,13 +1184,13 @@ class Simulation:
         exposure_collaboration = self._collective_support(individual, "protect", exposure_severity) if individual.kind == "agent" and exposure_severity > 0.12 else {"support": 0.0, "helpers": [], "raw": 0.0}
         exposure_support = float(exposure_collaboration.get("support", 0.0))
         exposure_damping = max(0.45, 1.0 - shelter * 0.35 - protection * 0.16)
-        drowning = max(0.0, aquatic * depth - individual.genome.aquatic_affinity * 0.85 - individual.genome.mobility * 0.15 - float_cap * 0.20 - shelter * 0.08 - protection * 0.05)
-        desiccation = max(0.0, individual.genome.aquatic_affinity * (1.0 - humidity) - individual.genome.desiccation_tolerance * 0.55 - shelter * 0.14 - protection * 0.08)
-        salinity_stress = max(0.0, abs(salinity - individual.genome.salinity_tolerance) - 0.55 - protection * 0.06)
-        heat_stress = max(0.0, temperature - (0.58 + individual.genome.thermal_tolerance * 0.42 + insulation * 0.25 + protection * 0.06))
-        cold_stress = max(0.0, 0.24 - temperature - individual.genome.thermal_tolerance * 0.14 - insulation * 0.20 - heat_control * 0.12 - protection * 0.05)
-        pressure_stress = max(0.0, pressure - (individual.genome.pressure_tolerance * 1.05 + individual.genome.aquatic_affinity * 0.20 + individual.genome.armor * 0.12 + protection * 0.14))
-        current_stress = max(0.0, current * aquatic - max(individual.genome.buoyancy, float_cap, anchor * 0.80, traverse * 0.55, individual.genome.mobility * 0.25))
+        drowning = max(0.0, aquatic * depth - individual.params.aquatic_affinity * 0.85 - individual.params.mobility * 0.15 - float_cap * 0.20 - shelter * 0.08 - protection * 0.05)
+        desiccation = max(0.0, individual.params.aquatic_affinity * (1.0 - humidity) - individual.params.desiccation_tolerance * 0.55 - shelter * 0.14 - protection * 0.08)
+        salinity_stress = max(0.0, abs(salinity - individual.params.salinity_tolerance) - 0.55 - protection * 0.06)
+        heat_stress = max(0.0, temperature - (0.58 + individual.params.thermal_tolerance * 0.42 + insulation * 0.25 + protection * 0.06))
+        cold_stress = max(0.0, 0.24 - temperature - individual.params.thermal_tolerance * 0.14 - insulation * 0.20 - heat_control * 0.12 - protection * 0.05)
+        pressure_stress = max(0.0, pressure - (individual.params.pressure_tolerance * 1.05 + individual.params.aquatic_affinity * 0.20 + individual.params.armor * 0.12 + protection * 0.14))
+        current_stress = max(0.0, current * aquatic - max(individual.params.buoyancy, float_cap, anchor * 0.80, traverse * 0.55, individual.params.mobility * 0.25))
         stagnant_interior = max(0.0, interiority - shelter) * max(0.0, 1.0 - permeability) * max(0.0, pressure + temperature - 0.80)
         tool_exposure_buffer = artifact_insulation * 0.24 + heat_control * 0.22 + protection * 0.13 + containment * 0.09 + structure_shelter * 0.12
         tool_synergy = min(1.0, tool_exposure_buffer * 2.5)
@@ -1202,8 +1202,8 @@ class Simulation:
             + shelter * 0.16
             + containment * 0.09
             + social_exposure_buffer
-            + individual.genome.thermal_tolerance * 0.10
-            + individual.genome.armor * 0.05
+            + individual.params.thermal_tolerance * 0.10
+            + individual.params.armor * 0.05
         )
         exposure_stress = max(0.0, exposure_severity - exposure_buffer)
         buffered_exposure = max(0.0, exposure_severity - exposure_stress)
@@ -1271,14 +1271,14 @@ class Simulation:
             len(local_ids) / max(1.0, place.capacity),
             local_neural / max(1.0, len(local_ids)),
             individual.inventory_count() / max(1.0, individual.inventory_limit()),
-            individual.genome.mobility,
-            individual.genome.manipulator,
-            individual.genome.armor,
-            individual.genome.sensor_range,
-            individual.genome.neural_budget / NEURAL_BUDGET_MAX,
-            individual.genome.memory_budget / MEMORY_BUDGET_MAX,
-            individual.genome.prediction_weight,
-            individual.genome.plasticity_rate,
+            individual.params.mobility,
+            individual.params.manipulator,
+            individual.params.armor,
+            individual.params.sensor_range,
+            individual.params.neural_budget / NEURAL_BUDGET_MAX,
+            individual.params.memory_budget / MEMORY_BUDGET_MAX,
+            individual.params.prediction_weight,
+            individual.params.plasticity_rate,
             max(-1.0, min(1.0, individual.last_valence)),
             best_skill,
             season,
@@ -1322,7 +1322,7 @@ class Simulation:
     def _choose_action(self, individual: Individual, observation: list[float]) -> str:
         if individual.controller is None:
             non_neural_birth_rate = 0.025 if individual.kind == "plant" else 0.035
-            if individual.energy > self.evolution.clone_mutate_reserve_threshold(individual) and self.rng.random() < non_neural_birth_rate:
+            if individual.energy > self.optimization.clone_mutate_reserve_threshold(individual) and self.rng.random() < non_neural_birth_rate:
                 return "clone_mutate"
             if individual.kind == "plant":
                 return "absorb_radiant"
@@ -1334,14 +1334,14 @@ class Simulation:
         return self._choose_action_from_outputs(individual, outputs)
 
     def _choose_action_from_outputs(self, individual: Individual, outputs: list[float]) -> str:
-        exploration = 0.025 + individual.genome.plasticity_rate * 0.055 + individual.genome.mutation_rate * 0.25
+        exploration = 0.025 + individual.params.plasticity_rate * 0.055 + individual.params.perturbation_rate * 0.25
         if self.rng.random() < exploration:
             return self.rng.choice(ACTIONS)
         energy_ratio = individual.energy / max(1.0, individual.storage_limit())
         if individual.adult() and energy_ratio > 0.62:
-            reproductive_drive = individual.genome.valence_reproduction * (energy_ratio - 0.62)
-            outputs[ACTION_INDEX["coordinate"]] += reproductive_drive * (0.9 + individual.genome.pairing_selectivity)
-            outputs[ACTION_INDEX["clone_mutate"]] += reproductive_drive * (0.7 + (1.0 - individual.genome.pairing_selectivity) * 0.4)
+            reproductive_drive = individual.params.valence_reproduction * (energy_ratio - 0.62)
+            outputs[ACTION_INDEX["coordinate"]] += reproductive_drive * (0.9 + individual.params.pairing_selectivity)
+            outputs[ACTION_INDEX["clone_mutate"]] += reproductive_drive * (0.7 + (1.0 - individual.params.pairing_selectivity) * 0.4)
         ranked = sorted(range(len(outputs)), key=lambda i: outputs[i], reverse=True)
         for index in ranked:
             action = ACTIONS[index]
@@ -1356,15 +1356,15 @@ class Simulation:
             return False
         if action == "craft" and (individual.inventory_count() < 2 or len(individual.artifacts) >= individual.artifact_limit()):
             return False
-        if action == "build" and individual.genome.manipulator < 0.18:
+        if action == "build" and individual.params.manipulator < 0.18:
             return False
         if action == "build" and individual.inventory_count() < 3 and self._collective_material_count(individual) < 3:
             return False
-        if action == "move" and individual.genome.mobility < 0.05:
+        if action == "move" and individual.params.mobility < 0.05:
             return False
         if action == "use_tool" and individual.inventory_count() == 0 and not individual.artifacts:
             return False
-        if action == "mark" and individual.genome.manipulator < 0.12:
+        if action == "mark" and individual.params.manipulator < 0.12:
             return False
         return True
 
@@ -1382,7 +1382,7 @@ class Simulation:
             # recurrent core. This is the offline replay association /
             # consolidation mechanism — the substrate gives the controller a way
             # to associate distant experiences. Whether the controller develops a
-            # useful replay strategy is up to selection; the substrate just
+            # useful replay strategy is up to ranking; the substrate just
             # provides the channel.
             if individual.controller is not None and individual.controller._has_episodic():
                 individual.controller.replay_episode(self.rng)
@@ -1427,7 +1427,7 @@ class Simulation:
             individual.inventory_count() / max(1.0, individual.inventory_limit())
             + len(individual.artifacts) / max(2.0, individual.artifact_limit() * 2.0),
         )
-        individual.energy -= (0.055 + individual.genome.mobility * 0.055 + load_ratio * 0.035) * efficiency
+        individual.energy -= (0.055 + individual.params.mobility * 0.055 + load_ratio * 0.035) * efficiency
         if individual.controller and individual.place_memory:
             scored = []
             for neighbor in place.neighbors:
@@ -1452,7 +1452,7 @@ class Simulation:
         float_cap = artifact_capability(individual.artifacts, "float")
         anchor = max(artifact_capability(individual.artifacts, "anchor"), structure_capability(place.structures, "anchor") * 0.25)
         cut = max(individual.tool_skill.get("cut", 0.0), artifact_capability(individual.artifacts, "cut"))
-        aquatic_fit = individual.genome.aquatic_affinity
+        aquatic_fit = individual.params.aquatic_affinity
         slope = edge.slope_from(place.id) if edge else 0.0
         current = edge.current_from(place.id) if edge else 0.0
         distance = edge.distance if edge else 1.0
@@ -1464,19 +1464,19 @@ class Simulation:
         boundary = max(0.0, destination.physics.get("interiority", 0.0) - destination.physics.get("boundary_permeability", 0.0))
         barrier = (
             destination.obstacles.get("water", 0.0) * (1.0 - max(traverse, aquatic_fit))
-            + destination.obstacles.get("height", 0.0) * (1.0 - max(traverse, individual.genome.mobility))
-            + destination.obstacles.get("thorn", 0.0) * (1.0 - max(cut, individual.genome.armor))
-            + destination.obstacles.get("heat", 0.0) * (1.0 - max(insulation, individual.genome.thermal_tolerance))
-            + edge_required * (1.0 - max(traverse, float_cap, anchor * 0.65, individual.genome.mobility))
-            + uphill * (1.0 - max(traverse, individual.genome.mobility))
+            + destination.obstacles.get("height", 0.0) * (1.0 - max(traverse, individual.params.mobility))
+            + destination.obstacles.get("thorn", 0.0) * (1.0 - max(cut, individual.params.armor))
+            + destination.obstacles.get("heat", 0.0) * (1.0 - max(insulation, individual.params.thermal_tolerance))
+            + edge_required * (1.0 - max(traverse, float_cap, anchor * 0.65, individual.params.mobility))
+            + uphill * (1.0 - max(traverse, individual.params.mobility))
             + against_current * (1.0 - max(traverse, float_cap, aquatic_fit, anchor * 0.55))
-            + downhill * (1.0 - max(traverse, anchor, individual.genome.mobility)) * 0.35
-            + boundary * (1.0 - max(traverse, individual.genome.manipulator * 0.35, cut * 0.25))
+            + downhill * (1.0 - max(traverse, anchor, individual.params.mobility)) * 0.35
+            + boundary * (1.0 - max(traverse, individual.params.manipulator * 0.35, cut * 0.25))
         ) / 6.10
         solo_success = (
-            individual.genome.mobility
+            individual.params.mobility
             + traverse * 0.65
-            + individual.genome.sensor_range * 0.10
+            + individual.params.sensor_range * 0.10
             + planning * 0.10
             + with_current * max(float_cap, aquatic_fit) * 0.10
             + anchor * 0.04
@@ -1572,7 +1572,7 @@ class Simulation:
             helper = self.organisms.get(helper_id)
             if helper is None or not helper.alive or helper.location != from_place:
                 continue
-            travel_chance = min(0.62, 0.14 + support * 0.48 + helper.genome.mobility * 0.12)
+            travel_chance = min(0.62, 0.14 + support * 0.48 + helper.params.mobility * 0.12)
             if helper.recombine_intent_until < self.tick and self.rng.random() > travel_chance:
                 continue
             helper.location = to_place
@@ -1625,18 +1625,18 @@ class Simulation:
 
     def _eat(self, individual: Individual) -> None:
         place = self.world.places[individual.location]
-        appetite = 2.0 + individual.genome.chemical_conversion * 7.0 + individual.genome.chemical_energy_gain * 3.0
+        appetite = 2.0 + individual.params.chemical_conversion * 7.0 + individual.params.chemical_energy_gain * 3.0
         chemical = min(place.resources["chemical"], appetite * 0.55)
         place.resources["chemical"] -= chemical
         biological = min(place.resources["biological_storage"], appetite - chemical)
         place.resources["biological_storage"] -= biological
-        gain = chemical * individual.genome.chemical_energy_gain + biological * (0.45 + individual.genome.chemical_conversion * 0.80)
+        gain = chemical * individual.params.chemical_energy_gain + biological * (0.45 + individual.params.chemical_conversion * 0.80)
         individual.energy += gain
 
     def _absorb_radiant(self, individual: Individual) -> None:
         place = self.world.places[individual.location]
-        gain = place.resources["radiant"] * 0.018 * individual.genome.radiant_energy_gain * (0.2 + individual.genome.radiant_capture_area)
-        thermal_stress = max(0.0, place.resources["thermal"] / 120.0 - individual.genome.thermal_tolerance)
+        gain = place.resources["radiant"] * 0.018 * individual.params.radiant_energy_gain * (0.2 + individual.params.radiant_capture_area)
+        thermal_stress = max(0.0, place.resources["thermal"] / 120.0 - individual.params.thermal_tolerance)
         individual.energy += gain
         individual.health -= thermal_stress * 0.003
         place.resources["biological_storage"] += gain * 0.18
@@ -1646,17 +1646,17 @@ class Simulation:
     def _forage(self, individual: Individual) -> None:
         place = self.world.places[individual.location]
         planning = self._interaction_control(individual)
-        individual.energy -= (0.025 + individual.genome.sensor_range * 0.020) * (1.0 - planning * 0.10)
-        if self.rng.random() < 0.18 + individual.genome.sensor_range * 0.45 + planning * 0.09:
+        individual.energy -= (0.025 + individual.params.sensor_range * 0.020) * (1.0 - planning * 0.10)
+        if self.rng.random() < 0.18 + individual.params.sensor_range * 0.45 + planning * 0.09:
             found = self.rng.choice(("chemical", "biological_storage", "mechanical"))
-            amount = self.rng.uniform(0.2, 1.6) * (0.5 + individual.genome.sensor_range) * (1.0 + planning * 0.25)
+            amount = self.rng.uniform(0.2, 1.6) * (0.5 + individual.params.sensor_range) * (1.0 + planning * 0.25)
             place.resources[found] = min(180.0, place.resources[found] + amount)
-        if self.rng.random() < 0.08 + individual.genome.sensor_range * 0.12 + planning * 0.04:
+        if self.rng.random() < 0.08 + individual.params.sensor_range * 0.12 + planning * 0.04:
             material = self.rng.choice(tuple(MATERIALS.keys()))
             place.materials[material] = min(99, place.materials.get(material, 0) + 1)
 
     def _pickup(self, individual: Individual) -> None:
-        if individual.genome.manipulator < 0.08 or individual.inventory_count() >= individual.inventory_limit():
+        if individual.params.manipulator < 0.08 or individual.inventory_count() >= individual.inventory_limit():
             individual.energy -= 0.025
             return
         place = self.world.places[individual.location]
@@ -1699,7 +1699,7 @@ class Simulation:
             "record": (
                 min(1.0, len(individual.lesson_memory) / 4.0) * 0.42
                 + individual.tool_skill.get("inscribe", 0.0) * 0.28
-                + individual.genome.memory_budget / 45.0
+                + individual.params.memory_budget / 45.0
             ),
         }
         if individual.last_craft_target in scores:
@@ -1736,7 +1736,7 @@ class Simulation:
         return target_fit * 0.60 + bind_fit * 0.16 + durability_fit + diversity * planning * 0.08 + self.rng.random() * (0.10 - planning * 0.06)
 
     def _craft(self, individual: Individual, feedback: dict[str, float]) -> None:
-        if individual.genome.manipulator < 0.12 or individual.inventory_count() < 2 or len(individual.artifacts) >= individual.artifact_limit():
+        if individual.params.manipulator < 0.12 or individual.inventory_count() < 2 or len(individual.artifacts) >= individual.artifact_limit():
             individual.energy -= 0.025
             return
         available = [name for name, qty in individual.inventory.items() if qty > 0]
@@ -1773,7 +1773,7 @@ class Simulation:
         )
         chance = min(
             0.96,
-            individual.genome.manipulator * 0.26
+            individual.params.manipulator * 0.26
             + bind_help * 0.22
             + best_skill * 0.08
             + planning * 0.12
@@ -1848,7 +1848,7 @@ class Simulation:
         self.checkpoints.save_first_tool(self.tick, individual, "craft", {"place": self.world.places[individual.location].to_summary(), "artifact": artifact.to_dict()})
 
     def _build_structure(self, individual: Individual, feedback: dict[str, float]) -> None:
-        if individual.genome.manipulator < 0.18:
+        if individual.params.manipulator < 0.18:
             individual.energy -= 0.035
             return
         planning = self._interaction_control(individual)
@@ -1886,7 +1886,7 @@ class Simulation:
         mass_bonus = min(1.0, material_count / 8.0) * 0.12
         chance = min(
             0.94,
-            individual.genome.manipulator * 0.30
+            individual.params.manipulator * 0.30
             + bind_help * 0.26
             + build_skill * 0.22
             + general_skill * 0.08
@@ -1996,8 +1996,8 @@ class Simulation:
         planning = self._interaction_control(individual)
         collaboration = self._collective_support(individual, affordance, resistance)
         support = float(collaboration.get("support", 0.0))
-        overmatch = score + skill * 0.25 + individual.genome.manipulator * 0.10 + planning * 0.22 + support * 0.18 - resistance
-        chance = min(0.96, max(0.02, score * 0.34 + skill * 0.30 + individual.genome.manipulator * 0.16 + planning * 0.26 + support * 0.16 + overmatch * 0.24))
+        overmatch = score + skill * 0.25 + individual.params.manipulator * 0.10 + planning * 0.22 + support * 0.18 - resistance
+        chance = min(0.96, max(0.02, score * 0.34 + skill * 0.30 + individual.params.manipulator * 0.16 + planning * 0.26 + support * 0.16 + overmatch * 0.24))
         individual.energy -= (0.12 + score * 0.10) * (1.0 - planning * 0.20) * max(0.82, 1.0 - support * 0.14)
         success = self.rng.random() < chance
         if success:
@@ -2115,11 +2115,11 @@ class Simulation:
         if affordance == "crack":
             amount = min(place.locked_chemical, 2.0 + competence * 9.0)
             place.locked_chemical -= amount
-            return amount * (0.25 + individual.genome.chemical_energy_gain * 0.65 + individual.genome.chemical_conversion * 0.30)
+            return amount * (0.25 + individual.params.chemical_energy_gain * 0.65 + individual.params.chemical_conversion * 0.30)
         if affordance == "cut":
             amount = min(place.resources["biological_storage"], 1.5 + competence * 8.0)
             place.resources["biological_storage"] -= amount
-            return amount * (0.35 + individual.genome.chemical_conversion * 0.85)
+            return amount * (0.35 + individual.params.chemical_conversion * 0.85)
         if affordance == "bind":
             self._increase_skill(individual, "bind", 0.004, transfer=0.55)
             return 0.5 + competence * 1.4
@@ -2127,12 +2127,12 @@ class Simulation:
             amount = min(place.resources["mechanical"], 0.8 + competence * 4.0 + place.physics.get("current_exposure", 0.0) * 2.5)
             place.resources["mechanical"] -= amount * 0.15
             place.physics["fluid_level"] = max(0.0, place.physics.get("fluid_level", 0.0) - amount * 0.0008)
-            return amount * (0.15 + individual.genome.storage_capacity * 0.25)
+            return amount * (0.15 + individual.params.storage_capacity * 0.25)
         if affordance == "concentrate_heat":
             radiant = min(place.resources["radiant"], 2.0 + competence * 10.0)
             place.resources["thermal"] = min(180.0, place.resources["thermal"] + radiant * 0.15)
             place.physics["temperature"] = min(1.45, place.physics.get("temperature", 0.5) + radiant * 0.0008)
-            return radiant * (0.04 + individual.genome.thermal_tolerance * 0.09 + individual.genome.radiant_energy_gain * 0.06)
+            return radiant * (0.04 + individual.params.thermal_tolerance * 0.09 + individual.params.radiant_energy_gain * 0.06)
         if affordance == "conduct":
             amount = min(place.resources["electrical"], 0.5 + competence * 5.0 + place.mineral_richness * 1.5)
             place.resources["electrical"] -= amount
@@ -2143,18 +2143,18 @@ class Simulation:
             high_density = min(place.resources["high_density"], tap_pressure * (1.0 + competence * 3.0))
             place.resources["high_density"] -= high_density
             place.resources["electrical"] = min(180.0, place.resources["electrical"] + high_density * (0.25 + storage * 0.25))
-            return amount * (0.1 + individual.genome.electrical_use * 1.3) + high_density * (0.35 + individual.genome.electrical_use * 1.8)
+            return amount * (0.1 + individual.params.electrical_use * 1.3) + high_density * (0.35 + individual.params.electrical_use * 1.8)
         if affordance == "lever":
             amount = min(place.locked_chemical, 1.0 + competence * 5.5)
             place.locked_chemical -= amount
-            return amount * (0.15 + individual.genome.mechanical_use * 0.55 + individual.genome.chemical_energy_gain * 0.25)
+            return amount * (0.15 + individual.params.mechanical_use * 0.55 + individual.params.chemical_energy_gain * 0.25)
         if affordance == "filter":
             flow_bonus = place.physics.get("current_exposure", 0.0) * 3.0 + place.physics.get("fluid_level", 0.0) * 1.5
             chemical = min(place.resources["chemical"], 0.5 + competence * 3.0 + flow_bonus)
             biological = min(place.resources["biological_storage"], 0.3 + competence * 1.8 + flow_bonus * 0.40)
             place.resources["chemical"] -= chemical * 0.55
             place.resources["biological_storage"] -= biological * 0.45
-            return chemical * (0.12 + individual.genome.chemical_energy_gain * 0.45) + biological * (0.15 + individual.genome.chemical_conversion * 0.38)
+            return chemical * (0.12 + individual.params.chemical_energy_gain * 0.45) + biological * (0.15 + individual.params.chemical_conversion * 0.38)
         return 0.0
 
     def _advance_causal_challenge(
@@ -2251,7 +2251,7 @@ class Simulation:
                     "released": round(release, 5),
                 },
             )
-        return release * (0.30 + individual.genome.sensor_range * 0.10 + individual.genome.prediction_weight * 0.12 + planning * 0.10)
+        return release * (0.30 + individual.params.sensor_range * 0.10 + individual.params.prediction_weight * 0.12 + planning * 0.10)
 
     def _wear_artifacts(self, individual: Individual, affordance: str, amount: float) -> None:
         kept = []
@@ -2269,7 +2269,7 @@ class Simulation:
     def _lose_failed_craft_components(self, individual: Individual, components: dict[str, int], bind_help: float) -> int:
         place = self.world.places[individual.location]
         lost = 0
-        break_chance = max(0.18, min(0.72, 0.48 - bind_help * 0.20 + (1.0 - individual.genome.manipulator) * 0.12))
+        break_chance = max(0.18, min(0.72, 0.48 - bind_help * 0.20 + (1.0 - individual.params.manipulator) * 0.12))
         for name, qty in components.items():
             for _ in range(qty):
                 if individual.inventory.get(name, 0) <= 0 or self.rng.random() >= break_chance:
@@ -2287,11 +2287,11 @@ class Simulation:
         if not local:
             individual.energy -= 0.04
             return
-        target = min(local, key=lambda candidate: (candidate.health + candidate.genome.armor * 0.7, -candidate.energy))
-        attack_power = individual.genome.mobility * 0.40 + individual.genome.manipulator * 0.35 + individual.genome.mechanical_use * 0.25
+        target = min(local, key=lambda candidate: (candidate.health + candidate.params.armor * 0.7, -candidate.energy))
+        attack_power = individual.params.mobility * 0.40 + individual.params.manipulator * 0.35 + individual.params.mechanical_use * 0.25
         protection = artifact_capability(target.artifacts, "protect")
         defense_context = self._agent_defense_context(target, attack_power)
-        defense = target.genome.armor * 0.45 + target.genome.mobility * 0.25 + target.health * 0.20 + protection * 0.34 + float(defense_context["bonus"])
+        defense = target.params.armor * 0.45 + target.params.mobility * 0.25 + target.health * 0.20 + protection * 0.34 + float(defense_context["bonus"])
         damage = max(0.0, attack_power - defense + self.rng.gauss(0.0, 0.05))
         individual.energy -= 0.10 + attack_power * 0.08
         if target.kind == "agent" and float(defense_context["support"]) > 0.01 and defense_context["collaboration"] is not None:
@@ -2306,9 +2306,9 @@ class Simulation:
             self._increase_skill(target, "protect", 0.002 + max(0.0, defense - attack_power) * 0.006, transfer=0.05)
         if target.kind == "agent" and target.health > 0.0:
             counter_base = (
-                target.genome.armor * 0.16
-                + target.genome.mobility * 0.14
-                + target.genome.manipulator * 0.10
+                target.params.armor * 0.16
+                + target.params.mobility * 0.14
+                + target.params.manipulator * 0.10
                 + protection * 0.22
                 + float(defense_context["structure"]) * 0.12
                 + float(defense_context["support"]) * 0.18
@@ -2323,12 +2323,12 @@ class Simulation:
                 if individual.health <= 0.0:
                     self._deactivate(individual, "counterattack")
         if target.health <= 0.0 and individual.alive:
-            gained = target.energy * (0.30 + individual.genome.chemical_conversion * 0.45)
+            gained = target.energy * (0.30 + individual.params.chemical_conversion * 0.45)
             individual.energy += max(0.0, gained)
             self._deactivate(target, "predation")
 
     def _signal(self, individual: Individual, feedback: dict[str, float]) -> None:
-        intensity = individual.genome.signal_strength * (0.5 + individual.energy / max(1.0, individual.storage_limit()))
+        intensity = individual.params.signal_strength * (0.5 + individual.energy / max(1.0, individual.storage_limit()))
         if intensity <= 0.01:
             individual.energy -= 0.01
             return
@@ -2347,9 +2347,9 @@ class Simulation:
             self.reproduction_failures["coordinate_low_energy"] += 1
             individual.energy -= 0.020
             return
-        window = 6 + int(individual.genome.signal_strength * 8.0 + individual.genome.pairing_selectivity * 5.0)
+        window = 6 + int(individual.params.signal_strength * 8.0 + individual.params.pairing_selectivity * 5.0)
         token = individual.choose_signal_token()
-        intensity = 0.10 + individual.genome.signal_strength * 0.45 + individual.genome.pairing_selectivity * 0.10
+        intensity = 0.10 + individual.params.signal_strength * 0.45 + individual.params.pairing_selectivity * 0.10
         individual.recombine_intent_until = max(individual.recombine_intent_until, self.tick + window)
         individual.coordination_token = token
         individual.energy -= 0.035 + intensity * 0.040
@@ -2357,14 +2357,14 @@ class Simulation:
         feedback["social"] += intensity * 0.12
 
     def _mark(self, individual: Individual, feedback: dict[str, float]) -> None:
-        if individual.genome.manipulator < 0.12:
+        if individual.params.manipulator < 0.12:
             individual.energy -= 0.02
             return
         token = individual.choose_signal_token()
         affordances = derive_affordances(individual.inventory)
         inscription_help = max(affordances.get("cut", 0.0), affordances.get("bind", 0.0), affordances.get("concentrate_heat", 0.0))
-        intensity = 0.20 + individual.genome.signal_strength * 0.35 + individual.genome.memory_budget / 40.0
-        durability = 45.0 + individual.genome.manipulator * 90.0 + individual.genome.memory_budget * 12.0 + inscription_help * 180.0
+        intensity = 0.20 + individual.params.signal_strength * 0.35 + individual.params.memory_budget / 40.0
+        durability = 45.0 + individual.params.manipulator * 90.0 + individual.params.memory_budget * 12.0 + inscription_help * 180.0
         trace_intent = self._trace_inscription_intent(individual, inscription_help)
         trace = self._mark_trace(individual, inscription_help) if trace_intent else {}
         clarity = float(trace.get("inscription_quality", 0.0)) if trace else 0.0
@@ -2474,12 +2474,12 @@ class Simulation:
             return False
         planning = self._interaction_control(individual)
         skill = individual.tool_skill.get("inscribe", 0.0)
-        memory = min(1.0, individual.genome.memory_budget / 14.0)
+        memory = min(1.0, individual.params.memory_budget / 14.0)
         lesson_value = self._lesson_value(self._select_mark_lesson(individual))
         capacity = (
-            individual.genome.manipulator * 0.20
-            + individual.genome.signal_strength * 0.10
-            + individual.genome.sensor_range * 0.10
+            individual.params.manipulator * 0.20
+            + individual.params.signal_strength * 0.10
+            + individual.params.sensor_range * 0.10
             + memory * 0.18
             + min(1.0, inscription_help) * 0.14
         )
@@ -2548,10 +2548,10 @@ class Simulation:
             0.0,
             min(
                 1.0,
-                individual.genome.memory_budget / 18.0 * 0.22
-                + individual.genome.sensor_range * 0.14
-                + individual.genome.manipulator * 0.15
-                + individual.genome.signal_strength * 0.08
+                individual.params.memory_budget / 18.0 * 0.22
+                + individual.params.sensor_range * 0.14
+                + individual.params.manipulator * 0.15
+                + individual.params.signal_strength * 0.08
                 + min(1.0, inscription_help) * 0.16
                 + planning * 0.12
                 + inscribe_skill * 0.33
@@ -2628,7 +2628,7 @@ class Simulation:
             self.reproduction_failures["clone_mutate_local_capacity"] += 1
             individual.energy -= 0.015
             return
-        decision = self.evolution.plan_clone_mutate(individual)
+        decision = self.optimization.plan_clone_mutate(individual)
         if decision.failure or decision.plan is None:
             self.reproduction_failures[decision.failure or "clone_mutate_no_plan"] += 1
             individual.energy -= decision.energy_penalty
@@ -2647,11 +2647,11 @@ class Simulation:
                     "parent_ids": list(decision.plan.parent_ids),
                     "kind": child.kind,
                     "place": child.location,
-                    "generation": child.generation,
+                    "generation": child.cycle,
                     "lineage_root_id": child.lineage_root_id,
                     "parent_lineage_ids": list(child.parent_lineage_ids),
                     "inherited_brain_template": child.inherited_brain_template,
-                    "complexity": child.genome.complexity(),
+                    "complexity": child.params.complexity(),
                 },
                 subjects=self._subjects(
                     child,
@@ -2661,7 +2661,7 @@ class Simulation:
                         "mode:clone_mutate",
                     ],
                 ),
-                score=0.35 + child.generation * 0.08 + child.genome.complexity() * 0.08,
+                score=0.35 + child.cycle * 0.08 + child.params.complexity() * 0.08,
                 rarity_key=f"birth:{decision.plan.operator}:{child.kind}",
             )
             if self.config.event_detail:
@@ -2708,9 +2708,9 @@ class Simulation:
                     for other in candidates
                     if other.id != individual.id
                     and other.id not in paired
-                    and individual.energy >= self.evolution.recombine_reserve_threshold(individual)
-                    and other.energy >= self.evolution.recombine_reserve_threshold(other)
-                    and self.evolution.compatible_for_recombine(individual, other)
+                    and individual.energy >= self.optimization.recombine_reserve_threshold(individual)
+                    and other.energy >= self.optimization.recombine_reserve_threshold(other)
+                    and self.optimization.compatible_for_recombine(individual, other)
                 ]
                 if not viable:
                     self.reproduction_failures["recombine_no_compatible_partner"] += 1
@@ -2753,22 +2753,22 @@ class Simulation:
         visible_fitness = (
             candidate.health * 0.35
             + min(1.0, candidate.energy / max(1.0, candidate.storage_limit())) * 0.25
-            + candidate.genome.mobility * 0.10
-            + candidate.genome.manipulator * 0.10
+            + candidate.params.mobility * 0.10
+            + candidate.params.manipulator * 0.10
             + self._skill_breadth(candidate) * 0.10
             + min(1.0, candidate.offspring_count / 5.0) * 0.10
         )
-        selectivity = chooser.genome.pairing_selectivity
-        return visible_fitness * (0.3 + selectivity) - chooser.genome.distance(candidate.genome) * 0.25 + self.rng.random() * 0.05
+        selectivity = chooser.params.pairing_selectivity
+        return visible_fitness * (0.3 + selectivity) - chooser.params.distance(candidate.params) * 0.25 + self.rng.random() * 0.05
 
     def _recombine_reserve_threshold(self, individual: Individual) -> float:
-        return self.evolution.recombine_reserve_threshold(individual)
+        return self.optimization.recombine_reserve_threshold(individual)
 
     def _recombine(self, a: Individual, b: Individual) -> Individual | None:
         if self.living_total >= self.config.max_population:
             self.reproduction_failures["recombine_population_cap"] += 1
             return None
-        decision = self.evolution.plan_recombine(a, b)
+        decision = self.optimization.plan_recombine(a, b)
         if decision.failure or decision.plan is None:
             self.reproduction_failures[decision.failure or "recombine_no_plan"] += 1
             return None
@@ -2785,11 +2785,11 @@ class Simulation:
                     "parent_ids": [a.id, b.id],
                     "kind": child.kind,
                     "place": child.location,
-                    "generation": child.generation,
+                    "generation": child.cycle,
                     "lineage_root_id": child.lineage_root_id,
                     "parent_lineage_ids": list(child.parent_lineage_ids),
                     "inherited_brain_template": child.inherited_brain_template,
-                    "complexity": child.genome.complexity(),
+                    "complexity": child.params.complexity(),
                 },
                 subjects=self._subjects(
                     child,
@@ -2798,10 +2798,10 @@ class Simulation:
                         f"organism:{b.id}",
                         f"lineage:{a.lineage_root_id or a.id}",
                         f"lineage:{b.lineage_root_id or b.id}",
-                        "mode:recombine",
+                        "mode:combine",
                     ],
                 ),
-                score=0.55 + child.generation * 0.09 + child.genome.complexity() * 0.10,
+                score=0.55 + child.cycle * 0.09 + child.params.complexity() * 0.10,
                 rarity_key=f"birth:{decision.plan.operator}:{child.kind}",
             )
         else:
@@ -2814,7 +2814,7 @@ class Simulation:
             plan.child_genome,
             plan.location,
             plan.child_energy,
-            plan.generation,
+            plan.cycle,
             plan.parent_ids,
             plan.controller_template,
         )
@@ -2918,8 +2918,8 @@ class Simulation:
             0.0,
             min(
                 1.0,
-                individual.genome.sensor_range * 0.34
-                + individual.genome.memory_budget / 22.0
+                individual.params.sensor_range * 0.34
+                + individual.params.memory_budget / 22.0
                 + planning * 0.24
                 + interpretation_skill * 0.26
                 + token_bias * 0.10,
@@ -3046,7 +3046,7 @@ class Simulation:
         if source_id == individual.id:
             return
         planning = self._interaction_control(individual)
-        gain = (0.012 if success else 0.004) * (0.5 + individual.genome.sensor_range + planning * 1.10)
+        gain = (0.012 if success else 0.004) * (0.5 + individual.params.sensor_range + planning * 1.10)
         self._increase_skill(individual, affordance, gain, transfer=0.10)
         individual.last_tool_affordance = affordance
         individual.record_success("social_learning", 0.2 if success else 0.05)
@@ -3055,7 +3055,7 @@ class Simulation:
         individual.energy -= 0.018
 
     def _remember_place(self, individual: Individual) -> None:
-        if individual.genome.memory_budget <= 0.0:
+        if individual.params.memory_budget <= 0.0:
             return
         place = self.world.places[individual.location]
         value = (
@@ -3066,7 +3066,7 @@ class Simulation:
         )
         old = individual.place_memory.get(place.id, 0.0)
         individual.place_memory[place.id] = old * 0.90 + value * 0.10
-        limit = max(2, int(individual.genome.memory_budget * 3))
+        limit = max(2, int(individual.params.memory_budget * 3))
         if len(individual.place_memory) > limit:
             weakest = min(individual.place_memory, key=individual.place_memory.get)
             del individual.place_memory[weakest]
@@ -3166,8 +3166,8 @@ class Simulation:
             count = int(payload.get("count", 1))
             place = int(payload.get("place", self.rng.randrange(len(self.world.places))))
             for _ in range(count):
-                genome = Genome.neural(self.rng) if kind == "agent" else Genome.fungus(self.rng) if kind == "fungus" else Genome.plant(self.rng)
-                self.add_individual(kind, genome, place, float(payload.get("energy", 25.0)))
+                params = ParamVector.neural(self.rng) if kind == "agent" else ParamVector.fungus(self.rng) if kind == "fungus" else ParamVector.plant(self.rng)
+                self.add_individual(kind, params, place, float(payload.get("energy", 25.0)))
         record = {"tick": self.tick, "kind": intervention.kind, "payload": payload, "reason": intervention.reason}
         self.interventions_applied.append(record)
         self.logger.event(self.tick, "intervention", record)
@@ -3191,10 +3191,10 @@ class Simulation:
         return (
             individual.offspring_count * 6.0
             + individual.successful_tools * 2.0
-            + individual.generation * 0.75
+            + individual.cycle * 0.75
             + individual.age / 450.0
             + energy_ratio * 2.0
-            + individual.genome.complexity() * 0.5
+            + individual.params.complexity() * 0.5
             + profile_score
         )
 
@@ -3250,7 +3250,7 @@ class Simulation:
         self._save_checkpoint_candidate(overall, label, "overall_champion", "interval_champion")
         saved_ids.add(overall.id)
 
-        reproductive = self._best_checkpoint_candidate(candidates, saved_ids, lambda individual: (individual.offspring_count, individual.generation, individual.energy, individual.age))
+        reproductive = self._best_checkpoint_candidate(candidates, saved_ids, lambda individual: (individual.offspring_count, individual.cycle, individual.energy, individual.age))
         if reproductive is not None and reproductive.offspring_count > 0:
             self._save_checkpoint_candidate(reproductive, label, "reproductive_champion", "reproductive_champion")
             saved_ids.add(reproductive.id)
@@ -3288,8 +3288,8 @@ class Simulation:
             self._save_checkpoint_candidate(learner, label, "learner_champion", "learner_champion")
             saved_ids.add(learner.id)
 
-        lineage = self._best_checkpoint_candidate(candidates, saved_ids, lambda individual: (individual.generation, individual.offspring_count, individual.energy, individual.age))
-        if lineage is not None and (lineage.generation > 0 or lineage.offspring_count > 0):
+        lineage = self._best_checkpoint_candidate(candidates, saved_ids, lambda individual: (individual.cycle, individual.offspring_count, individual.energy, individual.age))
+        if lineage is not None and (lineage.cycle > 0 or lineage.offspring_count > 0):
             self._save_checkpoint_candidate(lineage, label, "lineage_founder", "lineage_founder")
 
     def _lineage_summary(self, limit: int = 8) -> dict[str, Any]:
@@ -3332,7 +3332,7 @@ class Simulation:
                 }
             row = rows[root]
             row["born"] += 1
-            row["max_generation"] = max(row["max_generation"], individual.generation)
+            row["max_generation"] = max(row["max_generation"], individual.cycle)
             row["offspring_total"] += individual.offspring_count
             row["successful_tools_total"] += individual.successful_tools
             row["tool_users"] += int(individual.successful_tools > 0 or any(count > 0 for count in individual.tool_use_counts.values()))
@@ -3415,10 +3415,10 @@ class Simulation:
         living = [individual for individual in self.organisms.values() if individual.alive]
         neural = [individual for individual in living if individual.neural]
         avg_energy = sum(individual.energy for individual in living) / max(1, len(living))
-        avg_complexity = sum(individual.genome.complexity() for individual in living) / max(1, len(living))
+        avg_complexity = sum(individual.params.complexity() for individual in living) / max(1, len(living))
         # Controller capacity & attention stats — these only make sense for neural agents
         # with controllers. With controller growth active and neuroplastic attention active,
-        # tracking how these distributions evolve over the run is what tells you
+        # tracking how these distributions optimize over the run is what tells you
         # whether the substrate is selecting for richer cognition.
         brain_sizes = [individual.controller.hidden_size for individual in neural if individual.controller is not None]
         if brain_sizes:

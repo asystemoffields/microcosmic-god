@@ -16,7 +16,7 @@ PREDICTION_HEADS = ("energy", "damage", "reproduction", "social", "tool", "hazar
 AUXILIARY_PREDICTION_HEADS = tuple(head for head in PREDICTION_HEADS if head != "energy")
 
 # Controller hidden-layer size cap. Controllers can grow up to this size if their
-# genome.neural_budget evolves there; upkeep cost (in organisms.py) scales
+# params.neural_budget evolves there; upkeep cost (in organisms.py) scales
 # with neural_budget, so growth pays off only when cognition does.
 BRAIN_HIDDEN_MAX = 512
 
@@ -55,8 +55,8 @@ ATTENTION_DECAY = 0.0008
 # prediction error) and valence (high-magnitude reward signals). Replay
 # during the `rest` action averages two random episodes and pushes them
 # back through the controller - the substrate for "offline replay association" /
-# offline consolidation. Capacity is genome-controlled (mutates), so
-# evolution decides whether episodic memory is worth its upkeep cost.
+# offline consolidation. Capacity is params-controlled (mutates), so
+# optimization decides whether episodic memory is worth its upkeep cost.
 EPISODIC_RETRIEVAL_TEMPERATURE = 1.0
 EPISODIC_INTEGRATION_WEIGHT = 0.18  # how much retrieved summary blends into hidden
 EPISODIC_STORAGE_SURPRISE_THRESHOLD = 0.30
@@ -565,7 +565,7 @@ class TinyController:
         target_hidden_size: int | None = None,
     ) -> "TinyController":
         # Deep-copy state via the dict round-trip to avoid alias bugs, then
-        # mutate the weights with gaussian noise of the requested scale.
+        # perturb the weights with gaussian noise of the requested scale.
         data = self.to_dict(include_state=False)
 
         # Each weight gets an independent gaussian perturbation. We loop the

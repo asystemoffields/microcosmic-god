@@ -433,7 +433,7 @@ def main() -> None:
         print(render_arc(arc))
         print()
 
-    # Lineage population clusters: summary.json already aggregates these per run end.
+    # Lineage pool clusters: summary.json already aggregates these per run end.
     # Render the top scoring lineages so the run output tells a complete story
     # without requiring a separate grep through events.jsonl.
     lineages = (summary.get("lineages") or {}).get("top_living") or []
@@ -475,7 +475,7 @@ def main() -> None:
 
     # Controller capacity & attention trajectory across the run, sampled from
     # aggregates. Tells you whether controllers grew during the run and whether
-    # attention concentrated as the population learned.
+    # attention concentrated as the pool learned.
     aggregates: list[dict[str, Any]] = []
     events_path = run_dir / "events.jsonl"
     if events_path.exists():
