@@ -10,7 +10,7 @@ class EventObserver:
     """Promotes rare or consequential events into a compact story stream.
 
     The observer is intentionally descriptive. It does not feed back into
-    organism fitness, action choice, world physics, or evolution operators.
+    individual fitness, action choice, world physics, or evolution operators.
     """
 
     def __init__(

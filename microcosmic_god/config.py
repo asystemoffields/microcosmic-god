@@ -32,9 +32,9 @@ class RunConfig:
     device: str = "auto"
     environment_harshness: float = 1.0
     # Multi-world selection: every N ticks, regenerate the world with a new
-    # seed (new physics, new puzzles). Brains that memorized the specific
-    # world die when it changes; brains that abstracted the underlying rule
-    # survive. 0 = disabled (legacy single-world behavior).
+    # seed (new physics, new puzzles). Controllers that memorized the specific
+    # world are deactivated when it changes; controllers that abstracted the
+    # underlying rule survive. 0 = disabled (legacy single-world behavior).
     world_refresh_every: int = 0
 
     def to_dict(self) -> dict[str, Any]:

@@ -1,23 +1,23 @@
 # Event Monitoring Strategy
 
-Microcosmic God should not save everything. It should make everything monitorable, then persist only what becomes important.
+The simulation should not save everything. It should make everything monitorable, then persist only what becomes important.
 
 ## Principle
 
-Most substrate dynamics should be counted, summarized, or sampled. Full event records are for moments that are rare, consequential, surprising, or attached to organisms/artifacts/places that later become important.
+Most substrate dynamics should be counted, summarized, or sampled. Full event records are for moments that are rare, consequential, surprising, or attached to individuals/artifacts/places that later become important.
 
 The simulator needs three memory layers:
 
 - Hot counters: cheap aggregate counts for routine substrate events such as wear, drift, decay, failed actions, resource changes, and common movement.
-- Rolling context: bounded recent histories around organisms, places, structures, artifacts, marks, and lineages.
+- Rolling context: bounded recent histories around individuals, places, structures, artifacts, marks, and lineages.
 - Promoted records: durable story events saved when an event crosses an interestingness threshold or becomes relevant through later success.
 
 ## What To Keep Cheap
 
-Do not emit per-tick reports for every object, material, structure, mark, field, or organism. Prefer counters and summaries for:
+Do not emit per-tick reports for every object, material, structure, mark, field, or individual. Prefer counters and summaries for:
 
 - routine material decay
-- ordinary metabolic changes
+- ordinary upkeep changes
 - background climate and field drift
 - common failed attempts
 - unremarkable movement
@@ -35,11 +35,11 @@ Promote richer event records when something becomes causally interesting:
 - rare or high-payoff energy unlocks
 - a tool/structure/mark that is reused, copied, teaches another agent, or changes survival
 - sudden lineage expansion or collapse
-- unexpected death of a high-scoring learner/operator
-- cross-place knowledge movement, such as reading a mark then making/marking elsewhere
-- literacy-relevant reuse, such as a high-quality mark accumulating reads/value or feeding back to a present author
-- portable literacy, such as lesson traces stored on carried artifacts and read in another place
-- sharp shifts in prediction error, tool skill, reproductive success, or habitat mastery
+- unexpected removal of a high-scoring learner/operator
+- cross-place information movement, such as reading a mark then making/marking elsewhere
+- durable-symbol-encoding-relevant reuse, such as a high-quality mark accumulating reads/value or feeding back to a present author
+- portable durable symbol encoding, such as lesson traces stored on carried artifacts and read in another place
+- sharp shifts in prediction error, tool skill, reproductive success, or environment mastery
 - events involving agents later saved as checkpoints
 
 ## Retrospective Promotion
@@ -47,7 +47,7 @@ Promote richer event records when something becomes causally interesting:
 Some events only become interesting later. To support that without saving everything:
 
 - Keep bounded rolling traces per agent and place.
-- When a brain is checkpointed, include the recent local trace, relevant marks, tools, structures, and causal challenge state.
+- When a controller is checkpointed, include the recent local trace, relevant marks, tools, structures, and causal challenge state.
 - When a lineage becomes standout, promote a compact lineage story from recent parent/child/operator records.
 - When a mark/tool/structure is reused often, start saving richer events for that object from that point onward.
 
@@ -79,15 +79,15 @@ Each run should produce:
 - checkpoint payloads for selected neural agents
 - final summaries with enough context to explain extinctions, standouts, and world changes
 
-The goal is to find the stories without drowning in the substrate.
+The goal is to find the stories without being overwhelmed by the substrate.
 
 ## Current Implementation
 
-Runs now include `story_events.jsonl` alongside `events.jsonl`. Routine events still flow into counters and aggregates, while an observer promotes rare or consequential records such as causal unlocks, first/strong tool events, structures, intentional lesson inscriptions, successful mark reads, local author feedback from useful reads, notable births/deaths, and checkpoint saves.
+Runs now include `story_events.jsonl` alongside `events.jsonl`. Routine events still flow into counters and aggregates, while an observer promotes rare or consequential records such as causal unlocks, first/strong tool events, structures, intentional lesson inscriptions, successful mark reads, local author feedback from useful reads, notable creations/removals, and checkpoint saves.
 
 The observer keeps bounded recent context by subject (`organism:*`, `place:*`, `affordance:*`, etc.) and writes only compact payloads plus nearby context. It is descriptive only: story promotion does not alter fitness, action selection, reproduction, learning, or world physics.
 
-Plain marks remain cheap telemetry. Intentional lesson writes and successful reads can become story events because they may connect tool knowledge across agents, places, and time. Compact mark-read payloads include literacy fields such as `writing_quality`, `coherence`, `reads`, `portable`, and `self_read`; aggregate summaries include mark read value, portable mark counts, and author feedback by affordance, which should be enough to spot promising proto-writing without drowning the run in inscription substrate.
+Plain marks remain cheap telemetry. Intentional lesson inscriptions and successful reads can become story events because they may connect tool knowledge across agents, places, and time. Compact mark-read payloads include durable symbol encoding fields such as `writing_quality`, `coherence`, `reads`, `portable`, and `self_read`; aggregate summaries include mark read value, portable mark counts, and author feedback by affordance, which should be enough to spot promising proto durable symbol encoding without overwhelming the run with inscription substrate.
 
 Movement is summarized rather than exhaustively replayed: attempts, successes/failures, energy and health cost, barriers, support, relocation shock, dominant motives, and top routes go into aggregate/debrief telemetry. Individual movement attempts are promoted only when they involve high barriers, significant relocation shock, helper support, damage, or first-time destination novelty.
 

@@ -6,7 +6,7 @@ import unittest
 from random import Random
 
 from microcosmic_god.backends import BrainLearningCase
-from microcosmic_god.brain import PREDICTION_HEADS, TinyBrain
+from microcosmic_god.brain import PREDICTION_HEADS, TinyController
 from microcosmic_god.config import RunConfig
 from microcosmic_god.energy import build_artifact, build_structure, structure_decay_channels
 from microcosmic_god.genome import Genome
@@ -103,7 +103,7 @@ class CausalContractTests(unittest.TestCase):
                 genome = Genome.neural(sim.rng)
                 genome.thermal_tolerance = 0.0
                 genome.armor = 0.0
-                agent = sim.add_organism("agent", genome, 0, 80.0)
+                agent = sim.add_individual("agent", genome, 0, 80.0)
                 assert agent is not None
 
                 sim._habitat_stress(agent)
@@ -119,7 +119,7 @@ class CausalContractTests(unittest.TestCase):
 
     def test_all_signal_tokens_are_observed(self) -> None:
         self.sim = make_sim()
-        agent = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 50.0)
+        agent = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 50.0)
         assert agent is not None
         agent.event_memory = [index / 20.0 for index in range(8)]
         agent.signal_values = [index / 10.0 for index in range(8)]
@@ -132,7 +132,7 @@ class CausalContractTests(unittest.TestCase):
 
     def test_action_results_feed_short_event_memory(self) -> None:
         self.sim = make_sim()
-        agent = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 50.0)
+        agent = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 50.0)
         assert agent is not None
 
         agent.record_action_result(
@@ -154,7 +154,7 @@ class CausalContractTests(unittest.TestCase):
 
     def test_checkpoints_capture_cognitive_context(self) -> None:
         self.sim = make_sim()
-        agent = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 50.0)
+        agent = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 50.0)
         assert agent is not None
         agent.record_action_result(8, 3.0, 0.0, 0.0, 0.25, 0.0, 0.1, 1.0)
         saved = self.sim.checkpoints.save_brain(42, agent, "test_cognition", {}, bucket="general")
@@ -170,17 +170,17 @@ class CausalContractTests(unittest.TestCase):
 
     def test_lineage_metadata_tracks_inherited_agent_templates(self) -> None:
         self.sim = make_sim(places=1)
-        parent = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 80.0)
-        assert parent is not None and parent.brain_template is not None
+        parent = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        assert parent is not None and parent.controller_template is not None
 
-        child = self.sim.add_organism(
+        child = self.sim.add_individual(
             "agent",
             Genome.neural(self.sim.rng),
             0,
             40.0,
             generation=parent.generation + 1,
             parent_ids=(parent.id,),
-            brain_template=parent.brain_template,
+            controller_template=parent.controller_template,
         )
         assert child is not None
 
@@ -198,8 +198,8 @@ class CausalContractTests(unittest.TestCase):
 
     def test_attack_uses_current_location_not_tick_start_roster(self) -> None:
         self.sim = make_sim(places=2)
-        attacker = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 80.0)
-        target = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        attacker = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        target = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
         assert attacker is not None and target is not None
         _stale_roster = self.sim._rosters()
         target.location = 1
@@ -226,9 +226,9 @@ class CausalContractTests(unittest.TestCase):
         helper_genome.manipulator = 1.00
         helper_genome.sensor_range = 1.00
         helper_genome.signal_strength = 1.00
-        attacker = self.sim.add_organism("agent", attacker_genome, 0, 80.0)
-        target = self.sim.add_organism("agent", target_genome, 0, 80.0)
-        helper = self.sim.add_organism("agent", helper_genome, 0, 80.0)
+        attacker = self.sim.add_individual("agent", attacker_genome, 0, 80.0)
+        target = self.sim.add_individual("agent", target_genome, 0, 80.0)
+        helper = self.sim.add_individual("agent", helper_genome, 0, 80.0)
         assert attacker is not None and target is not None and helper is not None
         attacker.health = 0.03
         target.health = 0.45
@@ -257,7 +257,7 @@ class CausalContractTests(unittest.TestCase):
 
     def test_tool_choice_uses_recognized_situation_without_magic(self) -> None:
         self.sim = make_sim(places=1)
-        agent = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        agent = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
         assert agent is not None
         agent.inventory = {"stone": 1, "shell": 1}
         place = self.sim.world.places[0]
@@ -309,7 +309,7 @@ class CausalContractTests(unittest.TestCase):
 
     def test_tool_lessons_store_situation_separately_from_attempt(self) -> None:
         self.sim = make_sim(places=1)
-        agent = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        agent = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
         assert agent is not None
         place = self.sim.world.places[0]
         place.causal_challenge = None
@@ -332,8 +332,8 @@ class CausalContractTests(unittest.TestCase):
     def test_clone_mutate_capacity_uses_current_local_population(self) -> None:
         self.sim = make_sim(places=2)
         parent_genome = Genome.plant(self.sim.rng)
-        parent = self.sim.add_organism("plant", parent_genome, 0, 200.0)
-        neighbor = self.sim.add_organism("plant", Genome.plant(self.sim.rng), 0, 20.0)
+        parent = self.sim.add_individual("plant", parent_genome, 0, 200.0)
+        neighbor = self.sim.add_individual("plant", Genome.plant(self.sim.rng), 0, 20.0)
         assert parent is not None and neighbor is not None
         self.sim.world.places[0].capacity = 2
         parent.age = 100
@@ -356,7 +356,7 @@ class CausalContractTests(unittest.TestCase):
         parent_genome = Genome.neural(self.sim.rng)
         parent_genome.neural_budget = 32.0
         parent_genome.memory_budget = 16.0
-        parent = self.sim.add_organism("agent", parent_genome, 0, 1_000.0)
+        parent = self.sim.add_individual("agent", parent_genome, 0, 1_000.0)
         assert parent is not None
         parent.age = 100
 
@@ -369,7 +369,7 @@ class CausalContractTests(unittest.TestCase):
         self.sim = make_sim()
         agent_genome = Genome.neural(self.sim.rng)
         agent_genome.manipulator = 0.12
-        agent = self.sim.add_organism("agent", agent_genome, 0, 100.0)
+        agent = self.sim.add_individual("agent", agent_genome, 0, 100.0)
         assert agent is not None
         agent.inventory = {"stone": 1, "crystal": 1}
 
@@ -398,7 +398,7 @@ class CausalContractTests(unittest.TestCase):
         self.sim = make_sim()
         agent_genome = Genome.neural(self.sim.rng)
         agent_genome.manipulator = 1.0
-        agent = self.sim.add_organism("agent", agent_genome, 0, 100.0)
+        agent = self.sim.add_individual("agent", agent_genome, 0, 100.0)
         assert agent is not None
         agent.inventory = {"stone": 1, "fiber": 1}
 
@@ -434,7 +434,7 @@ class CausalContractTests(unittest.TestCase):
         agent_genome = Genome.neural(self.sim.rng)
         agent_genome.sensor_range = 1.0
         agent_genome.memory_budget = 12.0
-        reader = self.sim.add_organism("agent", agent_genome, 0, 80.0)
+        reader = self.sim.add_individual("agent", agent_genome, 0, 80.0)
         assert reader is not None
         self.sim.world.create_mark(
             0,
@@ -499,7 +499,7 @@ class CausalContractTests(unittest.TestCase):
         agent_genome = Genome.neural(self.sim.rng)
         agent_genome.sensor_range = 1.0
         agent_genome.memory_budget = 12.0
-        reader = self.sim.add_organism("agent", agent_genome, 0, 80.0)
+        reader = self.sim.add_individual("agent", agent_genome, 0, 80.0)
         assert reader is not None
         self.sim.world.create_mark(
             0,
@@ -560,8 +560,8 @@ class CausalContractTests(unittest.TestCase):
         reader_genome = Genome.neural(self.sim.rng)
         reader_genome.sensor_range = 1.0
         reader_genome.memory_budget = 12.0
-        writer = self.sim.add_organism("agent", writer_genome, 0, 80.0)
-        reader = self.sim.add_organism("agent", reader_genome, 0, 80.0)
+        writer = self.sim.add_individual("agent", writer_genome, 0, 80.0)
+        reader = self.sim.add_individual("agent", reader_genome, 0, 80.0)
         assert writer is not None and reader is not None
         self.sim.world.create_mark(
             0,
@@ -614,7 +614,7 @@ class CausalContractTests(unittest.TestCase):
         genome = Genome.neural(self.sim.rng)
         genome.sensor_range = 1.0
         genome.memory_budget = 12.0
-        agent = self.sim.add_organism("agent", genome, 0, 80.0)
+        agent = self.sim.add_individual("agent", genome, 0, 80.0)
         assert agent is not None
         self.sim.world.create_mark(
             0,
@@ -670,7 +670,7 @@ class CausalContractTests(unittest.TestCase):
         genome = Genome.neural(self.sim.rng)
         genome.sensor_range = 1.0
         genome.memory_budget = 12.0
-        agent = self.sim.add_organism("agent", genome, 0, 80.0)
+        agent = self.sim.add_individual("agent", genome, 0, 80.0)
         assert agent is not None
         artifact = build_artifact({"fiber": 1, "resin": 1}, method_quality=1.0, target_affordance="record")
         agent.artifacts.append(artifact)
@@ -721,7 +721,7 @@ class CausalContractTests(unittest.TestCase):
         genome = Genome.neural(self.sim.rng)
         genome.manipulator = 0.2
         genome.developmental_complexity = 0.0
-        agent = self.sim.add_organism("agent", genome, 0, 80.0)
+        agent = self.sim.add_individual("agent", genome, 0, 80.0)
         assert agent is not None
         base_limit = agent.inventory_limit()
         artifact = build_artifact({"fiber": 1, "shell": 1, "resin": 1}, method_quality=1.0, target_affordance="carry")
@@ -739,8 +739,8 @@ class CausalContractTests(unittest.TestCase):
         genome = Genome.neural(self.sim.rng)
         genome.pressure_tolerance = 0.05
         genome.armor = 0.0
-        unprotected = self.sim.add_organism("agent", genome, 0, 80.0)
-        protected = self.sim.add_organism("agent", genome, 0, 80.0)
+        unprotected = self.sim.add_individual("agent", genome, 0, 80.0)
+        protected = self.sim.add_individual("agent", genome, 0, 80.0)
         assert unprotected is not None and protected is not None
         protected.artifacts.append(build_artifact({"shell": 2, "fiber": 1}, method_quality=1.0, target_affordance="protect"))
 
@@ -774,8 +774,8 @@ class CausalContractTests(unittest.TestCase):
         fragile = Genome.neural(self.sim.rng)
         fragile.thermal_tolerance = 0.0
         fragile.armor = 0.0
-        unprotected = self.sim.add_organism("agent", fragile, 0, 80.0)
-        protected = self.sim.add_organism("agent", fragile, 0, 80.0)
+        unprotected = self.sim.add_individual("agent", fragile, 0, 80.0)
+        protected = self.sim.add_individual("agent", fragile, 0, 80.0)
         assert unprotected is not None and protected is not None
         protected.artifacts.append(build_artifact({"fiber": 2, "resin": 1}, method_quality=1.0, target_affordance="insulate"))
         protected.artifacts.append(build_artifact({"crystal": 1, "stone": 1}, method_quality=1.0, target_affordance="concentrate_heat"))
@@ -813,9 +813,9 @@ class CausalContractTests(unittest.TestCase):
         fragile = Genome.neural(self.sim.rng)
         fragile.thermal_tolerance = 0.0
         fragile.armor = 0.0
-        alone = self.sim.add_organism("agent", fragile, 1, 80.0)
-        helped = self.sim.add_organism("agent", fragile, 0, 80.0)
-        helper = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        alone = self.sim.add_individual("agent", fragile, 1, 80.0)
+        helped = self.sim.add_individual("agent", fragile, 0, 80.0)
+        helper = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
         assert alone is not None and helped is not None and helper is not None
         helper.last_action = "signal"
         helper.tool_skill["protect"] = 1.0
@@ -838,7 +838,7 @@ class CausalContractTests(unittest.TestCase):
         agent_genome.manipulator = 1.0
         agent_genome.memory_budget = 18.0
         agent_genome.signal_strength = 1.0
-        writer = self.sim.add_organism("agent", agent_genome, 0, 100.0)
+        writer = self.sim.add_individual("agent", agent_genome, 0, 100.0)
         assert writer is not None
 
         class ZeroRng:
@@ -865,7 +865,7 @@ class CausalContractTests(unittest.TestCase):
         agent_genome.memory_budget = 18.0
         agent_genome.signal_strength = 1.0
         agent_genome.sensor_range = 1.0
-        writer = self.sim.add_organism("agent", agent_genome, 0, 100.0)
+        writer = self.sim.add_individual("agent", agent_genome, 0, 100.0)
         assert writer is not None
         writer.inventory = {"fiber": 2, "resin": 1}
         writer.record_lesson(
@@ -912,7 +912,7 @@ class CausalContractTests(unittest.TestCase):
 
     def test_causal_challenge_unlocks_after_affordance_sequence(self) -> None:
         self.sim = make_sim()
-        agent = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        agent = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
         assert agent is not None
         place = self.sim.world.places[0]
         before = place.resources["chemical"]
@@ -952,7 +952,7 @@ class CausalContractTests(unittest.TestCase):
         self.sim = make_sim()
         agent_genome = Genome.neural(self.sim.rng)
         agent_genome.manipulator = 1.0
-        agent = self.sim.add_organism("agent", agent_genome, 0, 100.0)
+        agent = self.sim.add_individual("agent", agent_genome, 0, 100.0)
         assert agent is not None
         agent.inventory = {"stone": 3, "branch": 3, "fiber": 3, "resin": 2}
 
@@ -978,7 +978,7 @@ class CausalContractTests(unittest.TestCase):
 
     def test_bind_practice_transfers_only_to_related_skills(self) -> None:
         self.sim = make_sim()
-        agent = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        agent = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
         assert agent is not None
 
         self.sim._tool_effect(agent, self.sim.world.places[0], "bind", score=1.0, skill=0.0)
@@ -991,7 +991,7 @@ class CausalContractTests(unittest.TestCase):
 
     def test_specialists_keep_cognitive_credit_from_repeated_practice(self) -> None:
         self.sim = make_sim()
-        agent = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        agent = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
         assert agent is not None
         agent.tool_skill["bind"] = 1.0
         agent.tool_use_counts = {"bind": 96}
@@ -1010,8 +1010,8 @@ class CausalContractTests(unittest.TestCase):
         helper_genome.mobility = 1.0
         helper_genome.sensor_range = 1.0
         helper_genome.signal_strength = 1.0
-        actor = self.sim.add_organism("agent", actor_genome, 0, 100.0)
-        helper = self.sim.add_organism("agent", helper_genome, 0, 100.0)
+        actor = self.sim.add_individual("agent", actor_genome, 0, 100.0)
+        helper = self.sim.add_individual("agent", helper_genome, 0, 100.0)
         assert actor is not None and helper is not None
         actor.inventory = {"stone": 1}
         helper.inventory = {"branch": 1, "fiber": 1, "resin": 1}
@@ -1052,8 +1052,8 @@ class CausalContractTests(unittest.TestCase):
         helper_genome.manipulator = 1.0
         helper_genome.sensor_range = 1.0
         helper_genome.signal_strength = 1.0
-        actor = self.sim.add_organism("agent", actor_genome, 0, 120.0)
-        helper = self.sim.add_organism("agent", helper_genome, 0, 120.0)
+        actor = self.sim.add_individual("agent", actor_genome, 0, 120.0)
+        helper = self.sim.add_individual("agent", helper_genome, 0, 120.0)
         assert actor is not None and helper is not None
         helper.last_action = "coordinate"
         helper.recombine_intent_until = self.sim.tick + 4
@@ -1102,7 +1102,7 @@ class CausalContractTests(unittest.TestCase):
         genome = Genome.neural(self.sim.rng)
         genome.mobility = 1.0
         genome.sensor_range = 0.0
-        agent = self.sim.add_organism("agent", genome, 0, 100.0)
+        agent = self.sim.add_individual("agent", genome, 0, 100.0)
         assert agent is not None
         origin = self.sim.world.places[0]
         destination = self.sim.world.places[1]
@@ -1144,7 +1144,7 @@ class CausalContractTests(unittest.TestCase):
         genome.aquatic_affinity = 0.0
         genome.thermal_tolerance = 0.0
         genome.pressure_tolerance = 0.0
-        agent = self.sim.add_organism("agent", genome, 0, 100.0)
+        agent = self.sim.add_individual("agent", genome, 0, 100.0)
         assert agent is not None
         origin = self.sim.world.places[0]
         destination = self.sim.world.places[1]
@@ -1255,13 +1255,13 @@ class CausalContractTests(unittest.TestCase):
         # is exercised separately in AttentionTests below.
         import numpy as np
 
-        brain = TinyBrain.random(Random(7), input_size=5, hidden_size=4, output_size=3, with_attention=False)
+        controller = TinyController.random(Random(7), input_size=5, hidden_size=4, output_size=3, with_attention=False)
         inputs = [0.8, -0.2, 0.5, 0.0, 0.3]
-        brain.forward(inputs)
-        before_in = brain.weights_in.copy()
-        before_out = brain.weights_out.copy()
+        controller.forward(inputs)
+        before_in = controller.weights_in.copy()
+        before_out = controller.weights_out.copy()
 
-        brain.learn(
+        controller.learn(
             action_index=1,
             valence=1.2,
             energy_delta=0.6,
@@ -1270,20 +1270,20 @@ class CausalContractTests(unittest.TestCase):
             prediction_weight=0.70,
         )
 
-        self.assertFalse(np.array_equal(before_out, brain.weights_out))
-        self.assertFalse(np.array_equal(before_in, brain.weights_in))
-        self.assertEqual(brain.input_trace.size, 5)
-        self.assertEqual(brain.hidden_trace.size, 4)
+        self.assertFalse(np.array_equal(before_out, controller.weights_out))
+        self.assertFalse(np.array_equal(before_in, controller.weights_in))
+        self.assertEqual(controller.input_trace.size, 5)
+        self.assertEqual(controller.hidden_trace.size, 4)
 
     def test_brain_learns_multiple_prediction_heads(self) -> None:
         import numpy as np
 
-        brain = TinyBrain.random(Random(9), input_size=5, hidden_size=4, output_size=3)
-        brain.forward([0.5, -0.1, 0.4, 0.7, 0.2])
-        before_damage = brain.auxiliary_prediction_weights["damage"].copy()
-        before_tool = brain.auxiliary_prediction_weights["tool"].copy()
+        controller = TinyController.random(Random(9), input_size=5, hidden_size=4, output_size=3)
+        controller.forward([0.5, -0.1, 0.4, 0.7, 0.2])
+        before_damage = controller.auxiliary_prediction_weights["damage"].copy()
+        before_tool = controller.auxiliary_prediction_weights["tool"].copy()
 
-        brain.learn(
+        controller.learn(
             action_index=2,
             valence=0.8,
             energy_delta=0.4,
@@ -1293,16 +1293,16 @@ class CausalContractTests(unittest.TestCase):
             outcome_targets={"damage": 0.3, "reproduction": 0.0, "social": 0.2, "tool": 1.0, "hazard": 0.1},
         )
 
-        self.assertEqual(set(brain.last_prediction_errors), set(PREDICTION_HEADS))
-        self.assertFalse(np.array_equal(before_damage, brain.auxiliary_prediction_weights["damage"]))
-        self.assertFalse(np.array_equal(before_tool, brain.auxiliary_prediction_weights["tool"]))
+        self.assertEqual(set(controller.last_prediction_errors), set(PREDICTION_HEADS))
+        self.assertFalse(np.array_equal(before_damage, controller.auxiliary_prediction_weights["damage"]))
+        self.assertFalse(np.array_equal(before_tool, controller.auxiliary_prediction_weights["tool"]))
 
     def test_zero_plasticity_keeps_brain_weights_stable(self) -> None:
-        brain = TinyBrain.random(Random(8), input_size=5, hidden_size=4, output_size=3)
-        brain.forward([0.3, 0.1, -0.4, 0.7, 0.0])
-        before = brain.to_dict(include_state=False)
+        controller = TinyController.random(Random(8), input_size=5, hidden_size=4, output_size=3)
+        controller.forward([0.3, 0.1, -0.4, 0.7, 0.0])
+        before = controller.to_dict(include_state=False)
 
-        brain.learn(
+        controller.learn(
             action_index=0,
             valence=1.0,
             energy_delta=0.5,
@@ -1311,14 +1311,14 @@ class CausalContractTests(unittest.TestCase):
             prediction_weight=0.80,
         )
 
-        self.assertEqual(before, brain.to_dict(include_state=False))
+        self.assertEqual(before, controller.to_dict(include_state=False))
 
     def test_death_checkpoints_do_not_crowd_out_living_champions(self) -> None:
         self.sim = make_sim()
-        death_candidate = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 80.0)
-        tool_champion = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 80.0)
-        reproductive_champion = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 80.0)
-        lineage_founder = self.sim.add_organism("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        death_candidate = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        tool_champion = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        reproductive_champion = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
+        lineage_founder = self.sim.add_individual("agent", Genome.neural(self.sim.rng), 0, 80.0)
         assert death_candidate is not None and tool_champion is not None and reproductive_champion is not None and lineage_founder is not None
         tool_champion.successful_tools = 80
         reproductive_champion.offspring_count = 18
@@ -1352,23 +1352,23 @@ class CausalContractTests(unittest.TestCase):
 
     def test_torch_brain_batch_forward_matches_cpu_reference(self) -> None:
         # The torch backend does not yet implement the attention head; for now,
-        # parity is verified on attention-disabled brains. Attention behavior
+        # parity is verified on attention-disabled controllers. Attention behavior
         # has dedicated CPU tests in AttentionTests.
         runtime = self._torch_runtime_or_skip()
         rng = Random(123)
         cpu_brains = [
-            TinyBrain.random(rng, input_size=5, hidden_size=3, output_size=4, with_attention=False),
-            TinyBrain.random(rng, input_size=5, hidden_size=4, output_size=4, with_attention=False),
-            TinyBrain.random(rng, input_size=5, hidden_size=3, output_size=4, with_attention=False),
+            TinyController.random(rng, input_size=5, hidden_size=3, output_size=4, with_attention=False),
+            TinyController.random(rng, input_size=5, hidden_size=4, output_size=4, with_attention=False),
+            TinyController.random(rng, input_size=5, hidden_size=3, output_size=4, with_attention=False),
         ]
-        torch_brains = [TinyBrain.from_dict(brain.to_dict(include_state=True)) for brain in cpu_brains]
+        torch_brains = [TinyController.from_dict(controller.to_dict(include_state=True)) for controller in cpu_brains]
         observations = [
             [0.2, -0.1, 0.7, 0.0, 0.5],
             [-0.3, 0.4, 0.1, 0.9, -0.2],
             [0.8, 0.0, -0.5, 0.3, 0.2],
         ]
 
-        expected = [brain.forward(observation) for brain, observation in zip(cpu_brains, observations)]
+        expected = [controller.forward(observation) for controller, observation in zip(cpu_brains, observations)]
         actual = runtime.forward_many(torch_brains, observations)
 
         for expected_row, actual_row in zip(expected, actual):
@@ -1384,13 +1384,13 @@ class CausalContractTests(unittest.TestCase):
         runtime = self._torch_runtime_or_skip()
         rng = Random(321)
         cpu_brains = [
-            TinyBrain.random(rng, input_size=5, hidden_size=4, output_size=3, with_attention=False),
-            TinyBrain.random(rng, input_size=5, hidden_size=4, output_size=3, with_attention=False),
+            TinyController.random(rng, input_size=5, hidden_size=4, output_size=3, with_attention=False),
+            TinyController.random(rng, input_size=5, hidden_size=4, output_size=3, with_attention=False),
         ]
-        torch_brains = [TinyBrain.from_dict(brain.to_dict(include_state=True)) for brain in cpu_brains]
+        torch_brains = [TinyController.from_dict(controller.to_dict(include_state=True)) for controller in cpu_brains]
         observations = [[0.3, -0.2, 0.8, 0.1, 0.0], [-0.4, 0.9, 0.2, 0.0, 0.5]]
-        for brain, observation in zip(cpu_brains, observations):
-            brain.forward(observation)
+        for controller, observation in zip(cpu_brains, observations):
+            controller.forward(observation)
         runtime.forward_many(torch_brains, observations)
 
         params = [
@@ -1413,11 +1413,11 @@ class CausalContractTests(unittest.TestCase):
                 "outcome_targets": {"damage": 0.4, "reproduction": 0.0, "social": -0.1, "tool": 0.0, "hazard": 0.5},
             },
         ]
-        expected_errors = [brain.learn(**param) for brain, param in zip(cpu_brains, params)]
+        expected_errors = [controller.learn(**param) for controller, param in zip(cpu_brains, params)]
         actual_errors = runtime.learn_many(
             [
-                BrainLearningCase(brain=brain, **param)
-                for brain, param in zip(torch_brains, params)
+                BrainLearningCase(controller=controller, **param)
+                for controller, param in zip(torch_brains, params)
             ]
         )
 
@@ -1460,65 +1460,65 @@ class CausalContractTests(unittest.TestCase):
 
 
 class AttentionTests(unittest.TestCase):
-    """Information-as-attention: brains learn during life what to attend to.
+    """Information-as-attention: controllers learn during their active span what to attend to.
     Total fidelity is bounded; what isn't attended to gets noise. The mechanism
     must be neuroplastic (lifetime learning), inheritable (clone with mutation),
     backward-compatible (legacy checkpoints work), and not require marks/signals
-    (transfer-clean to environments without writing)."""
+    (transfer-clean to environments without durable symbol encoding)."""
 
     def test_default_brain_has_attention_head(self) -> None:
-        from microcosmic_god.brain import TinyBrain
+        from microcosmic_god.brain import TinyController
 
-        brain = TinyBrain.random(Random(11), input_size=6, hidden_size=4, output_size=3)
-        self.assertEqual(brain.attention_weights.shape, (4, 6))
-        self.assertEqual(brain.attention_bias.shape, (6,))
-        self.assertTrue(brain._has_attention())
+        controller = TinyController.random(Random(11), input_size=6, hidden_size=4, output_size=3)
+        self.assertEqual(controller.attention_weights.shape, (4, 6))
+        self.assertEqual(controller.attention_bias.shape, (6,))
+        self.assertTrue(controller._has_attention())
 
     def test_brain_can_be_constructed_without_attention(self) -> None:
-        from microcosmic_god.brain import TinyBrain
+        from microcosmic_god.brain import TinyController
 
-        brain = TinyBrain.random(Random(11), input_size=6, hidden_size=4, output_size=3, with_attention=False)
-        self.assertEqual(brain.attention_weights.size, 0)
-        self.assertEqual(brain.attention_bias.size, 0)
-        self.assertFalse(brain._has_attention())
+        controller = TinyController.random(Random(11), input_size=6, hidden_size=4, output_size=3, with_attention=False)
+        self.assertEqual(controller.attention_weights.size, 0)
+        self.assertEqual(controller.attention_bias.size, 0)
+        self.assertFalse(controller._has_attention())
 
     def test_attention_total_fidelity_bounded_by_budget(self) -> None:
-        from microcosmic_god.brain import TinyBrain, ATTENTION_BUDGET_FRACTION
+        from microcosmic_god.brain import TinyController, ATTENTION_BUDGET_FRACTION
 
         import numpy as np
 
-        brain = TinyBrain.random(Random(11), input_size=8, hidden_size=4, output_size=3)
+        controller = TinyController.random(Random(11), input_size=8, hidden_size=4, output_size=3)
         # Saturate attention bias to push raw attention well above budget.
-        brain.attention_bias = np.full(brain.input_size, 10.0, dtype=np.float64)
-        inputs = [0.5] * brain.input_size
-        brain.forward(inputs)
-        budget = brain.input_size * ATTENTION_BUDGET_FRACTION
+        controller.attention_bias = np.full(controller.input_size, 10.0, dtype=np.float64)
+        inputs = [0.5] * controller.input_size
+        controller.forward(inputs)
+        budget = controller.input_size * ATTENTION_BUDGET_FRACTION
         # Floating-point slack is acceptable; the bound should hold to ~1e-6.
-        self.assertLessEqual(sum(brain.last_attention), budget + 1e-6)
+        self.assertLessEqual(sum(controller.last_attention), budget + 1e-6)
 
     def test_attention_passthrough_when_brain_has_no_attention(self) -> None:
-        from microcosmic_god.brain import TinyBrain
+        from microcosmic_god.brain import TinyController
 
-        brain = TinyBrain.random(Random(11), input_size=5, hidden_size=4, output_size=3, with_attention=False)
+        controller = TinyController.random(Random(11), input_size=5, hidden_size=4, output_size=3, with_attention=False)
         inputs = [0.8, -0.2, 0.5, 0.0, 0.3]
-        brain.forward(inputs)
+        controller.forward(inputs)
         # Without attention, last_inputs should equal inputs exactly (no noise injected).
-        for expected, actual in zip(inputs, brain.last_inputs):
+        for expected, actual in zip(inputs, controller.last_inputs):
             self.assertAlmostEqual(expected, actual, places=10)
         # last_attention reports uniform 1.0 (full fidelity) for the no-attention path.
-        self.assertEqual(brain.last_attention.tolist(), [1.0] * 5)
+        self.assertEqual(controller.last_attention.tolist(), [1.0] * 5)
 
     def test_attention_weights_change_with_surprise_and_valence(self) -> None:
-        from microcosmic_god.brain import TinyBrain
+        from microcosmic_god.brain import TinyController
 
         import numpy as np
 
-        brain = TinyBrain.random(Random(11), input_size=6, hidden_size=5, output_size=3)
-        before = brain.attention_weights.copy()
+        controller = TinyController.random(Random(11), input_size=6, hidden_size=5, output_size=3)
+        before = controller.attention_weights.copy()
         # Drive several iterations of forward + learn with strong surprise/valence.
         for _ in range(10):
-            brain.forward([0.7, -0.4, 0.6, 0.1, -0.5, 0.3])
-            brain.learn(
+            controller.forward([0.7, -0.4, 0.6, 0.1, -0.5, 0.3])
+            controller.learn(
                 action_index=2,
                 valence=1.5,
                 energy_delta=0.8,
@@ -1526,48 +1526,48 @@ class AttentionTests(unittest.TestCase):
                 plasticity=0.95,
                 prediction_weight=0.85,
             )
-        self.assertFalse(np.array_equal(before, brain.attention_weights))
+        self.assertFalse(np.array_equal(before, controller.attention_weights))
         # And the attention bias should also have shifted on at least one feature.
-        self.assertTrue(np.any(np.abs(brain.attention_bias) > 1e-6))
+        self.assertTrue(np.any(np.abs(controller.attention_bias) > 1e-6))
 
     def test_attention_serializes_round_trip(self) -> None:
-        from microcosmic_god.brain import TinyBrain
+        from microcosmic_god.brain import TinyController
 
-        brain = TinyBrain.random(Random(11), input_size=6, hidden_size=4, output_size=3)
+        controller = TinyController.random(Random(11), input_size=6, hidden_size=4, output_size=3)
         # Modify a couple of attention weights to ensure they're persisted.
         # attention_weights is now (hidden_size, input_size) — index as [h, i].
-        brain.attention_weights[0, 0] = 0.5
-        brain.attention_weights[1, 5] = -0.3
-        brain.attention_bias[2] = 1.2
-        data = brain.to_dict(include_state=True)
-        restored = TinyBrain.from_dict(data)
-        self.assertEqual(brain.attention_weights.shape, restored.attention_weights.shape)
-        for original, recovered in zip(brain.attention_weights.flatten(), restored.attention_weights.flatten()):
+        controller.attention_weights[0, 0] = 0.5
+        controller.attention_weights[1, 5] = -0.3
+        controller.attention_bias[2] = 1.2
+        data = controller.to_dict(include_state=True)
+        restored = TinyController.from_dict(data)
+        self.assertEqual(controller.attention_weights.shape, restored.attention_weights.shape)
+        for original, recovered in zip(controller.attention_weights.flatten(), restored.attention_weights.flatten()):
             self.assertAlmostEqual(float(original), float(recovered), places=6)
-        for original, recovered in zip(brain.attention_bias, restored.attention_bias):
+        for original, recovered in zip(controller.attention_bias, restored.attention_bias):
             self.assertAlmostEqual(float(original), float(recovered), places=6)
 
     def test_legacy_checkpoint_without_attention_loads_cleanly(self) -> None:
-        from microcosmic_god.brain import TinyBrain
+        from microcosmic_god.brain import TinyController
 
         # Construct a checkpoint dict that predates attention (no fields).
-        legacy_brain = TinyBrain.random(Random(11), input_size=5, hidden_size=3, output_size=2, with_attention=False)
+        legacy_brain = TinyController.random(Random(11), input_size=5, hidden_size=3, output_size=2, with_attention=False)
         data = legacy_brain.to_dict(include_state=True)
         data.pop("attention_weights", None)
         data.pop("attention_bias", None)
         data.pop("last_attention", None)
-        restored = TinyBrain.from_dict(data)
+        restored = TinyController.from_dict(data)
         self.assertFalse(restored._has_attention())
-        # And the brain still produces forward outputs.
+        # And the controller still produces forward outputs.
         outputs = restored.forward([0.1, 0.2, 0.3, 0.4, 0.5])
         self.assertEqual(len(outputs), 2)
 
     def test_clone_propagates_attention_with_mutation(self) -> None:
-        from microcosmic_god.brain import TinyBrain
+        from microcosmic_god.brain import TinyController
         import numpy as np
 
         rng = Random(11)
-        parent = TinyBrain.random(rng, input_size=5, hidden_size=3, output_size=2)
+        parent = TinyController.random(rng, input_size=5, hidden_size=3, output_size=2)
         child = parent.clone_for_offspring(Random(12), mutation_scale=0.05)
         self.assertEqual(child.attention_weights.shape, parent.attention_weights.shape)
         self.assertEqual(child.attention_bias.shape, parent.attention_bias.shape)
@@ -1576,58 +1576,58 @@ class AttentionTests(unittest.TestCase):
 
 
 class BrainGrowthTests(unittest.TestCase):
-    """Brains can grow or shrink across reproduction without losing the parent's
+    """Controllers can grow or shrink across reproduction without losing the parent's
     learned function. This gives evolution real freedom to find appropriate
-    capacity for each ecological niche, rather than capping all brains at one
+    capacity for each operating regime, rather than capping all controllers at one
     fixed size."""
 
     def test_brain_grow_preserves_function_for_pre_existing_inputs(self) -> None:
-        from microcosmic_god.brain import TinyBrain
+        from microcosmic_god.brain import TinyController
 
         rng = Random(31)
-        brain = TinyBrain.random(rng, input_size=4, hidden_size=5, output_size=3, with_attention=False)
+        controller = TinyController.random(rng, input_size=4, hidden_size=5, output_size=3, with_attention=False)
         # Drive a forward pass and snapshot the original output so we can verify
         # function preservation after growth.
         inputs = [0.4, -0.2, 0.6, 0.1]
-        before = brain.forward(inputs)
+        before = controller.forward(inputs)
         # Reset hidden state so the comparison is clean.
-        brain.hidden = [0.0 for _ in range(brain.hidden_size)]
-        brain.resize_hidden(rng, 9)
-        self.assertEqual(brain.hidden_size, 9)
+        controller.hidden = [0.0 for _ in range(controller.hidden_size)]
+        controller.resize_hidden(rng, 9)
+        self.assertEqual(controller.hidden_size, 9)
         # Newly-added hidden units have small random in-weights so the output is
         # close to but not identical to the original. The shape is what we care
         # about - growth should not catastrophically distort behavior.
-        after = brain.forward(inputs)
+        after = controller.forward(inputs)
         self.assertEqual(len(after), len(before))
 
     def test_brain_shrink_keeps_top_magnitude_units(self) -> None:
-        from microcosmic_god.brain import TinyBrain
+        from microcosmic_god.brain import TinyController
 
         rng = Random(31)
-        brain = TinyBrain.random(rng, input_size=4, hidden_size=8, output_size=3, with_attention=False)
+        controller = TinyController.random(rng, input_size=4, hidden_size=8, output_size=3, with_attention=False)
         # Make unit 3 dominant via incoming weights, unit 5 dominant via outgoing.
         # weights_in is (hidden_size, input_size); weights_out is (output_size, hidden_size).
-        for h in range(brain.hidden_size):
-            for i in range(brain.input_size):
-                brain.weights_in[h, i] = 2.5 if h == 3 else 0.01
-        for o in range(brain.output_size):
-            for h in range(brain.hidden_size):
-                brain.weights_out[o, h] = 2.5 if h == 5 else 0.01
-        brain.resize_hidden(rng, 2)
-        self.assertEqual(brain.hidden_size, 2)
+        for h in range(controller.hidden_size):
+            for i in range(controller.input_size):
+                controller.weights_in[h, i] = 2.5 if h == 3 else 0.01
+        for o in range(controller.output_size):
+            for h in range(controller.hidden_size):
+                controller.weights_out[o, h] = 2.5 if h == 5 else 0.01
+        controller.resize_hidden(rng, 2)
+        self.assertEqual(controller.hidden_size, 2)
         # After shrink, the two surviving units (kept in original index order)
         # are the dominant ones: unit 3 had big incoming weights (2.5 each) and
         # unit 5 had big outgoing weights (2.5 each). The first surviving slot
         # should reflect unit 3's incoming weights; the second slot should
         # reflect unit 5's outgoing weights.
-        self.assertEqual(brain.weights_in[0, 0], 2.5)  # unit 3 in slot 0
-        self.assertEqual(brain.weights_out[0, 1], 2.5)  # unit 5's out, in slot 1
+        self.assertEqual(controller.weights_in[0, 0], 2.5)  # unit 3 in slot 0
+        self.assertEqual(controller.weights_out[0, 1], 2.5)  # unit 5's out, in slot 1
 
     def test_clone_for_offspring_resizes_when_target_differs(self) -> None:
-        from microcosmic_god.brain import TinyBrain
+        from microcosmic_god.brain import TinyController
 
         rng = Random(31)
-        parent = TinyBrain.random(rng, input_size=4, hidden_size=5, output_size=3, with_attention=False)
+        parent = TinyController.random(rng, input_size=4, hidden_size=5, output_size=3, with_attention=False)
         child = parent.clone_for_offspring(Random(32), mutation_scale=0.02, target_hidden_size=8)
         self.assertEqual(child.hidden_size, 8)
         self.assertEqual(parent.hidden_size, 5)  # parent unchanged
@@ -1636,118 +1636,118 @@ class BrainGrowthTests(unittest.TestCase):
         self.assertEqual(len(outputs), 3)
 
     def test_resize_preserves_attention_when_present(self) -> None:
-        from microcosmic_god.brain import TinyBrain
+        from microcosmic_god.brain import TinyController
 
         rng = Random(31)
-        brain = TinyBrain.random(rng, input_size=4, hidden_size=5, output_size=3, with_attention=True)
-        self.assertEqual(brain.attention_weights.shape, (5, 4))
-        brain.resize_hidden(rng, 9)
-        self.assertEqual(brain.attention_weights.shape, (9, 4))
-        brain.resize_hidden(rng, 3)
-        self.assertEqual(brain.attention_weights.shape, (3, 4))
-        self.assertTrue(brain._has_attention())
+        controller = TinyController.random(rng, input_size=4, hidden_size=5, output_size=3, with_attention=True)
+        self.assertEqual(controller.attention_weights.shape, (5, 4))
+        controller.resize_hidden(rng, 9)
+        self.assertEqual(controller.attention_weights.shape, (9, 4))
+        controller.resize_hidden(rng, 3)
+        self.assertEqual(controller.attention_weights.shape, (3, 4))
+        self.assertTrue(controller._has_attention())
 
     def test_brain_max_cap_raised_above_legacy_128(self) -> None:
-        from microcosmic_god.brain import TinyBrain, BRAIN_HIDDEN_MAX
+        from microcosmic_god.brain import TinyController, BRAIN_HIDDEN_MAX
 
         # The legacy cap was 128; growth requires headroom beyond that.
         self.assertGreater(BRAIN_HIDDEN_MAX, 128)
         rng = Random(31)
-        big_brain = TinyBrain.random(rng, input_size=4, hidden_size=200, output_size=3, with_attention=False)
+        big_brain = TinyController.random(rng, input_size=4, hidden_size=200, output_size=3, with_attention=False)
         self.assertEqual(big_brain.hidden_size, 200)
 
 
 class EpisodicMemoryTests(unittest.TestCase):
-    """Episodic memory: optional v2 brain feature. When capacity > 0, the
-    brain has a content-addressable bank of past hidden-state snapshots.
+    """Episodic memory: optional v2 controller feature. When capacity > 0, the
+    controller has a content-addressable bank of past hidden-state snapshots.
     Storage is gated by surprise + valence; retrieval is similarity-weighted
     cross-attention; replay during rest averages two episodes and pushes
     the result through the recurrent core."""
 
     def test_default_brain_has_no_episodic_memory(self) -> None:
-        from microcosmic_god.brain import TinyBrain
+        from microcosmic_god.brain import TinyController
 
-        brain = TinyBrain.random(Random(11), input_size=6, hidden_size=4, output_size=3)
-        self.assertFalse(brain._has_episodic())
-        self.assertEqual(brain.episodic_slots.size, 0)
+        controller = TinyController.random(Random(11), input_size=6, hidden_size=4, output_size=3)
+        self.assertFalse(controller._has_episodic())
+        self.assertEqual(controller.episodic_slots.size, 0)
 
     def test_brain_with_capacity_has_episodic_memory(self) -> None:
-        from microcosmic_god.brain import TinyBrain
+        from microcosmic_god.brain import TinyController
 
-        brain = TinyBrain.random(Random(11), input_size=6, hidden_size=4, output_size=3, episodic_capacity=8)
-        self.assertTrue(brain._has_episodic())
-        self.assertEqual(brain.episodic_slots.shape, (8, 4))
-        self.assertEqual(brain.episodic_age.shape, (8,))
+        controller = TinyController.random(Random(11), input_size=6, hidden_size=4, output_size=3, episodic_capacity=8)
+        self.assertTrue(controller._has_episodic())
+        self.assertEqual(controller.episodic_slots.shape, (8, 4))
+        self.assertEqual(controller.episodic_age.shape, (8,))
         # All slots start empty (age=-1).
-        self.assertTrue(all(brain.episodic_age == -1.0))
+        self.assertTrue(all(controller.episodic_age == -1.0))
 
     def test_episodic_storage_writes_on_surprise(self) -> None:
-        from microcosmic_god.brain import TinyBrain
+        from microcosmic_god.brain import TinyController
 
-        brain = TinyBrain.random(Random(11), input_size=5, hidden_size=4, output_size=3, episodic_capacity=4)
-        brain.forward([0.5, 0.3, -0.2, 0.4, 0.1])
+        controller = TinyController.random(Random(11), input_size=5, hidden_size=4, output_size=3, episodic_capacity=4)
+        controller.forward([0.5, 0.3, -0.2, 0.4, 0.1])
         # High surprise + high valence -> should write a slot.
-        wrote = brain._store_episode(surprise=0.8, valence=1.0)
+        wrote = controller._store_episode(surprise=0.8, valence=1.0)
         self.assertTrue(wrote)
-        self.assertEqual((brain.episodic_age >= 0.0).sum(), 1)
+        self.assertEqual((controller.episodic_age >= 0.0).sum(), 1)
 
     def test_episodic_storage_skips_when_uneventful(self) -> None:
-        from microcosmic_god.brain import TinyBrain
+        from microcosmic_god.brain import TinyController
 
-        brain = TinyBrain.random(Random(11), input_size=5, hidden_size=4, output_size=3, episodic_capacity=4)
-        brain.forward([0.5, 0.3, -0.2, 0.4, 0.1])
+        controller = TinyController.random(Random(11), input_size=5, hidden_size=4, output_size=3, episodic_capacity=4)
+        controller.forward([0.5, 0.3, -0.2, 0.4, 0.1])
         # Low surprise + low valence -> should NOT write.
-        wrote = brain._store_episode(surprise=0.05, valence=0.10)
+        wrote = controller._store_episode(surprise=0.05, valence=0.10)
         self.assertFalse(wrote)
-        self.assertEqual((brain.episodic_age >= 0.0).sum(), 0)
+        self.assertEqual((controller.episodic_age >= 0.0).sum(), 0)
 
     def test_episodic_retrieval_returns_zero_when_empty(self) -> None:
-        from microcosmic_god.brain import TinyBrain
+        from microcosmic_god.brain import TinyController
         import numpy as np
 
-        brain = TinyBrain.random(Random(11), input_size=5, hidden_size=4, output_size=3, episodic_capacity=4)
-        brain.forward([0.5, 0.3, -0.2, 0.4, 0.1])
-        retrieved = brain._retrieve_episodes()
+        controller = TinyController.random(Random(11), input_size=5, hidden_size=4, output_size=3, episodic_capacity=4)
+        controller.forward([0.5, 0.3, -0.2, 0.4, 0.1])
+        retrieved = controller._retrieve_episodes()
         self.assertEqual(retrieved.shape, (4,))
         self.assertTrue(np.allclose(retrieved, 0.0))
 
     def test_replay_requires_two_or_more_stored_episodes(self) -> None:
-        from microcosmic_god.brain import TinyBrain
+        from microcosmic_god.brain import TinyController
 
-        brain = TinyBrain.random(Random(11), input_size=5, hidden_size=4, output_size=3, episodic_capacity=4)
-        brain.forward([0.5, 0.3, -0.2, 0.4, 0.1])
+        controller = TinyController.random(Random(11), input_size=5, hidden_size=4, output_size=3, episodic_capacity=4)
+        controller.forward([0.5, 0.3, -0.2, 0.4, 0.1])
         # No stored episodes yet -> replay is a no-op.
-        self.assertFalse(brain.replay_episode(Random(0)))
+        self.assertFalse(controller.replay_episode(Random(0)))
         # Store two episodes.
-        brain._store_episode(surprise=0.8, valence=1.0)
-        brain.forward([0.1, -0.4, 0.6, 0.2, -0.1])
-        brain._store_episode(surprise=0.8, valence=1.0)
+        controller._store_episode(surprise=0.8, valence=1.0)
+        controller.forward([0.1, -0.4, 0.6, 0.2, -0.1])
+        controller._store_episode(surprise=0.8, valence=1.0)
         # Now replay should succeed.
-        self.assertTrue(brain.replay_episode(Random(0)))
+        self.assertTrue(controller.replay_episode(Random(0)))
 
     def test_episodic_serializes_round_trip(self) -> None:
-        from microcosmic_god.brain import TinyBrain
+        from microcosmic_god.brain import TinyController
         import numpy as np
 
-        brain = TinyBrain.random(Random(11), input_size=5, hidden_size=4, output_size=3, episodic_capacity=4)
-        brain.forward([0.5, 0.3, -0.2, 0.4, 0.1])
-        brain._store_episode(surprise=0.8, valence=1.0)
-        data = brain.to_dict(include_state=True)
-        restored = TinyBrain.from_dict(data)
+        controller = TinyController.random(Random(11), input_size=5, hidden_size=4, output_size=3, episodic_capacity=4)
+        controller.forward([0.5, 0.3, -0.2, 0.4, 0.1])
+        controller._store_episode(surprise=0.8, valence=1.0)
+        data = controller.to_dict(include_state=True)
+        restored = TinyController.from_dict(data)
         self.assertTrue(restored._has_episodic())
-        self.assertEqual(restored.episodic_slots.shape, brain.episodic_slots.shape)
-        for original, recovered in zip(brain.episodic_slots.flatten(), restored.episodic_slots.flatten()):
+        self.assertEqual(restored.episodic_slots.shape, controller.episodic_slots.shape)
+        for original, recovered in zip(controller.episodic_slots.flatten(), restored.episodic_slots.flatten()):
             self.assertAlmostEqual(float(original), float(recovered), places=6)
 
     def test_clone_inherits_capacity_but_clears_memories(self) -> None:
-        from microcosmic_god.brain import TinyBrain
+        from microcosmic_god.brain import TinyController
 
-        parent = TinyBrain.random(Random(11), input_size=5, hidden_size=4, output_size=3, episodic_capacity=4)
+        parent = TinyController.random(Random(11), input_size=5, hidden_size=4, output_size=3, episodic_capacity=4)
         parent.forward([0.5, 0.3, -0.2, 0.4, 0.1])
         parent._store_episode(surprise=0.8, valence=1.0)
         # Parent has 1 stored episode.
         self.assertEqual((parent.episodic_age >= 0.0).sum(), 1)
-        # Child should inherit capacity but start with empty slots (no Lamarckism).
+        # Child should inherit capacity but start with empty slots (no acquired-state inheritance).
         child = parent.clone_for_offspring(Random(12), mutation_scale=0.02)
         self.assertEqual(child.episodic_slots.shape, parent.episodic_slots.shape)
         self.assertEqual((child.episodic_age >= 0.0).sum(), 0, "child should have no inherited episodes")
@@ -1755,7 +1755,7 @@ class EpisodicMemoryTests(unittest.TestCase):
 
 class MultiWorldSelectionTests(unittest.TestCase):
     """When `world_refresh_every` is set, the simulation should swap the world
-    every N ticks. Brains' place memories should be cleared so they can't
+    every N ticks. Controllers' place memories should be cleared so they can't
     'remember' places that no longer exist with their old properties."""
 
     def test_world_refresh_replaces_world_and_clears_place_memory(self) -> None:
@@ -1788,7 +1788,7 @@ class MultiWorldSelectionTests(unittest.TestCase):
             sim.step()
         self.assertIs(sim.world, original_world, "world must not refresh before tick 3")
 
-        # Plant a synthetic place memory entry on a living organism.
+        # Place a synthetic place memory entry on an active individual.
         target = next((o for o in sim.organisms.values() if o.alive), None)
         self.assertIsNotNone(target)
         target.place_memory[42] = 0.99

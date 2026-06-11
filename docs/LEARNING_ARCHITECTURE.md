@@ -1,6 +1,6 @@
 # Learning Architecture North Star
 
-Microcosmic God should try to evolve agents that are not merely good at this sandbox, but good at learning structured worlds.
+The simulation should try to evolve agents that are not merely good at this sandbox, but good at learning structured worlds.
 
 The long-term question is:
 
@@ -39,11 +39,11 @@ Good general learners need a world where shallow tricks are not enough. The simu
 - social information that can be useful but is not guaranteed truthful or useful
 - held-out worlds where old habits only partly transfer
 
-No direct reward should say "be intelligent" or "learn language." Intelligence should matter because it helps organisms survive, reproduce, and adapt in a changing causal universe.
+No direct reward should say "be intelligent" or "learn language." Intelligence should matter because it helps individuals survive, reproduce, and adapt in a changing causal universe.
 
 ## Current Prototype Foothold
 
-The current `TinyBrain` is still small, but it now has:
+The current `TinyController` is still small, but it now has:
 
 - recurrent hidden state
 - input and hidden eligibility traces
@@ -61,7 +61,7 @@ This is enough for early evolution and inspection, not enough for strong transfe
 
 ## Intelligence Pressure
 
-There should be advantages to being smart, but they should appear through action-interaction rather than a free reward for having a large brain.
+There should be advantages to being smart, but they should appear through action-interaction rather than a free reward for having a large controller.
 
 Implemented pressure should look like this:
 
@@ -69,15 +69,15 @@ Implemented pressure should look like this:
 - Learned skill changes the outcome of future actions in the same physical channel.
 - Repeated specialization counts as real control, while broad skill diversity counts separately. A narrow master should not be mislabeled as a universal engineer, but should still receive credit for genuine mastery.
 - Relocation is costly enough that agents must learn when to stay, when to explore, and when tools/social support make a hostile transition worth attempting.
-- Mark reading and writing improve only when they transmit useful causal traces into later action, so literacy is valuable through changed outcomes rather than direct reward.
-- Larger neural machinery costs metabolism, so unused capacity is a liability.
+- Mark reading and durable symbol encoding improve only when they transmit useful causal traces into later action, so durable symbol encoding is valuable through changed outcomes rather than direct reward.
+- Larger neural machinery costs upkeep, so unused capacity is a liability.
 - Selection can favor cognition through survival, energy control, tool success, and reproduction, not through a hidden intelligence score.
 
-This keeps the project pointed at possible minds while preserving the rule that ecology, not hand-authored achievement labels, decides what survives.
+This keeps the project pointed at possible minds while preserving the rule that the environment, not hand-authored achievement labels, decides what survives.
 
-## Required Next Brain Upgrades
+## Required Next Controller Upgrades
 
-1. Split the brain into named modules: encoder, recurrent core, prediction heads, action heads, memory state.
+1. Split the controller into named modules: encoder, recurrent core, prediction heads, action heads, memory state.
 2. Add multiple prediction heads: energy delta, damage risk, resource changes, social signal outcome, place transition outcome.
 3. Add neuromodulators: separate surprise, pain/damage, energy gain, reproduction, social, novelty, and uncertainty signals.
 4. Add longer-lived memory with learned write/read gates rather than only place-value tables.
@@ -94,9 +94,9 @@ These are cheap enough to add before a major backend rewrite:
 - Done: add prediction heads for damage, reproduction opportunity, tool success, and movement hazard.
 - Done: add a cheap causal-challenge substrate where short affordance sequences can unlock finite local energy payoffs.
 - Done: make intentional marks carry quality/value signals that only matter when readers successfully extract and use them.
-- Let organisms attend to a subset of local materials/structures instead of seeing only aggregate place fields.
+- Let individuals attend to a subset of local materials/structures instead of seeing only aggregate place fields.
 - Partly done: save richer checkpoint context around standouts, including recent trace, event memory, signal values, place memory, local world summaries, and reason saved.
-- Keep increasing neural capacity only behind metabolic cost and successful reproduction.
+- Keep increasing neural capacity only behind upkeep cost and successful reproduction.
 
 ## More Sophisticated Mind Upgrades
 
@@ -106,9 +106,9 @@ These are the deeper architecture path:
 - Differentiable external memory with evolved write/read gates.
 - Learned attention over local objects, structures, agents, signals, and marks.
 - Predictive coding loops where surprise changes exploration and memory allocation.
-- Meta-learning genes that control plasticity schedules, not just one learning rate.
+- Meta-learning parameters that control plasticity schedules, not just one learning rate.
 - Social-model heads that predict whether another agent's signal/action will be useful, harmful, or irrelevant.
-- Developmental growth: juvenile brains start smaller and add capacity if energy, age, and ecology support it.
+- Developmental growth: juvenile controllers start smaller and add capacity if energy, age, and the environment support it.
 - Distillation/export tools that package a reusable core with replaceable observation and action adapters.
 
 The high-end aim is "possible minds": systems with memory, causal expectation, adaptive attention, and self-modifying learning dynamics. The sandbox should make these capacities useful without declaring them as objectives.
@@ -128,7 +128,7 @@ The claim only matters if saved evolved cores adapt faster, more robustly, or wi
 ## Guardrails
 
 - Do not optimize the simulator for transfer scores during sealed evolution.
-- Do not save every brain.
+- Do not save every controller.
 - Do not confuse a good policy with a good learner.
 - Do not treat language-like behavior as real language until it transfers or supports counterfactual use.
 - Keep compute cheap locally, but keep data structures compatible with batched GPU evolution.

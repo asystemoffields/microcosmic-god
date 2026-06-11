@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Microcosmic God is a headless artificial life research sandbox. Its first job is not to solve a task, but to host a small, consistent, evolving universe where intelligence, tool use, communication, prediction, reproduction, and social behavior can become useful if ecology makes them useful.
+Microcosmic God is a headless artificial life research sandbox. Its first job is not to solve a task, but to host a small, consistent, evolving universe where intelligence, tool use, communication, prediction, reproduction, and social behavior can become useful if the environment makes them useful.
 
 Prototype 0 should run in minutes on CPU. Longer runs, larger populations, and GPU-scale epochs should be possible later without changing the conceptual model.
 
@@ -10,7 +10,7 @@ Prototype 0 should run in minutes on CPU. Longer runs, larger populations, and G
 
 - Encode world laws, not desired behaviors.
 - Let survival, reproduction, energy capture, and causal consequences drive selection.
-- Make intelligence metabolically expensive from the beginning.
+- Make intelligence expensive in upkeep from the beginning.
 - Do not directly reward tool use, cooperation, communication, curiosity, teaching, family behavior, trade, culture, or science.
 - Keep genomes readable enough to debug early collapses.
 - Infer species after runs; do not assign fixed species labels.
@@ -34,7 +34,7 @@ Prototype 0 currently uses a dependency-light Python 3.12 core with analysis-fri
   - plotting
   - extinction debriefs
   - species/lineage clustering
-  - saved-brain transfer experiments
+  - saved-controller transfer experiments
   - notebooks or scripts
 
 The first version does not need a visual UI.
@@ -43,13 +43,13 @@ Rust remains a strong candidate for the future hot-loop simulator once the model
 
 ## World Model
 
-Use a sparse ecological graph rather than a grid.
+Use a sparse environment graph rather than a grid.
 
 ```text
 World
-  places: ecological patches
+  places: environment patches
   routes: connections between places
-  entities: organisms, materials, tools, structures
+  entities: individuals, materials, tools, structures
   fields: local energy and environmental conditions
   laws: causal rules for matter, energy, action, damage, decay
 ```
@@ -64,13 +64,13 @@ Each simulation tick should be deterministic given seed and configuration.
 
 ```text
 1. Update environmental fields.
-2. Update non-neural organisms.
-3. Build observations for neural organisms.
+2. Update non-neural individuals.
+3. Build observations for neural individuals.
 4. Run neural policies and local learning.
 5. Resolve actions through world laws.
-6. Apply metabolism, damage, repair, growth, and decay.
+6. Apply upkeep, damage, repair, growth, and decay.
 7. Resolve reproduction attempts.
-8. Remove dead organisms and decay abandoned state.
+8. Remove inactive individuals and decay abandoned state.
 9. Record compact logs and optional checkpoints.
 10. Stop or debrief if extinction or time limit occurs.
 ```
@@ -79,7 +79,7 @@ Use short runs first. A useful Prototype 0 run should complete in minutes, even 
 
 ## Energy And Matter
 
-Energy must not collapse into a single food score. Represent typed energy and conversion routes.
+Energy must not collapse into a single resource score. Represent typed energy and conversion routes.
 
 ```text
 EnergyKind
@@ -92,14 +92,14 @@ EnergyKind
   high_density
 ```
 
-Objects and organisms can store, convert, waste, or exploit these forms depending on body modules, tools, structures, and learned skill.
+Objects and individuals can store, convert, waste, or exploit these forms depending on body modules, tools, structures, and learned skill.
 
 Example continuity:
 
 ```text
 sunlight
-  simple use: photosynthetic metabolism
-  ecological use: seasons, drying, warming
+  simple use: radiant-energy capture
+  system-level use: seasons, drying, warming
   tool use: concentrating heat
   advanced use: photovoltaic-like conversion
   deep use: stellar/nuclear-inspired high-density power chains
@@ -125,30 +125,30 @@ phase
 
 World laws operate over these properties rather than over hard-coded object recipes.
 
-## Organisms
+## Individuals
 
-Not every organism needs a neural network.
+Not every individual needs a neural network.
 
 ```text
-Organism
+Individual
   id
   genome
   body
-  metabolism
+  upkeep
   location
   age
   energy stores
   health/damage state
-  optional brain
+  optional controller
   optional memory
   lineage metadata
 ```
 
-Early life categories:
+Early individual categories:
 
-- Non-neural organisms: plants, fungi, microbial analogs, simple environmental life.
-- Primitive neural organisms: mobile agents with small expensive controllers.
-- Higher-cost neural organisms: rare agents with memory, prediction, tool manipulation, or richer learning.
+- Non-neural individuals: producers, consumers, microbial analogs, simple environmental individuals.
+- Primitive neural individuals: mobile agents with small expensive controllers.
+- Higher-cost neural individuals: rare agents with memory, prediction, tool manipulation, or richer learning.
 
 These are implementation categories, not permanent species labels.
 
@@ -158,46 +158,46 @@ Use structured, debuggable genomes at first.
 
 ```text
 Genome
-  metabolism genes
-  body module genes
-  sensor genes
-  effector genes
-  neural capacity genes
-  learning/plasticity genes
-  valence wiring genes
-  communication genes
-  reproduction genes
-  mutation/recombination genes
-  developmental budget genes
+  upkeep parameters
+  body module parameters
+  sensor parameters
+  effector parameters
+  neural capacity parameters
+  learning/plasticity parameters
+  valence wiring parameters
+  communication parameters
+  reproduction parameters
+  mutation/recombination parameters
+  developmental budget parameters
 ```
 
-Mutation should eventually affect every trait with a real-world analog. Early implementation can expose a small set of numeric genes and expand from there.
+Mutation should eventually affect every attribute with a real-world analog. Early implementation can expose a small set of numeric parameters and expand from there.
 
-Inheritance is Darwinian by default:
+Inheritance follows standard parameter inheritance by default:
 
-- Offspring inherit genome/development parameters.
+- Children inherit genome/development parameters.
 - Lifetime-learned neural weights are not directly inherited.
 - Teaching, imitation, parental investment, and cultural transfer can emerge behaviorally.
 
-## Brains
+## Controllers
 
-Neural tissue should have explicit cost:
+Controller capacity should have explicit cost:
 
 ```text
 neural_tick_cost = base_cost + neuron_cost + memory_cost + prediction_cost + plasticity_cost
 ```
 
-Prototype 0 brain:
+Prototype 0 controller:
 
 ```text
-BrainCore
+ControllerCore
   small recurrent policy
   compact hidden state
   optional prediction head
   evolved plasticity parameters
 ```
 
-The brain receives local observations, body state, memory summaries, available action affordances, and evolved valence signals. It outputs action choices, signal emissions, attention/use priorities, and possibly learning gates.
+The controller receives local observations, body state, memory summaries, available action affordances, and evolved valence signals. It outputs action choices, signal emissions, attention/use priorities, and possibly learning gates.
 
 ## Learning
 
@@ -208,7 +208,7 @@ Inputs to learning:
 - evolved pain/pleasure/valence signals from body state
 - prediction errors about local consequences
 - success/failure of actions under physics
-- observation of other organisms' actions
+- observation of other individuals' actions
 - memory retrieval
 
 Avoid direct novelty rewards. Novelty matters only when predictive improvements, resource discovery, survival, reproduction, or cultural transfer make it useful.
@@ -249,9 +249,9 @@ Sexual reproduction:
 - requires compatibility
 - recombines genomes
 - can unlock higher developmental complexity budgets
-- allows mate selection to evolve from perception and behavior
+- allows pairing selection to evolve from perception and behavior
 
-Do not expose a direct mate fitness score. Organisms may perceive health, energy, age, behavior, territory, signals, morphology, tool competence, or past outcomes if their sensors and memory support it.
+Do not expose a direct pairing fitness score. Individuals may perceive health, energy, age, behavior, territory, signals, morphology, tool competence, or past outcomes if their sensors and memory support it.
 
 ## Communication
 
@@ -283,7 +283,7 @@ Initial variation candidates:
 - rare disasters
 - climate drift
 
-Variation should create ecological pressure without becoming a hidden curriculum.
+Variation should create system-level pressure without becoming a hidden curriculum.
 
 ## Interventions
 
@@ -300,9 +300,9 @@ garden run:
 
 Interventions are allowed for exploration, but debriefs must separate natural dynamics from touched dynamics.
 
-## Brain Checkpointing
+## Controller Checkpointing
 
-Living brains exist in memory. Dead agents' learned weights disappear by default unless selected for archival.
+Active controllers exist in memory. Inactive agents' learned weights disappear by default unless selected for archival.
 
 Checkpoint candidates:
 
@@ -310,16 +310,16 @@ Checkpoint candidates:
 - lineage champions
 - novelty outliers
 - first use of a new tool chain
-- long-lived organisms
-- reproductively successful organisms
-- rare ecological strategies
+- long-lived individuals
+- reproductively successful individuals
+- rare system-level strategies
 - random population samples
 
-Saved brain package:
+Saved controller package:
 
 ```text
-BrainCheckpoint
-  brain weights
+ControllerCheckpoint
+  controller weights
   architecture metadata
   genome
   body configuration
@@ -327,7 +327,7 @@ BrainCheckpoint
   memory summary, optional
   lineage
   run configuration
-  ecological context
+  environment context
   reason saved
 ```
 
@@ -341,7 +341,7 @@ Core logs:
 
 - run configuration and seed
 - population counts
-- births, deaths, and causes
+- creations, removals, and causes
 - energy availability by type and place
 - lineage events
 - reproduction events
@@ -356,10 +356,10 @@ Extinction debrief should summarize:
 - final population timeline
 - last surviving lineages
 - likely bottlenecks
-- death cause distribution
+- removal cause distribution
 - resource and energy collapse patterns
 - mutation load signs
-- predation or competition pressure
+- antagonistic interaction or competition pressure
 - environmental shifts near collapse
 - whether collapse was sudden or gradual
 
@@ -368,8 +368,8 @@ Extinction debrief should summarize:
 Prototype 0:
 
 - single-process CPU
-- small ecological graph
-- hundreds to low thousands of organisms
+- small environment graph
+- hundreds to low thousands of individuals
 - minute-scale runs
 - JSONL logs
 
@@ -385,9 +385,9 @@ Prototype 2:
 
 - vectorized neural inference
 - batched environments
-- GPU-backed brain evaluation where useful
+- GPU-backed controller evaluation where useful
 - large epoch orchestration
-- transfer-learning experiments from saved brains
+- transfer-learning experiments from saved controllers
 
 ## Proposed Repository Shape
 

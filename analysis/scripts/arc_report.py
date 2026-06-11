@@ -89,7 +89,7 @@ AGENTIC_PROFILE_KEYS = (
 
 
 def diversity_factor(profile: dict[str, float]) -> float:
-    """Discount post-hoc tool_use credit when the organism showed no other agentic signals.
+    """Discount post-hoc tool_use credit when the individual showed no other agentic signals.
 
     A pure tool_use spike with zero across causal/structure/reproduction/social
     is the specialist-trap signature: 328 lever-pulls at one place add up to a
@@ -126,7 +126,7 @@ def collect_subjects(event: dict[str, Any]) -> set[str]:
 
 
 def build_arcs(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """One arc per organism. Headline anchor = strongest anchor involving them."""
+    """One arc per individual. Headline anchor = strongest anchor involving them."""
 
     by_organism: dict[int, dict[str, Any]] = {}
 
@@ -345,7 +345,7 @@ def render_arc(arc: dict[str, Any], collapse: bool = True) -> str:
     anchor_summary = ", ".join(f"{k}x{v}" for k, v in sorted(anchor_kind_counts.items()))
 
     lines = [
-        f"Organism {org}  lineage={lineage}  places={arc['places']}  {span}  score={arc['score']:.1f}",
+        f"Individual {org}  lineage={lineage}  places={arc['places']}  {span}  score={arc['score']:.1f}",
         f"  headline:  {render_event(headline).strip()}",
         f"  anchors:   {anchor_summary}",
     ]
@@ -357,11 +357,11 @@ def render_arc(arc: dict[str, Any], collapse: bool = True) -> str:
 
 
 def find_specialist_traps(arcs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Surface organisms whose 'success' came from a single repetitive loop.
+    """Surface individuals whose 'success' came from a single repetitive loop.
 
     Signature: notable_death anchor with high tool_use, near-zero across the
-    other agentic categories, no offspring, and the arc visited at most one
-    place. These are the 2025-class organisms that the raw success_profile
+    other agentic categories, no successors, and the arc visited at most one
+    place. These are the 2025-class individuals that the raw success_profile
     score would mistake for high achievers.
     """
     traps: list[dict[str, Any]] = []
@@ -433,7 +433,7 @@ def main() -> None:
         print(render_arc(arc))
         print()
 
-    # Lineage civilizations: summary.json already aggregates these per run end.
+    # Lineage population clusters: summary.json already aggregates these per run end.
     # Render the top scoring lineages so the run output tells a complete story
     # without requiring a separate grep through events.jsonl.
     lineages = (summary.get("lineages") or {}).get("top_living") or []
@@ -473,8 +473,8 @@ def main() -> None:
                 print(f"      top organisms: {top_ids}")
         print()
 
-    # Brain capacity & attention trajectory across the run, sampled from
-    # aggregates. Tells you whether brains grew during the run and whether
+    # Controller capacity & attention trajectory across the run, sampled from
+    # aggregates. Tells you whether controllers grew during the run and whether
     # attention concentrated as the population learned.
     aggregates: list[dict[str, Any]] = []
     events_path = run_dir / "events.jsonl"
@@ -502,7 +502,7 @@ def main() -> None:
 
     if traps:
         print("Specialist Traps")
-        print(f"  {len(traps)} organism(s) accumulated high tool_use with zero diversification, no offspring, single place.")
+        print(f"  {len(traps)} individual(s) accumulated high tool_use with zero diversification, no offspring, single place.")
         print(f"  These look like big achievers by raw score but actually got stuck in a memory loop.")
         for t in traps:
             print(f"  - org={t['organism_id']:>4} lineage={t['lineage_id']} place={t['place']} "

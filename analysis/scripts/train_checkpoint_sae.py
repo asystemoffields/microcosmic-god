@@ -28,17 +28,17 @@ def load_checkpoint(path: Path) -> dict[str, Any]:
 def segment_sizes(checkpoints: list[dict[str, Any]]) -> dict[str, int]:
     sizes = {segment: 0 for segment in SEGMENTS}
     for checkpoint in checkpoints:
-        brain = checkpoint["brain"]
+        controller = checkpoint["brain"]
         for segment in SEGMENTS:
-            sizes[segment] = max(sizes[segment], len(brain.get(segment, [])))
+            sizes[segment] = max(sizes[segment], len(controller.get(segment, [])))
     return sizes
 
 
 def vectorize(checkpoint: dict[str, Any], sizes: dict[str, int]) -> np.ndarray:
-    brain = checkpoint["brain"]
+    controller = checkpoint["brain"]
     parts: list[np.ndarray] = []
     for segment in SEGMENTS:
-        values = np.asarray(brain.get(segment, []), dtype=np.float32)
+        values = np.asarray(controller.get(segment, []), dtype=np.float32)
         target = sizes[segment]
         if len(values) < target:
             values = np.pad(values, (0, target - len(values)))
@@ -227,7 +227,7 @@ def build_report(model: dict[str, Any], x_raw: np.ndarray, files: list[Path], me
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Train a small sparse autoencoder on saved Microcosmic God brain checkpoints.")
+    parser = argparse.ArgumentParser(description="Train a small sparse autoencoder on saved Microcosmic God controller checkpoints.")
     parser.add_argument("inputs", nargs="+", help="checkpoint JSON files, checkpoint dirs, or run dirs")
     parser.add_argument("--latent", type=int, default=16)
     parser.add_argument("--steps", type=int, default=1_500)

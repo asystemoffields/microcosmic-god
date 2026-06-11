@@ -5,18 +5,18 @@ import math
 from typing import Any
 
 from .energy import ENERGY_KINDS
-from .organisms import Organism
+from .organisms import Individual
 from .world import World
 
 
-def population_counts(organisms: dict[int, Organism]) -> dict[str, int]:
+def population_counts(organisms: dict[int, Individual]) -> dict[str, int]:
     counts: Counter[str] = Counter()
-    for organism in organisms.values():
-        if organism.alive:
-            counts[organism.kind] += 1
-            if organism.neural:
+    for individual in organisms.values():
+        if individual.alive:
+            counts[individual.kind] += 1
+            if individual.neural:
                 counts["neural"] += 1
-    counts["total"] = sum(1 for organism in organisms.values() if organism.alive)
+    counts["total"] = sum(1 for individual in organisms.values() if individual.alive)
     return dict(counts)
 
 
@@ -76,16 +76,16 @@ def _round_profile(profile: Counter[str]) -> dict[str, float]:
     return {key: round(value, 6) for key, value in sorted(profile.items()) if value > 0.0}
 
 
-def success_profile_summary(organisms: dict[int, Organism]) -> dict[str, dict[str, float]]:
+def success_profile_summary(organisms: dict[int, Individual]) -> dict[str, dict[str, float]]:
     all_totals: Counter[str] = Counter()
     living_totals: Counter[str] = Counter()
     neural_totals: Counter[str] = Counter()
-    for organism in organisms.values():
-        for key, value in organism.success_profile.items():
+    for individual in organisms.values():
+        for key, value in individual.success_profile.items():
             all_totals[key] += value
-            if organism.alive:
+            if individual.alive:
                 living_totals[key] += value
-            if organism.neural:
+            if individual.neural:
                 neural_totals[key] += value
     return {
         "all": _round_profile(all_totals),
@@ -94,13 +94,13 @@ def success_profile_summary(organisms: dict[int, Organism]) -> dict[str, dict[st
     }
 
 
-def organism_success_score(organism: Organism) -> float:
-    profile = organism.success_profile
-    top_specialty = max(organism.tool_use_counts.values(), default=0)
-    distinct_tools = sum(1 for count in organism.tool_use_counts.values() if count > 0)
+def organism_success_score(individual: Individual) -> float:
+    profile = individual.success_profile
+    top_specialty = max(individual.tool_use_counts.values(), default=0)
+    distinct_tools = sum(1 for count in individual.tool_use_counts.values() if count > 0)
     return (
-        organism.offspring_count * 4.0
-        + organism.successful_tools * 1.5
+        individual.offspring_count * 4.0
+        + individual.successful_tools * 1.5
         + math.log1p(top_specialty) * 0.9
         + distinct_tools * 0.8
         + profile.get("causal_unlock", 0.0) * 4.0
@@ -111,14 +111,14 @@ def organism_success_score(organism: Organism) -> float:
         + profile.get("tool_make", 0.0)
         + profile.get("tool_use", 0.0)
         + profile.get("structure", 0.0)
-        + organism.energy / max(1.0, organism.storage_limit())
+        + individual.energy / max(1.0, individual.storage_limit())
     )
 
 
-def top_organisms(organisms: dict[int, Organism], limit: int = 10) -> list[dict[str, Any]]:
-    living = [organism for organism in organisms.values() if organism.alive]
+def top_organisms(organisms: dict[int, Individual], limit: int = 10) -> list[dict[str, Any]]:
+    living = [individual for individual in organisms.values() if individual.alive]
     living.sort(key=lambda item: (organism_success_score(item), item.offspring_count, item.successful_tools, item.energy, item.age), reverse=True)
-    return [organism.to_summary() for organism in living[:limit]]
+    return [individual.to_summary() for individual in living[:limit]]
 
 
 def build_debrief(sim: Any, reason: str, elapsed_seconds: float) -> dict[str, Any]:

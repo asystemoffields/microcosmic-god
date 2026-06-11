@@ -5,24 +5,24 @@ from collections import defaultdict
 import numpy as np
 
 from .contracts import BrainLearningCase
-from microcosmic_god.brain import AUXILIARY_PREDICTION_HEADS, PREDICTION_HEADS, TinyBrain
+from microcosmic_god.brain import AUXILIARY_PREDICTION_HEADS, PREDICTION_HEADS, TinyController
 
 
 def _clip(value: float, low: float, high: float) -> float:
     return max(low, min(high, float(value)))
 
 
-def _ensure_brain_state(brain: TinyBrain) -> None:
-    if brain.hidden.size != brain.hidden_size:
-        brain.hidden = np.zeros(brain.hidden_size, dtype=np.float64)
-    if brain.last_outputs.size != brain.output_size:
-        brain.last_outputs = np.zeros(brain.output_size, dtype=np.float64)
-    if brain.last_inputs.size != brain.input_size:
-        brain.last_inputs = np.zeros(brain.input_size, dtype=np.float64)
-    if brain.input_trace.size != brain.input_size:
-        brain.input_trace = np.zeros(brain.input_size, dtype=np.float64)
-    if brain.hidden_trace.size != brain.hidden_size:
-        brain.hidden_trace = np.zeros(brain.hidden_size, dtype=np.float64)
+def _ensure_brain_state(controller: TinyController) -> None:
+    if controller.hidden.size != controller.hidden_size:
+        controller.hidden = np.zeros(controller.hidden_size, dtype=np.float64)
+    if controller.last_outputs.size != controller.output_size:
+        controller.last_outputs = np.zeros(controller.output_size, dtype=np.float64)
+    if controller.last_inputs.size != controller.input_size:
+        controller.last_inputs = np.zeros(controller.input_size, dtype=np.float64)
+    if controller.input_trace.size != controller.input_size:
+        controller.input_trace = np.zeros(controller.input_size, dtype=np.float64)
+    if controller.hidden_trace.size != controller.hidden_size:
+        controller.hidden_trace = np.zeros(controller.hidden_size, dtype=np.float64)
 
 
 class TorchBrainRuntime:
@@ -42,14 +42,14 @@ class TorchBrainRuntime:
         self.device = device
         self.dtype = torch.float32
 
-    def forward_many(self, brains: list[TinyBrain], observations: list[list[float]]) -> list[list[float]]:
+    def forward_many(self, brains: list[TinyController], observations: list[list[float]]) -> list[list[float]]:
         if len(brains) != len(observations):
             raise ValueError("brains and observations must have matching lengths")
         outputs: list[list[float] | None] = [None for _ in brains]
         groups: dict[tuple[int, int, int], list[int]] = defaultdict(list)
-        for index, brain in enumerate(brains):
-            _ensure_brain_state(brain)
-            groups[(brain.input_size, brain.hidden_size, brain.output_size)].append(index)
+        for index, controller in enumerate(brains):
+            _ensure_brain_state(controller)
+            groups[(controller.input_size, controller.hidden_size, controller.output_size)].append(index)
 
         for (input_size, hidden_size, output_size), indexes in groups.items():
             batch = len(indexes)
@@ -84,13 +84,13 @@ class TorchBrainRuntime:
             hidden_trace_rows = hidden_trace.detach().cpu().tolist()
             output_rows = out.detach().cpu().tolist()
             for local, brain_index in enumerate(indexes):
-                brain = brains[brain_index]
-                brain.last_inputs = np.array(x_rows[local], dtype=np.float64)
-                brain.input_trace = np.array(input_trace_rows[local], dtype=np.float64)
-                brain.hidden = np.array(hidden_rows[local], dtype=np.float64)
-                brain.hidden_trace = np.array(hidden_trace_rows[local], dtype=np.float64)
-                brain.last_outputs = np.array(output_rows[local], dtype=np.float64)
-                outputs[brain_index] = brain.last_outputs.tolist()
+                controller = brains[brain_index]
+                controller.last_inputs = np.array(x_rows[local], dtype=np.float64)
+                controller.input_trace = np.array(input_trace_rows[local], dtype=np.float64)
+                controller.hidden = np.array(hidden_rows[local], dtype=np.float64)
+                controller.hidden_trace = np.array(hidden_trace_rows[local], dtype=np.float64)
+                controller.last_outputs = np.array(output_rows[local], dtype=np.float64)
+                outputs[brain_index] = controller.last_outputs.tolist()
 
         return [row if row is not None else [] for row in outputs]
 
@@ -98,9 +98,9 @@ class TorchBrainRuntime:
         errors: list[float] = [0.0 for _ in cases]
         groups: dict[tuple[int, int, int], list[int]] = defaultdict(list)
         for index, case in enumerate(cases):
-            brain = case.brain
-            _ensure_brain_state(brain)
-            groups[(brain.input_size, brain.hidden_size, brain.output_size)].append(index)
+            controller = case.controller
+            _ensure_brain_state(controller)
+            groups[(controller.input_size, controller.hidden_size, controller.output_size)].append(index)
 
         for (input_size, hidden_size, output_size), indexes in groups.items():
             self._learn_group(cases, indexes, input_size, hidden_size, output_size, errors)
@@ -118,18 +118,18 @@ class TorchBrainRuntime:
         torch = self.torch
         batch = len(indexes)
         inv_h = 1.0 / (max(1, hidden_size) ** 0.5)
-        brains = [cases[i].brain for i in indexes]
+        brains = [cases[i].controller for i in indexes]
 
-        hidden = torch.tensor([brain.hidden for brain in brains], dtype=self.dtype, device=self.device)
-        hidden_trace = torch.tensor([brain.hidden_trace for brain in brains], dtype=self.dtype, device=self.device)
-        input_trace = torch.tensor([brain.input_trace for brain in brains], dtype=self.dtype, device=self.device)
-        weights_in = torch.tensor([brain.weights_in for brain in brains], dtype=self.dtype, device=self.device).view(batch, hidden_size, input_size)
-        weights_out = torch.tensor([brain.weights_out for brain in brains], dtype=self.dtype, device=self.device).view(batch, output_size, hidden_size)
-        bias_o = torch.tensor([brain.bias_o for brain in brains], dtype=self.dtype, device=self.device)
-        prediction_weights = torch.tensor([brain.prediction_weights for brain in brains], dtype=self.dtype, device=self.device)
+        hidden = torch.tensor([controller.hidden for controller in brains], dtype=self.dtype, device=self.device)
+        hidden_trace = torch.tensor([controller.hidden_trace for controller in brains], dtype=self.dtype, device=self.device)
+        input_trace = torch.tensor([controller.input_trace for controller in brains], dtype=self.dtype, device=self.device)
+        weights_in = torch.tensor([controller.weights_in for controller in brains], dtype=self.dtype, device=self.device).view(batch, hidden_size, input_size)
+        weights_out = torch.tensor([controller.weights_out for controller in brains], dtype=self.dtype, device=self.device).view(batch, output_size, hidden_size)
+        bias_o = torch.tensor([controller.bias_o for controller in brains], dtype=self.dtype, device=self.device)
+        prediction_weights = torch.tensor([controller.prediction_weights for controller in brains], dtype=self.dtype, device=self.device)
         auxiliary_weights = {
             head: torch.tensor(
-                [brain.auxiliary_prediction_weights.get(head, [0.0 for _ in range(hidden_size)]) for brain in brains],
+                [controller.auxiliary_prediction_weights.get(head, [0.0 for _ in range(hidden_size)]) for controller in brains],
                 dtype=self.dtype,
                 device=self.device,
             )
@@ -212,21 +212,21 @@ class TorchBrainRuntime:
         error_rows = prediction_errors.detach().cpu().tolist()
 
         for local, case_index in enumerate(indexes):
-            brain = cases[case_index].brain
-            brain.weights_in = np.array(weights_in_rows[local], dtype=np.float64).reshape(
-                brain.hidden_size, brain.input_size
+            controller = cases[case_index].controller
+            controller.weights_in = np.array(weights_in_rows[local], dtype=np.float64).reshape(
+                controller.hidden_size, controller.input_size
             )
-            brain.weights_out = np.array(weights_out_rows[local], dtype=np.float64).reshape(
-                brain.output_size, brain.hidden_size
+            controller.weights_out = np.array(weights_out_rows[local], dtype=np.float64).reshape(
+                controller.output_size, controller.hidden_size
             )
-            brain.bias_o = np.array(bias_o_rows[local], dtype=np.float64)
-            brain.prediction_weights = np.array(prediction_rows[local], dtype=np.float64)
+            controller.bias_o = np.array(bias_o_rows[local], dtype=np.float64)
+            controller.prediction_weights = np.array(prediction_rows[local], dtype=np.float64)
             for head in AUXILIARY_PREDICTION_HEADS:
-                brain.auxiliary_prediction_weights[head] = np.array(
+                controller.auxiliary_prediction_weights[head] = np.array(
                     auxiliary_rows[head][local], dtype=np.float64
                 )
-            brain.last_prediction_errors = {
+            controller.last_prediction_errors = {
                 head: float(error_rows[local][head_index])
                 for head_index, head in enumerate(PREDICTION_HEADS)
             }
-            errors_out[case_index] = brain.last_prediction_errors["energy"]
+            errors_out[case_index] = controller.last_prediction_errors["energy"]

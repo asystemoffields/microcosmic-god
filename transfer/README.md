@@ -1,14 +1,14 @@
 # Transfer harness
 
-A test rig for evaluating whether brains evolved in microcosmic-god have transferable representations — does the cognition that emerged in the alife substrate generalize to a different task it has never seen?
+A test rig for evaluating whether controllers evolved in microcosmic-god have transferable representations — does the cognition that emerged in the alife substrate generalize to a different task it has never seen?
 
 ## What's here
 
-- `catch_transfer.ipynb` — Colab-ready notebook. Implements a simple Catch environment, loads a microcosmic-god brain checkpoint, trains a small linear adapter around it (brain frozen), and compares against four conditions including skeptic controls.
-- `sample_brains/` — committed brain checkpoints from the 30-min seed-1 run for quick experimentation:
-  - `learner_champion_hidden14.json` — the default. A long-lived learner champion.
+- `catch_transfer.ipynb` — Colab-ready notebook. Implements a simple Catch environment, loads a microcosmic-god controller checkpoint, trains a small linear adapter around it (controller frozen), and compares against four conditions including skeptic controls.
+- `sample_brains/` — committed controller checkpoints from the 30-min seed-1 run for quick experimentation:
+  - `learner_champion_hidden14.json` — the default. A long-lasting learner champion.
   - `final_overall_champion.json` — the run's overall champion.
-  - `final_tool_champion.json` — a tool-master brain.
+  - `final_tool_champion.json` — a tool-master controller.
 
 ## Run it on Colab
 
@@ -27,21 +27,21 @@ trained − random_brain = -0.024   no transfer beyond random
 trained − direct       = -0.104   brain hinders slightly
 ```
 
-**The permutation test passes.** Shuffling the trained brain's weights (preserving distribution, destroying structure) makes it +0.21 worse than the unshuffled version. The substrate is producing *structured cognition*, not just well-conditioned random functions.
+**The permutation test passes.** Shuffling the trained controller's weights (preserving distribution, destroying structure) makes it +0.21 worse than the unshuffled version. The substrate is producing *structured cognition*, not just well-conditioned random functions.
 
-**But the structure doesn't help on Catch.** Trained and random-init brains transfer equally well. A direct linear policy slightly beats both. Catch is too simple a probe — solvable by a 12-parameter linear policy that doesn't need rich representations of causal/temporal structure.
+**But the structure doesn't help on Catch.** Trained and random-init controllers transfer equally well. A direct linear policy slightly beats both. Catch is too simple a probe — solvable by a 12-parameter linear policy that doesn't need rich representations of causal/temporal structure.
 
 A genuine transfer test should target what mg's substrate was selected for: temporal reasoning, causal sequencing, partial observability. Candidates: memory-based maze, multi-step puzzle box, sequential prediction.
 
-## Try your own brain
+## Try your own controller
 
-Drop any `brain_*.json` from `runs/<your-run>/checkpoints/` into `sample_brains/` and update `SAMPLE_BRAIN` in the experiment cell. The adapter sizes itself to the brain's dimensions.
+Drop any `brain_*.json` from `runs/<your-run>/checkpoints/` into `sample_brains/` and update `SAMPLE_BRAIN` in the experiment cell. The adapter sizes itself to the controller's dimensions.
 
 ## Architecture
 
-The brain is **frozen** during the test — only the input projection (`W_in`: 4 → input_size) and output projection (`W_out`: output_size → 3) train. The brain's `forward()` and attention head run in pure numpy, mirroring `microcosmic_god/brain.py`. Attention noise is set to zero for deterministic evaluation.
+The controller is **frozen** during the test — only the input projection (`W_in`: 4 → input_size) and output projection (`W_out`: output_size → 3) train. The controller's `forward()` and attention head run in pure numpy, mirroring `microcosmic_god/brain.py`. Attention noise is set to zero for deterministic evaluation.
 
-Training uses Evolution Strategies (no autograd). This keeps the brain genuinely frozen — no gradient flow through it, no library dependency beyond numpy.
+Training uses Evolution Strategies (no autograd). This keeps the controller genuinely frozen — no gradient flow through it, no library dependency beyond numpy.
 
 ## Honesty note
 

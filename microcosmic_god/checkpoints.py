@@ -5,7 +5,7 @@ import math
 from pathlib import Path
 from typing import Any
 
-from .organisms import Organism
+from .organisms import Individual
 
 
 class CheckpointManager:
@@ -40,33 +40,33 @@ class CheckpointManager:
     def save_brain(
         self,
         tick: int,
-        organism: Organism,
+        individual: Individual,
         reason: str,
         context: dict[str, Any],
         bucket: str = "general",
         score: float | None = None,
     ) -> bool:
-        if self.saved >= self.limit or organism.brain is None or not self._bucket_has_room(bucket):
+        if self.saved >= self.limit or individual.controller is None or not self._bucket_has_room(bucket):
             return False
         self.saved += 1
         self.saved_reasons[reason] = self.saved_reasons.get(reason, 0) + 1
         self.saved_buckets[bucket] = self.saved_buckets.get(bucket, 0) + 1
-        filename = f"brain_t{tick:08d}_o{organism.id}_{reason.replace(' ', '_')}.json"
+        filename = f"brain_t{tick:08d}_o{individual.id}_{reason.replace(' ', '_')}.json"
         path = self.checkpoint_dir / filename
         payload = {
             "tick": tick,
             "reason": reason,
             "bucket": bucket,
             "score": None if score is None else round(score, 6),
-            "organism": organism.to_summary(),
-            "genome": organism.genome.to_dict(),
-            "brain": organism.brain.to_dict(include_state=True),
-            "brain_template": organism.brain_template.to_dict(include_state=False) if organism.brain_template else None,
-            "inventory": dict(organism.inventory),
-            "artifacts": [artifact.to_dict() for artifact in organism.artifacts],
-            "tool_skill": {k: round(v, 6) for k, v in organism.tool_skill.items()},
-            "cognition": organism.cognitive_snapshot(),
-            "signal_values": [round(v, 6) for v in organism.signal_values],
+            "organism": individual.to_summary(),
+            "genome": individual.genome.to_dict(),
+            "brain": individual.controller.to_dict(include_state=True),
+            "brain_template": individual.controller_template.to_dict(include_state=False) if individual.controller_template else None,
+            "inventory": dict(individual.inventory),
+            "artifacts": [artifact.to_dict() for artifact in individual.artifacts],
+            "tool_skill": {k: round(v, 6) for k, v in individual.tool_skill.items()},
+            "cognition": individual.cognitive_snapshot(),
+            "signal_values": [round(v, 6) for v in individual.signal_values],
             "context": context,
         }
         with path.open("w", encoding="utf-8") as handle:
@@ -74,10 +74,10 @@ class CheckpointManager:
             handle.write("\n")
         return True
 
-    def save_first_tool(self, tick: int, organism: Organism, affordance: str, context: dict[str, Any]) -> bool:
+    def save_first_tool(self, tick: int, individual: Individual, affordance: str, context: dict[str, Any]) -> bool:
         if affordance in self._saved_tool_affordances:
             return False
-        saved = self.save_brain(tick, organism, f"first_{affordance}_tool_success", context, bucket="first_tool")
+        saved = self.save_brain(tick, individual, f"first_{affordance}_tool_success", context, bucket="first_tool")
         if saved:
             self._saved_tool_affordances.add(affordance)
         return saved

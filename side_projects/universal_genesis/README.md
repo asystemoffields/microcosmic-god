@@ -6,18 +6,18 @@ This is not the near-term Microcosmic God simulator. It is a long-horizon north 
 
 ## Core Thought
 
-Microcosmic God currently starts after many conveniences already exist:
+The simulation currently starts after many conveniences already exist:
 
-- localized habitats
+- localized environments
 - typed energy gradients
 - materials
-- organisms
+- individuals
 - reproduction
 - neural agents
 - tools
 - communication channels
 
-Universal Genesis removes those conveniences. The simulation begins with no organisms, no genomes, no tools, and no preselected biosphere. If life appears, it appears because matter, energy, chemistry, and planetary conditions made it possible.
+Universal Genesis removes those conveniences. The simulation begins with no individuals, no genomes, no tools, and no preselected biosphere. If life appears, it appears because matter, energy, chemistry, and planetary conditions made it possible.
 
 ## Why It Matters
 
@@ -39,7 +39,7 @@ It would ask whether increasingly complex structure can arise through:
 - autocatalysis
 - self-maintaining boundaries
 - replication
-- ecology
+- interacting populations
 - learning
 - intelligence
 
@@ -47,7 +47,7 @@ It would ask whether increasingly complex structure can arise through:
 
 A literal simulation from big bang to life is computationally absurd for this project.
 
-Even with radical abstraction and huge speedups, most runs would likely spend enormous time producing nothing recognizably alive. A 400-hour run might mostly show structure formation, sterile chemistry, or dead-end complexity.
+Even with radical abstraction and huge speedups, most runs would likely spend enormous time producing nothing recognizably active. A 400-hour run might mostly show structure formation, sterile chemistry, or dead-end complexity.
 
 That is acceptable for a side project, but it would be a mistake to let this ambition slow the practical artificial-life sandbox.
 
@@ -87,12 +87,12 @@ A realistic version would need layers, not one monolithic simulator:
    - autocatalytic sets
    - compartmentalization
    - replication with variation
-   - metabolism-like cycles
+   - upkeep-like cycles
    - heredity-like persistence
 
 6. Biology:
    - cells or cell analogs
-   - ecology
+   - interacting populations
    - evolution
    - multicellularity-like aggregation
    - nervous systems or control networks
@@ -115,7 +115,7 @@ The realistic path is probably not full cosmology first. It is a family of stage
 - dry mineral surface worlds
 - comet/impact chemistry worlds
 
-Each stage should seed only physical conditions, not life. If a stage produces persistent replicators or proto-organisms, those can become initial conditions for the next layer.
+Each stage should seed only physical conditions, not life. If a stage produces persistent replicators or proto-individuals, those can become initial conditions for the next layer.
 
 ## Relationship To Main Microcosmic God
 
@@ -125,10 +125,10 @@ The main simulator can borrow principles from Universal Genesis:
 - material law consistency
 - no hidden objectives
 - no guaranteed life success
-- energy gradients before organisms
+- energy gradients before individuals
 - chemistry and tools as continuous extensions of physics
 
-But the main simulator may still seed organisms because its purpose is to study evolved intelligence and artificial life on human-manageable timescales.
+But the main simulator may still seed individuals because its purpose is to study evolved intelligence and artificial life on human-manageable timescales.
 
 ## First Prototype Idea
 
@@ -145,8 +145,8 @@ graph of planetary chemical microenvironments
 
 No reward. No seeded life. Just chemistry and persistence.
 
-If persistent autocatalytic cycles appear, we archive them the same way we archive interesting brains: as rare emergent structures worth studying, not as objectives the simulator was optimizing for.
+If persistent autocatalytic cycles appear, we archive them the same way we archive interesting controllers: as rare emergent structures worth studying, not as objectives the simulator was optimizing for.
 
 ## Guardrail
 
-Universal Genesis should inspire the physics and emergence philosophy, but it should remain separate until Microcosmic God has a strong, inspectable, scalable core.
+Universal Genesis should inspire the physics and emergence philosophy, but it should remain separate until the main simulator has a strong, inspectable, scalable core.

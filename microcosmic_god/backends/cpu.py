@@ -1,21 +1,21 @@
 from __future__ import annotations
 
 from .contracts import BrainLearningCase
-from microcosmic_god.brain import TinyBrain
+from microcosmic_god.brain import TinyController
 
 
 class CpuBrainRuntime:
     name = "cpu"
     device = "cpu"
 
-    def forward_many(self, brains: list[TinyBrain], observations: list[list[float]]) -> list[list[float]]:
-        return [brain.forward(observation) for brain, observation in zip(brains, observations)]
+    def forward_many(self, brains: list[TinyController], observations: list[list[float]]) -> list[list[float]]:
+        return [controller.forward(observation) for controller, observation in zip(brains, observations)]
 
     def learn_many(self, cases: list[BrainLearningCase]) -> list[float]:
         errors: list[float] = []
         for case in cases:
             errors.append(
-                case.brain.learn(
+                case.controller.learn(
                     action_index=case.action_index,
                     valence=case.valence,
                     energy_delta=case.energy_delta,

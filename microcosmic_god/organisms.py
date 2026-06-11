@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from random import Random
 from typing import Any
 
-from .brain import PREDICTION_HEADS, TinyBrain
+from .brain import PREDICTION_HEADS, TinyController
 from .energy import AFFORDANCES, STRUCTURE_CAPABILITIES, Artifact
 from .genome import Genome
 
@@ -75,7 +75,7 @@ def _clip(value: float, low: float = -1.0, high: float = 1.5) -> float:
 
 
 @dataclass(slots=True)
-class Organism:
+class Individual:
     id: int
     kind: str
     genome: Genome
@@ -88,8 +88,8 @@ class Organism:
     lineage_root_id: int = 0
     parent_lineage_ids: tuple[int, ...] = ()
     inherited_brain_template: bool = False
-    brain: TinyBrain | None = None
-    brain_template: TinyBrain | None = None
+    controller: TinyController | None = None
+    controller_template: TinyController | None = None
     inventory: dict[str, int] = field(default_factory=dict)
     artifacts: list[Artifact] = field(default_factory=list)
     tool_skill: dict[str, float] = field(default_factory=lambda: {name: 0.0 for name in (*AFFORDANCES, *STRUCTURE_CAPABILITIES, *COMMUNICATION_SKILLS, "build", "craft")})
@@ -121,7 +121,7 @@ class Organism:
 
     @property
     def neural(self) -> bool:
-        return self.brain is not None
+        return self.controller is not None
 
     def hidden_size(self) -> int:
         return max(0, int(round(self.genome.neural_budget)))
@@ -148,7 +148,7 @@ class Organism:
         carry = self.carried_capability("carry")
         return max(0, int(1 + self.genome.manipulator * 4.0 + self.genome.developmental_complexity * 2.0 + carry * 2.0))
 
-    def metabolic_cost(self) -> float:
+    def upkeep_cost(self) -> float:
         base = 0.018
         body = (
             self.genome.mobility * 0.030
@@ -157,13 +157,13 @@ class Organism:
             + self.genome.sensor_range * 0.010
             + self.genome.developmental_complexity * 0.020
         )
-        # neural_budget coefficient lowered 0.0045 -> 0.0030 so a 64-unit brain
-        # costs 0.192/tick instead of 0.288. Bigger brains need lifespan to
-        # bootstrap their learned representations; if they starve before
-        # cognition pays off, selection drives capacity down regardless of
+        # neural_budget coefficient lowered 0.0045 -> 0.0030 so a 64-unit controller
+        # costs 0.192/tick instead of 0.288. Bigger controllers need a long enough
+        # active span to bootstrap their learned representations; if they run out of
+        # energy before cognition pays off, selection drives capacity down regardless of
         # the world's puzzle complexity. This relief lets the experiment run.
         # Episodic capacity at 0.0035/slot - moderate cost since each slot is
-        # a hidden_size-dim vector (a brain at neural_budget=8 with
+        # a hidden_size-dim vector (a controller at neural_budget=8 with
         # episodic_capacity=8 holds 64 floats of episodic memory).
         episodic = max(0.0, getattr(self.genome, "episodic_capacity", 0.0)) * 0.0035
         neural = (
@@ -182,10 +182,10 @@ class Organism:
         return self.age >= 25 and self.health > 0.35
 
     def clone_mutate_energy_threshold(self) -> float:
-        return 22.0 + self.genome.asexual_threshold * 45.0 + self.genome.complexity() * 7.0
+        return 22.0 + self.genome.single_parent_threshold * 45.0 + self.genome.complexity() * 7.0
 
     def recombine_energy_threshold(self) -> float:
-        return 26.0 + self.genome.sexual_threshold * 55.0 + self.genome.complexity() * 8.0
+        return 26.0 + self.genome.two_parent_threshold * 55.0 + self.genome.complexity() * 8.0
 
     def asexual_energy_threshold(self) -> float:
         return self.clone_mutate_energy_threshold()
@@ -194,8 +194,8 @@ class Organism:
         return self.recombine_energy_threshold()
 
     def choose_signal_token(self) -> int:
-        if self.brain is not None and self.brain.last_outputs.size:
-            return int(max(range(min(8, len(self.brain.last_outputs))), key=lambda i: self.brain.last_outputs[i])) % 8
+        if self.controller is not None and self.controller.last_outputs.size:
+            return int(max(range(min(8, len(self.controller.last_outputs))), key=lambda i: self.controller.last_outputs[i])) % 8
         return (self.id + self.age + int(self.energy)) % 8
 
     def learn_signal_value(self, token: int, valence: float) -> None:
@@ -310,7 +310,7 @@ class Organism:
     def repair_or_decay(self) -> None:
         if self.energy > self.storage_limit():
             self.energy = self.storage_limit()
-        if self.energy > self.metabolic_cost() * 20.0 and self.health < 1.0:
+        if self.energy > self.upkeep_cost() * 20.0 and self.health < 1.0:
             repair = min(1.0 - self.health, 0.003 + self.genome.storage_capacity * 0.004)
             self.health += repair
             self.energy -= repair * 5.0
@@ -370,17 +370,17 @@ class Organism:
         }
 
 
-def make_brain_for_genome(rng: Random, genome: Genome) -> tuple[TinyBrain | None, TinyBrain | None]:
+def make_brain_for_genome(rng: Random, genome: Genome) -> tuple[TinyController | None, TinyController | None]:
     hidden = int(round(genome.neural_budget))
     if hidden < 2:
         return None, None
     episodic_capacity = int(round(max(0.0, getattr(genome, "episodic_capacity", 0.0))))
-    template = TinyBrain.random(rng, OBSERVATION_SIZE, hidden, len(ACTIONS), episodic_capacity=episodic_capacity)
-    brain = TinyBrain.from_dict(template.to_dict(include_state=False))
-    return brain, template
+    template = TinyController.random(rng, OBSERVATION_SIZE, hidden, len(ACTIONS), episodic_capacity=episodic_capacity)
+    controller = TinyController.from_dict(template.to_dict(include_state=False))
+    return controller, template
 
 
-def organism_from_genome(
+def individual_from_genome(
     rng: Random,
     id_: int,
     kind: str,
@@ -389,16 +389,16 @@ def organism_from_genome(
     energy: float,
     generation: int = 0,
     parent_ids: tuple[int, ...] = (),
-    brain_template: TinyBrain | None = None,
-) -> Organism:
-    brain: TinyBrain | None = None
-    template: TinyBrain | None = None
-    if brain_template is not None:
-        template = brain_template
-        brain = TinyBrain.from_dict(template.to_dict(include_state=False))
+    controller_template: TinyController | None = None,
+) -> Individual:
+    controller: TinyController | None = None
+    template: TinyController | None = None
+    if controller_template is not None:
+        template = controller_template
+        controller = TinyController.from_dict(template.to_dict(include_state=False))
     elif genome.neural_budget >= 2.0 and kind == "agent":
-        brain, template = make_brain_for_genome(rng, genome)
-    return Organism(
+        controller, template = make_brain_for_genome(rng, genome)
+    return Individual(
         id=id_,
         kind=kind,
         genome=genome,
@@ -406,7 +406,7 @@ def organism_from_genome(
         energy=energy,
         generation=generation,
         parent_ids=parent_ids,
-        inherited_brain_template=brain_template is not None,
-        brain=brain,
-        brain_template=template,
+        inherited_brain_template=controller_template is not None,
+        controller=controller,
+        controller_template=template,
     )

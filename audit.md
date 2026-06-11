@@ -1,6 +1,6 @@
 # Audit Notes For The Original Codex Instance
 
-This project already has a strong, coherent design direction. The most promising implementation idea is the commitment to reusable causal laws over direct objectives: typed energy, graph-local ecology, material-derived affordances, habitat stress, artifact capabilities, and checkpoint/debrief artifacts all support "ecology as the trainer" rather than a hidden task reward.
+This project already has a strong, coherent design direction. The most promising implementation idea is the commitment to reusable causal laws over direct objectives: typed energy, graph-local environment, material-derived affordances, local-condition stress, artifact capabilities, and checkpoint/debrief artifacts all support "the environment as the trainer" rather than a hidden task reward.
 
 The strongest code seam is `microcosmic_god/energy.py`: affordances emerge from material properties, then composite artifacts inherit derived capabilities. Keep leaning into this. It is the part of the system that most clearly makes tools discoverable rather than pre-authored.
 
@@ -8,13 +8,13 @@ The strongest code seam is `microcosmic_god/energy.py`: affordances emerge from 
 
 1. Snapshot rosters can violate locality.
 
-   In `microcosmic_god/simulation.py`, `rosters` is captured once before action resolution and then reused after actions can move, kill, or create organisms. This means attacks, local capacity checks, reproduction checks, and social observation can operate against a start-of-tick population snapshot instead of the organisms actually present at the moment of resolution.
+   In `microcosmic_god/simulation.py`, `rosters` is captured once before action resolution and then reused after actions can move, deactivate, or create individuals. This means attacks, local capacity checks, reproduction checks, and social observation can operate against a start-of-tick population snapshot instead of the individuals actually present at the moment of resolution.
 
-   Decide whether the tick model is intentionally simultaneous or intentionally sequential. If simultaneous, make that explicit and ensure effects are resolved from staged intents. If sequential, refresh or query local rosters after movement/birth/death-sensitive actions. Right now it is a hybrid, which can make physically local behavior subtly non-local.
+   Decide whether the tick model is intentionally simultaneous or intentionally sequential. If simultaneous, make that explicit and ensure effects are resolved from staged intents. If sequential, refresh or query local rosters after movement/creation/removal-sensitive actions. Right now it is a hybrid, which can make physically local behavior subtly non-local.
 
 2. Six signal tokens are learned but not observed.
 
-   Agents maintain eight `signal_values`, and observed signals or marks can update any of the eight token slots, but `_observe()` exposes only `organism.signal_values[:2]`. Tokens 2 through 7 can accumulate learned meaning without directly influencing policy input.
+   Agents maintain eight `signal_values`, and observed signals or marks can update any of the eight token slots, but `_observe()` exposes only `individual.signal_values[:2]`. Tokens 2 through 7 can accumulate learned meaning without directly influencing policy input.
 
    Either expose all eight token values, compress them intentionally into a smaller learned/hand-authored summary, or reduce the token vocabulary to match the actual observation channel. As written, the communication system looks wider than it is.
 
@@ -26,7 +26,7 @@ The strongest code seam is `microcosmic_god/energy.py`: affordances emerge from 
 
 ## Architecture Opportunities
 
-`microcosmic_god/simulation.py` has become the god-object. It currently holds action choice, action resolution, learning feedback, reproduction, ecology, physics coupling, interventions, logging, and checkpoint triggers. That is okay for Prototype 0, but the next stability step should be extracting law modules around:
+`microcosmic_god/simulation.py` has become the monolithic central class. It currently holds action choice, action resolution, learning feedback, reproduction, system-level dynamics, physics coupling, interventions, logging, and checkpoint triggers. That is okay for Prototype 0, but the next stability step should be extracting law modules around:
 
 - `actions`
 - `reproduction`
@@ -43,10 +43,10 @@ The ANN is recurrent in a limited sense: hidden state has a fixed self-leak, but
 
 ## Suggested Next Tests
 
-- A locality test where one organism moves away before another attacks or observes, verifying the target set matches the intended tick semantics.
+- A locality test where one individual moves away before another attacks or observes, verifying the target set matches the intended tick semantics.
 - A signal-channel test proving every learnable token can affect observations, or proving the intended compression is applied.
 - A crafting-failure test verifying failed attempts have the intended cost, material loss, and skill gain.
-- A reproduction-capacity test around births after same-tick movement into or out of a place.
+- A reproduction-capacity test around creations after same-tick movement into or out of a place.
 
 Overall assessment: keep going. The project has a real alife-shaped soul already. The next work should protect the causal contract with tests and small module boundaries, not pivot the design.
 
@@ -65,4 +65,4 @@ Added regression tests for:
 - full signal-token observability
 - failed-crafting material loss and skill gain
 
-The god-object/module-boundary recommendation remains open as an architecture cleanup step.
+The monolithic-central-class/module-boundary recommendation remains open as an architecture cleanup step.

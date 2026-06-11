@@ -8,7 +8,7 @@ Every new mechanic should pass these checks before it enters the simulator:
 
 - It is expressed as reusable properties, fields, costs, conversions, or constraints.
 - It creates consequences, not objectives.
-- It can apply to many places, organisms, artifacts, and future worlds.
+- It can apply to many places, individuals, artifacts, and future worlds.
 - It does not directly reward intelligence, tool use, cooperation, communication, curiosity, teaching, family, trade, language, or culture.
 - It is observable enough for debriefs, but observer heuristics do not feed back into fitness.
 - Its expensive calculations can be batched, cached, approximated, or moved behind a faster backend later.
@@ -36,12 +36,12 @@ Casual structures and relationships should arise from shared causal channels rat
 
 Examples:
 
-- A current can transport organisms, nutrients, toxins, offspring, signals, marks, heat, tools, and debris.
+- A current can transport individuals, nutrients, toxins, successors, signals, marks, heat, tools, and debris.
 - A durable mark can be memory, warning, territory, lure, courtship trace, path marker, or useless scratch depending on later consequences.
 - A tool can be useful as weapon, lever, filter, float, anchor, insulator, heat store, conductor, container, bridge, or component because its materials allow those interactions.
 - An inside/outside relation can be shelter, trap, nest, kiln, pipe, dam, filter, storage pocket, or useless enclosure depending on exchange with surrounding fields.
 - A repeated association can become navigation, habit, social preference, avoidance, proto-teaching, or proto-trade without a dedicated "relationship type" being assigned first.
-- A mark can become proto-writing only if organisms learn to create, attend to, copy, and exploit its traces. The mark should carry decaying physical information; interpretation and usefulness must still depend on attention, memory, skill, and later consequences.
+- A mark can become proto durable symbol encoding only if individuals learn to create, attend to, copy, and exploit its traces. The mark should carry decaying physical information; interpretation and usefulness must still depend on attention, memory, skill, and later consequences.
 
 When possible, add fields and material laws that multiple behaviors can use. Avoid creating one-purpose relationship slots unless the physics and memory layers cannot express the relationship at all.
 
@@ -52,7 +52,7 @@ Tools should be capability transformers. A composite artifact can matter because
 - `cut`: opens fibrous/thorn/soft biological barriers.
 - `crack`: opens brittle shells, stones, and mineral seams up to a resistance tier.
 - `lever`: moves heavy barriers or exposes mechanically locked resources.
-- `contain`: carries fluid, buffers wet habitats, or enables chemical concentration.
+- `contain`: carries fluid, buffers wet environments, or enables chemical concentration.
 - `filter`: harvests suspended resources from flows, fluids, or porous media.
 - `float`: changes how currents, water barriers, pressure, and movement hazards apply.
 - `anchor`: resists current, slope, washout, and some traversal hazards.
@@ -69,15 +69,15 @@ Skill transfer should be local in affordance-space. A binding specialist can bec
 
 ## Movement And Relocation Teeth
 
-Movement is not a free graph transition. It has metabolic cost, load cost, distance/slope/current/pressure cost, and possible health damage. Crossing between physically different habitats adds relocation shock from deltas in temperature, fluid level, pressure, humidity, salinity, elevation, oxygen, and hazard pressure. Planning, destination memory, protection, traversal tools, containment, insulation, and learned skill can reduce but not erase that shock.
+Movement is not a free graph transition. It has upkeep cost, load cost, distance/slope/current/pressure cost, and possible health damage. Crossing between physically different environments adds relocation shock from deltas in temperature, fluid level, pressure, humidity, salinity, elevation, oxygen, and hazard pressure. Planning, destination memory, protection, traversal tools, containment, insulation, and learned skill can reduce but not erase that shock.
 
-This lets worlds have teeth. A lineage born into a hot dry ridge may survive by mastering that niche instead of cheaply walking to the sea. A sea lineage may find treasure in trenches or vents, but land transition can be costly enough to kill the unprepared. If a population collapses because it keeps attempting bad relocation, that is an informative ecological failure, not necessarily a simulator bug.
+This lets worlds have teeth. A lineage spawned into a hot dry ridge may survive by mastering that specialization instead of cheaply walking to the sea. A sea lineage may find treasure in trenches or vents, but land transition can be costly enough to deactivate the unprepared. If a population collapses because it keeps attempting bad relocation, that is an informative system-level failure, not necessarily a simulator bug.
 
 Movement telemetry records attempts, successes, failures, energy/health cost, barriers, support, relocation shock, dominant movement motive, and top routes. These remain observer data only.
 
 ## Collaboration Without Dependency
 
-Collaboration should create optional capability jumps, not mandatory social scripts. Active nearby organisms that are signaling, coordinating, or observing can contribute support to hard movement, expeditions, tool use, causal steps, and structures. Helpers pay small energy costs and gain only action-mediated feedback. This means a solo agent can still live, but groups can sometimes cross hostile boundaries, build larger structures from pooled materials, or unlock harder local affordance sequences.
+Collaboration should create optional capability jumps, not mandatory social scripts. Active nearby individuals that are signaling, coordinating, or observing can contribute support to hard movement, expeditions, tool use, causal steps, and structures. Helpers pay small energy costs and gain only action-mediated feedback. This means a solo agent can still stay active, but groups can sometimes cross hostile boundaries, build larger structures from pooled materials, or unlock harder local affordance sequences.
 
 The important rule is that collaboration helps through the same physical channels as individual action: more bodies, more materials, better signals, and complementary skills. There is no hidden "be cooperative" reward.
 
@@ -101,15 +101,15 @@ Place-level structures are artifacts left in the world. They are built from mate
 
 This is the groundwork for dams, bridges, dens, rafts, traps, kilns, hydro-like structures, aquaculture filters, or future machinery without hardcoding any of those as recipes.
 
-Structures also decay through general wear channels. The same material-environment law should explain corrosion near salty water, biological rot in warm wet habitats, abrasion in high-current places, thermal cracking, soluble materials leaching away, and durable materials lasting longer.
+Structures also decay through general wear channels. The same material-environment law should explain corrosion near salty water, biological rot in warm wet environments, abrasion in high-current places, thermal cracking, soluble materials leaching away, and durable materials lasting longer.
 
 ## Neural Growth And Plasticity
 
 Agents need enough learning capacity to connect environmental causes with later consequences. Keep this governed by evolvable costs:
 
 - Neural budget and memory budget can grow through mutation and recombination.
-- Larger brains cost more metabolism, so size only persists if ecology pays for it.
-- Plasticity, learning rate, prediction weight, and valence wiring are inherited traits.
+- Larger controllers cost more upkeep, so size only persists if the environment pays for it.
+- Plasticity, learning rate, prediction weight, and valence wiring are inherited attributes.
 - Lifetime learning updates action preferences, prediction weights, and internal representations through eligibility traces.
 - Observation features should expose reusable causal fields, not hidden score labels.
 
@@ -125,21 +125,21 @@ Smartness should never be paid directly as a global scalar. It should matter bec
 
 This is still an explicit selection pressure for cognition, but the pressure is mediated by physical and social interactions rather than by a hidden "intelligence reward."
 
-The payoff curve should be steep. Simple organisms can survive on surface energy, but learned sequencing, tool construction, structures, and field manipulation should open much larger reservoirs: locked chemistry, mechanical gradients, electrical gradients, and high-density energy. The human-vs-squirrel analogy belongs here: the world should not reward the abstract property "smart"; it should reward the actual behaviors that let a smart agent make fire, build channels, store energy, exploit gradients, and coordinate across time.
+The payoff curve should be steep. Simple individuals can survive on surface energy, but learned sequencing, tool construction, structures, and field manipulation should open much larger reservoirs: locked chemistry, mechanical gradients, electrical gradients, and high-density energy. The human-vs-squirrel analogy belongs here: the world should not reward the abstract property "smart"; it should reward the actual behaviors that let a smart agent make fire, build channels, store energy, exploit gradients, and coordinate across time.
 
 ## Evolution Operators
 
-Reproduction is now routed through an `EvolutionEngine`, which owns variation and selection operators separately from world physics. The current in-world actions are `clone_mutate` and `coordinate`; successful coordination can produce a `recombine` offspring plan.
+Reproduction is now routed through an `EvolutionEngine`, which owns variation and selection operators separately from world physics. The current in-world actions are `clone_mutate` and `coordinate`; successful coordination can produce a `recombine` successor plan.
 
 - `clone_mutate` preserves useful local solutions and explores nearby variants.
-- `recombine` mixes genomes and brain templates, and currently requires behavioral coordination so coordination can itself matter.
+- `recombine` mixes genomes and controller templates, and currently requires behavioral coordination so coordination can itself matter.
 - The old asexual/sexual framing is legacy vocabulary only; it should not shape future design choices.
 - Future intelligence-farming modes may add non-biological operators such as tournament selection, novelty archives, cross-world trials, curriculum transfer, or task-adoption trials.
-- Any non-biological operator must be separated from sealed ecological runs or logged as garden/search machinery.
+- Any non-biological operator must be separated from sealed environment runs or logged as garden/search machinery.
 
 The aim is not to mimic animal drives unless those drives are useful. The aim is to create robust selection toward agents that learn, adapt, communicate, manipulate environments, and transfer.
 
-The farm-mode north star is: these were effective operators and learners, make more like that. That means future selection should be able to sample from checkpoint archives, rank demonstrated learning/transfer behavior, and instantiate new variants without pretending the process is ordinary ecology.
+The farm-mode north star is: these were effective operators and learners, make more like that. That means future selection should be able to sample from checkpoint archives, rank demonstrated learning/transfer behavior, and instantiate new variants without pretending the process is ordinary environment dynamics.
 
 Observer success profiles are allowed for checkpointing and debriefs because they do not change agent reward or world physics. They should stay descriptive: energy capture, prediction fit, tool making/use, structures, causal unlocks, social learning, and reproduction. If any profile metric starts steering sealed-run survival directly, it has crossed the line into a hidden objective and should be removed or moved to logged garden/search machinery.
 
@@ -150,7 +150,7 @@ The conceptual model should remain stable while the implementation backend chang
 Local CPU runs:
 
 - Small sparse worlds.
-- Hundreds to a few thousand organisms.
+- Hundreds to a few thousand individuals.
 - Small neural controllers.
 - Compact JSONL summaries.
 - Minutes per experiment.
@@ -160,23 +160,23 @@ Workstation or cloud CPU runs:
 - Many sealed seeds in parallel.
 - Larger sparse worlds.
 - Heavier lineage and checkpoint sampling.
-- Longer ecological timescales.
+- Longer environmental timescales.
 
 GPU runs on A100/H100-class hardware:
 
-- Batch neural inference across organisms and worlds.
+- Batch neural inference across individuals and worlds.
 - Run many independent worlds at once for evolutionary diversity.
 - Keep world-law resolution data-oriented so hot loops can move to NumPy, JAX, Rust, CUDA, or another accelerator-backed core.
-- Use checkpoint policies to save rare brains and stories without retaining every dead agent.
-- Treat the GPU as epoch throughput, not as permission to make each organism individually bloated.
+- Use checkpoint policies to save rare controllers and stories without retaining every inactive agent.
+- Treat the GPU as epoch throughput, not as permission to make each individual bloated.
 
-The expected path for a five-hour A100-class run is not one giant hand-built world. It is a large set of sealed worlds, batched brain evaluation, compact observer heuristics, and selective archival of rare lineages, tools, habitats, and communication patterns.
+The expected path for a five-hour A100-class run is not one giant hand-built world. It is a large set of sealed worlds, batched controller evaluation, compact observer heuristics, and selective archival of rare lineages, tools, environments, and communication patterns.
 
 ## Non-Negotiables
 
 - Sealed runs stay sealed.
 - Garden interventions are logged and separated from natural dynamics.
 - Species are inferred after runs.
-- Dead brains disappear unless checkpoint policy saved them.
-- Analysis tools can identify interesting organisms, but the simulator must not optimize for the analysis score.
+- Inactive controllers disappear unless checkpoint policy saved them.
+- Analysis tools can identify interesting individuals, but the simulator must not optimize for the analysis score.
 - If a behavior looks impressive, first ask whether it was caused by a general rule or by a shortcut we accidentally installed.

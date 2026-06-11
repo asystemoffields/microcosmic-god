@@ -1,28 +1,28 @@
 # Language Runway
 
-Microcosmic God should not start by programming language. It should start by making language-like behavior possible.
+The simulation should not start by programming language. It should start by making language-like behavior possible.
 
 The current communication substrate has two channels:
 
 - Temporary `signal` emissions, analogous to gesture or vocalization.
-- Durable but decaying `mark` inscriptions, analogous to primitive writing or environmental signs.
+- Durable but decaying `mark` inscriptions, analogous to primitive durable symbol encoding or environmental signs.
 
-Neither channel has fixed semantics. A token only matters if organisms learn or evolve useful associations between that token and later consequences.
+Neither channel has fixed semantics. A token only matters if individuals learn or evolve useful associations between that token and later consequences.
 
 Marks are plain tokens unless an agent intentionally inscribes a lesson trace. Intentional traces require useful recent tool/problem experience plus enough body/material capacity, attention, memory, and `inscribe` skill to encode anything beyond the token. This is not a built-in word. It is a costly, lossy residue that can be attended to, ignored, misread, copied, or made useful by later agents with enough `interpret_mark` skill.
 
-## Current Literacy Contract
+## Current Durable Symbol Encoding Contract
 
-The simulator gives writing a causal channel without promising that language exists:
+The simulator gives durable symbol encoding a causal channel without promising that language exists:
 
-- Writers can create higher-quality lesson traces when inscription clarity, lesson coherence, and underlying tool/problem value line up.
+- Authors can create higher-quality lesson traces when inscription clarity, lesson coherence, and underlying tool/problem value line up.
 - Readers gain more from marks when their sensors, memory, attention, and `interpret_mark` skill let them extract the trace with high fidelity.
 - Marks remember cheap use history through `reads`, `last_read_tick`, and `value_transmitted`, so reused inscriptions become visible without saving every dull mark event forever.
-- Authors are not globally rewarded for writing. A living author only gets local feedback when a reader successfully uses the author's mark in the same place, making "teaching by writing" something that must be discovered and situated.
-- The reader's benefit flows through ordinary capabilities such as relevant tool skill, signal association, and future action outcomes. A clearer mark matters because it helps an action work, not because the simulator says literacy is intrinsically good.
+- Authors are not globally rewarded for durable symbol encoding. An active author only gets local feedback when a reader successfully uses the author's mark in the same place, making "teaching by durable symbol encoding" something that must be discovered and situated.
+- The reader's benefit flows through ordinary capabilities such as relevant tool skill, signal association, and future action outcomes. A clearer mark matters because it helps an action work, not because the simulator says durable symbol encoding is intrinsically good.
 - Record-capable artifacts can carry decaying lesson traces across places. Self-reading counts as external memory, while cross-agent reading still uses the same local author-feedback rules as place marks.
 
-This keeps the door open for literacy-like behavior while preserving the core rule: symbols matter only when organisms make them useful in the world.
+This keeps the door open for durable-symbol-encoding-like behavior while preserving the core rule: symbols matter only when individuals make them useful in the world.
 
 ## Possible Developmental Stages
 
@@ -32,17 +32,17 @@ This keeps the door open for literacy-like behavior while preserving the core ru
    - most signals are useless or costly
 
 2. Associative signaling:
-   - agents learn that some tokens predict danger, food, tools, mates, or movement
+   - agents learn that some tokens predict danger, food, tools, pairing, or movement
    - no grammar exists
    - meaning is local and lineage-specific
 
 3. Socially useful signaling:
    - tokens alter behavior in ways that improve survival or reproduction
-   - deception, alarm, recruitment, or mating signals may appear
+   - deception, alarm, recruitment, or pairing signals may appear
 
 4. External marks:
    - agents leave decaying place-local marks
-   - marks can outlive the author
+   - marks can persist beyond the author
    - marks may support route memory, resource warnings, or tool-site cues
    - plain marks do not automatically carry lessons
    - intentional inscription can encode fuzzy problem/solution traces when that behavior is discovered
@@ -62,16 +62,16 @@ This keeps the door open for literacy-like behavior while preserving the core ru
 
 ## ANN Extraction Implication
 
-Brain checkpoints should preserve:
+Controller checkpoints should preserve:
 
 - neural weights
-- innate brain template
+- innate controller template
 - genome and body configuration
 - signal association values
 - memory summary
 - tool skills
-- ecological context
+- environment context
 - observed communication/marking history when available
 - recent lesson-memory traces when available
 
-The first transfer experiments will probably fail. That is acceptable. The goal is to build the archive format and agent interface so a later successful communicator is not trapped inside its birth world.
+The first transfer experiments will probably fail. That is acceptable. The goal is to build the archive format and agent interface so a later successful communicator is not trapped inside the world where it was created.

@@ -43,7 +43,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="regenerate the world (new seed, new physics) every N ticks; 0 disables (legacy single-world)",
     )
-    run.add_argument("--backend", choices=["cpu", "torch"], default=None, help="brain compute backend")
+    run.add_argument("--backend", choices=["cpu", "torch"], default=None, help="controller compute backend")
     run.add_argument("--device", default=None, help="compute device for --backend torch, such as auto, cpu, cuda, or cuda:0")
     run.add_argument("--garden", action="store_true", help="allow logged interventions")
     run.add_argument("--interventions", default=None, help="path to an interventions JSON file")

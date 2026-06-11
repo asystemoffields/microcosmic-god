@@ -25,9 +25,9 @@ def segment_spans(sizes: dict[str, int]) -> dict[str, tuple[int, int]]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Inspect a brain checkpoint with a trained checkpoint SAE.")
+    parser = argparse.ArgumentParser(description="Inspect a controller checkpoint with a trained checkpoint SAE.")
     parser.add_argument("model", help="SAE .npz file")
-    parser.add_argument("checkpoint", help="brain checkpoint JSON")
+    parser.add_argument("checkpoint", help="controller checkpoint JSON")
     parser.add_argument("--top", type=int, default=8)
     args = parser.parse_args()
 

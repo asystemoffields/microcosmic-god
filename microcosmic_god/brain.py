@@ -15,55 +15,55 @@ def _rand_weight(rng: Random) -> float:
 PREDICTION_HEADS = ("energy", "damage", "reproduction", "social", "tool", "hazard")
 AUXILIARY_PREDICTION_HEADS = tuple(head for head in PREDICTION_HEADS if head != "energy")
 
-# Brain hidden-layer size cap. Brains can grow up to this size if their
-# genome.neural_budget evolves there; metabolic cost (in organisms.py) scales
+# Controller hidden-layer size cap. Controllers can grow up to this size if their
+# genome.neural_budget evolves there; upkeep cost (in organisms.py) scales
 # with neural_budget, so growth pays off only when cognition does.
 BRAIN_HIDDEN_MAX = 512
 
-# Information-as-attention: brains learn (during life) where to look. Total
-# fidelity is bounded so the brain must choose; what's not attended to gets
+# Information-as-attention: controllers learn (while active) where to look. Total
+# fidelity is bounded so the controller must choose; what's not attended to gets
 # noise instead of signal. The mechanism is general (no marks-specific or
-# mg-specific structure baked in), so brains transfer cleanly to environments
-# without writing/marks - the attention rule simply re-targets via the same
-# error-modulated plasticity in the new environment's prediction errors.
+# mg-specific structure baked in), so controllers transfer cleanly to environments
+# without durable symbol encoding/marks - the attention rule simply re-targets via
+# the same error-modulated plasticity in the new environment's prediction errors.
 #
-# Init bias is set high enough that untrained brains pass nearly-full fidelity
+# Init bias is set high enough that untrained controllers pass nearly-full fidelity
 # (sigmoid(3.0) ≈ 0.95). Budget then bounds total attention at 0.95 * N, so
 # untrained avg fidelity ≈ 0.95 - learning bootstraps normally and the
-# information cost is gentle enough that early-life agents still survive long
-# enough to reproduce. Selection pressure activates once the brain learns to
+# information cost is gentle enough that early-stage agents still persist long
+# enough to reproduce. Selection pressure activates once the controller learns to
 # push some features toward 1.0 (which requires pulling others down, since
 # total is bounded). Earlier 0.85 budget + 0.30 noise crashed early lineages
 # because untrained agents received too-noisy observations to bootstrap good
-# action policies before starving.
+# action policies before their energy ran out.
 ATTENTION_BUDGET_FRACTION = 0.95
 ATTENTION_BIAS_INIT_MEAN = 3.0
 ATTENTION_BIAS_INIT_SCALE = 0.10
 ATTENTION_NOISE_SCALE = 0.18
 # Attention learning rate raised 0.012 -> 0.040 (3.3x) because the 30-min
 # seed-1 run held attention concentration flat at 0.01-0.02 across 5000+
-# ticks - converging slower than agents could live and reproduce. This
-# couples directly to whether "cognition" actually pays off: a brain that
-# never learns to focus its attention can't outperform a smaller brain.
+# ticks - converging slower than agents could stay active and reproduce. This
+# couples directly to whether "cognition" actually pays off: a controller that
+# never learns to focus its attention can't outperform a smaller controller.
 ATTENTION_LEARNING_RATE_FACTOR = 0.040
 ATTENTION_DECAY = 0.0008
 
 # Episodic memory: optional v2 feature. When `episodic_capacity > 0`, the
-# brain has a content-addressable bank of past hidden-state snapshots. Each
+# controller has a content-addressable bank of past hidden-state snapshots. Each
 # tick the current hidden state queries the bank and pulls a similarity-
 # weighted summary into the recurrence. Storage is gated by surprise (high
 # prediction error) and valence (high-magnitude reward signals). Replay
 # during the `rest` action averages two random episodes and pushes them
-# back through the brain - the substrate for "spontaneous coupling" /
+# back through the controller - the substrate for "offline replay association" /
 # offline consolidation. Capacity is genome-controlled (mutates), so
-# evolution decides whether episodic memory is worth its metabolic cost.
+# evolution decides whether episodic memory is worth its upkeep cost.
 EPISODIC_RETRIEVAL_TEMPERATURE = 1.0
 EPISODIC_INTEGRATION_WEIGHT = 0.18  # how much retrieved summary blends into hidden
 EPISODIC_STORAGE_SURPRISE_THRESHOLD = 0.30
 EPISODIC_STORAGE_VALENCE_THRESHOLD = 0.45
 EPISODIC_REPLAY_LR_FACTOR = 0.35  # replay-driven plasticity is gentler than live
 
-# Float dtype for all brain arrays. float64 matches Python float semantics so
+# Float dtype for all controller arrays. float64 matches Python float semantics so
 # checkpoint round-trips are bit-exact within rounding tolerance and tests
 # that assert almostEqual at 6+ places stay clean. Switching to float32 would
 # halve memory and ~2x throughput on most CPUs but requires loosening tests.
@@ -75,7 +75,7 @@ def _empty_array(shape: tuple[int, ...] | int) -> np.ndarray:
 
 
 @dataclass(slots=True)
-class TinyBrain:
+class TinyController:
     """Small recurrent network with prediction heads and a neuroplastic
     attention mechanism. Internally stores all parameters and state as numpy
     arrays for vectorized forward/learn; serializes as nested lists so
@@ -121,7 +121,7 @@ class TinyBrain:
         output_size: int,
         with_attention: bool = True,
         episodic_capacity: int = 0,
-    ) -> "TinyBrain":
+    ) -> "TinyController":
         hidden_size = max(1, min(BRAIN_HIDDEN_MAX, hidden_size))
         episodic_capacity = max(0, int(episodic_capacity))
 
@@ -213,7 +213,7 @@ class TinyBrain:
     def _store_episode(self, surprise: float, valence: float) -> bool:
         """Decide whether to write the current hidden state to the bank.
 
-        Surprise above threshold (the brain was wrong about something) or
+        Surprise above threshold (the controller was wrong about something) or
         high-magnitude valence (this tick mattered) gates storage. Replaces
         the oldest slot (LRU) when the bank is full, or the slot most
         similar to the current state (so we don't store near-duplicates).
@@ -253,12 +253,12 @@ class TinyBrain:
 
     def replay_episode(self, rng: Random) -> bool:
         """Sample two random episodes, average them, push the result through
-        the brain via the recurrent core.
+        the controller via the recurrent core.
 
         Drives consolidation: the random pairing creates novel hidden-state
         patterns that the standard plasticity rules can shape into reusable
-        templates. This is the "spontaneous coupling" mechanism — at rest,
-        the brain rummages through its own memory, occasionally finding
+        templates. This is the "offline replay association" mechanism — at rest,
+        the controller scans its own memory, occasionally finding
         useful associations between distant experiences.
 
         Returns True if replay actually happened (requires >=2 stored
@@ -275,7 +275,7 @@ class TinyBrain:
         i_a, i_b = rng.sample(valid_indices.tolist(), 2)
         replay_state = 0.5 * (self.episodic_slots[i_a] + self.episodic_slots[i_b])
         # Push the replayed state through one step of the recurrent core
-        # without external input. This lets the brain associate the two
+        # without external input. This lets the controller associate the two
         # episodes via its own dynamics.
         inv_h = 1.0 / math.sqrt(max(1, self.hidden_size))
         new_hidden = np.tanh(self.bias_h + 0.62 * replay_state)
@@ -287,9 +287,9 @@ class TinyBrain:
         """Compute fidelity from current hidden state and apply it to inputs.
 
         Bounded by ATTENTION_BUDGET_FRACTION * input_size; what isn't attended
-        to is replaced with gaussian noise. The brain's own hidden state shapes
-        what it looks at, so attention is a function of context (neuroplastic
-        in life via the learning rule below, and inheritable via clone_for_offspring).
+        to is replaced with gaussian noise. The controller's own hidden state shapes
+        what it looks at, so attention is a function of context (adapts while
+        active via the learning rule below, and inheritable via clone_for_offspring).
         """
         if not self._has_attention():
             self.last_attention = np.ones(self.input_size, dtype=_DTYPE)
@@ -313,7 +313,7 @@ class TinyBrain:
         if len(inputs) != self.input_size:
             raise ValueError(f"expected {self.input_size} inputs, got {len(inputs)}")
         x = np.asarray(inputs, dtype=_DTYPE)
-        # Apply attention (brain decides what to look at this tick). Uses the
+        # Apply attention (controller decides what to look at this tick). Uses the
         # hidden state from end of last tick, since this tick's hidden hasn't
         # been computed yet.
         x = self._attend(x)
@@ -322,7 +322,7 @@ class TinyBrain:
         inv = 1.0 / math.sqrt(max(1, self.input_size))
         new_hidden = np.tanh(self.bias_h + 0.62 * self.hidden + (self.weights_in @ x) * inv)
         # Episodic retrieval: blend a similarity-weighted summary of past
-        # hidden-state snapshots into the current state. Lets the brain
+        # hidden-state snapshots into the current state. Lets the controller
         # condition this tick on relevant past experience without having to
         # compress the experience into weights.
         if self._has_episodic():
@@ -441,7 +441,7 @@ class TinyBrain:
         # raw hidden state and raw inputs (NOT the dampened traces) - the
         # traces are scaled to ~10% of true magnitude, which made per-tick
         # updates ~100x too small to accumulate meaningful concentration
-        # within an organism's lifetime. The 30-min seed-1 run held attention
+        # within an individual's active span. The 30-min seed-1 run held attention
         # concentration flat at 0.01-0.02 across 5440 ticks because of this.
         # Threshold masks are raised to match raw-value scale.
         if self._has_attention():
@@ -485,7 +485,7 @@ class TinyBrain:
         rank hidden units by total |incoming|+|outgoing| weight magnitude and
         keep the top new_size; the most heavily-used connections survive.
 
-        This allows neural_budget mutations to actually change brain capacity
+        This allows neural_budget mutations to actually change controller capacity
         across generations without losing the parent's learned representations.
         """
         new_size = max(1, min(BRAIN_HIDDEN_MAX, int(new_size)))
@@ -563,7 +563,7 @@ class TinyBrain:
         rng: Random,
         mutation_scale: float = 0.03,
         target_hidden_size: int | None = None,
-    ) -> "TinyBrain":
+    ) -> "TinyController":
         # Deep-copy state via the dict round-trip to avoid alias bugs, then
         # mutate the weights with gaussian noise of the requested scale.
         data = self.to_dict(include_state=False)
@@ -602,9 +602,9 @@ class TinyBrain:
             attention_weights = _empty_array((0, 0))
             attention_bias = _empty_array(0)
 
-        # Episodic memory capacity is inherited (it's a structural / metabolic
+        # Episodic memory capacity is inherited (it's a structural / upkeep
         # commitment), but the actual stored episodes start fresh in the child.
-        # Passing memories down would be Lamarckian inheritance the substrate
+        # Passing memories down would be acquired-state inheritance the substrate
         # doesn't otherwise permit.
         child_capacity = int(data.get("episodic_capacity") or 0) if self._has_episodic() else 0
         if child_capacity > 0:
@@ -614,7 +614,7 @@ class TinyBrain:
             child_episodic_slots = _empty_array((0, 0))
             child_episodic_age = _empty_array(0)
 
-        child = TinyBrain(
+        child = TinyController(
             input_size=self.input_size,
             hidden_size=self.hidden_size,
             output_size=self.output_size,
@@ -680,7 +680,7 @@ class TinyBrain:
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "TinyBrain":
+    def from_dict(cls, data: dict[str, Any]) -> "TinyController":
         input_size = int(data["input_size"])
         hidden_size = int(data["hidden_size"])
         output_size = int(data["output_size"])
@@ -713,7 +713,7 @@ class TinyBrain:
             episodic_slots = _empty_array((0, 0))
             episodic_age = _empty_array(0)
 
-        brain = cls(
+        controller = cls(
             input_size=input_size,
             hidden_size=hidden_size,
             output_size=output_size,
@@ -739,21 +739,21 @@ class TinyBrain:
             input_trace=_empty_array(input_size),
             hidden_trace=_empty_array(hidden_size),
         )
-        brain._ensure_auxiliary_prediction_heads()
+        controller._ensure_auxiliary_prediction_heads()
         if "hidden" in data:
-            brain.hidden = np.array(data["hidden"], dtype=_DTYPE)
+            controller.hidden = np.array(data["hidden"], dtype=_DTYPE)
         if "last_outputs" in data:
-            brain.last_outputs = np.array(data["last_outputs"], dtype=_DTYPE)
+            controller.last_outputs = np.array(data["last_outputs"], dtype=_DTYPE)
         if "last_inputs" in data:
-            brain.last_inputs = np.array(data["last_inputs"], dtype=_DTYPE)
+            controller.last_inputs = np.array(data["last_inputs"], dtype=_DTYPE)
         if "last_attention" in data:
-            brain.last_attention = np.array(data["last_attention"], dtype=_DTYPE)
+            controller.last_attention = np.array(data["last_attention"], dtype=_DTYPE)
         if "last_prediction_errors" in data:
-            brain.last_prediction_errors = {
+            controller.last_prediction_errors = {
                 head: float(data["last_prediction_errors"].get(head, 0.0)) for head in PREDICTION_HEADS
             }
         if "input_trace" in data:
-            brain.input_trace = np.array(data["input_trace"], dtype=_DTYPE)
+            controller.input_trace = np.array(data["input_trace"], dtype=_DTYPE)
         if "hidden_trace" in data:
-            brain.hidden_trace = np.array(data["hidden_trace"], dtype=_DTYPE)
-        return brain
+            controller.hidden_trace = np.array(data["hidden_trace"], dtype=_DTYPE)
+        return controller

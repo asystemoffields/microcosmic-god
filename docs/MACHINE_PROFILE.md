@@ -20,12 +20,12 @@ Default local strategy:
 
 - `smoke` profile for correctness.
 - `minute` profile for real iteration.
-- `long` profile only after the ecology is stable.
+- `long` profile only after the environment is stable.
 - keep `--quiet-events` on for long runs if log volume grows.
 
 ## Cloud Scaling Notes
 
-Modal and Google Colab are suitable next steps once local runs produce interesting dynamics. The run folders are portable: each one contains its config, event log, summary, final world state, and brain checkpoints.
+Modal and Google Colab are suitable next steps once local runs produce interesting dynamics. The run folders are portable: each one contains its config, event log, summary, final world state, and controller checkpoints.
 
 The expected workflow is:
 

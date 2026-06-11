@@ -1,16 +1,16 @@
 # Physics Kernel Runway
 
-Microcosmic God should not become a full rigid-body or fluid simulator. It should gain cheap physical fields whose local rules create learnable, exploitable consequences.
+The simulation should not become a full rigid-body or fluid simulator. It should gain cheap physical fields whose local rules create learnable, exploitable consequences.
 
 The target is:
 
 ```text
-simple local laws + coupled fields + material properties -> rich ecological pressure
+simple local laws + coupled fields + material properties -> rich environmental pressure
 ```
 
 ## Graph Field Physics
 
-The world remains a sparse ecological graph. Physics lives on places and edges.
+The world remains a sparse environment graph. Physics lives on places and edges.
 
 Place fields:
 
@@ -46,7 +46,7 @@ fluid moves downhill or with current-biased edges
 salinity and chemicals advect with fluid
 humidity rises near water and falls in heat
 radiance warms exposed places
-organisms and reactions produce waste heat
+individuals and reactions produce waste heat
 pressure increases with depth/fluid column
 materials absorb and release heat based on thermal mass
 ```
@@ -57,8 +57,8 @@ No global solver is required at first. Approximate local updates are enough if t
 
 Physics should move and transform things agents care about:
 
-- organisms
-- offspring/larvae/spores
+- individuals
+- successors/larvae/spores
 - nutrients
 - toxins
 - signals
@@ -66,9 +66,9 @@ Physics should move and transform things agents care about:
 - heat
 - water
 - tools and debris
-- dead bodies and stored energy
+- inactive bodies and stored energy
 
-This allows currents, gravity, and heat to shape ecology before any agent "understands" them.
+This allows currents, gravity, and heat to shape the environment before any agent "understands" them.
 
 ## Gravity And Elevation
 
@@ -81,28 +81,28 @@ Elevation should create:
 - mechanical-energy opportunities
 - route asymmetry
 
-Tools and body traits can interact with this through `traverse`, `anchor`, `grip`, `lever`, `float`, and `contain`.
+Tools and body attributes can interact with this through `traverse`, `anchor`, `grip`, `lever`, `float`, and `contain`.
 
 ## Ocean And Fluid Currents
 
 Aquatic places should have flow. Currents can:
 
-- transport organisms and resources
+- transport individuals and resources
 - make movement cheaper with the flow and harder against it
 - disperse signals and erase marks
 - move toxins or nutrients
-- strand terrestrial organisms
+- strand terrestrial individuals
 - create pressure, salinity, and depth gradients
 - make anchoring, floating, filtering, and channeling useful
 
-This gives ocean life real physical pressures without simulating every unit of water.
+This gives ocean populations real physical pressures without simulating every unit of water.
 
 ## Thermodynamics
 
-Thermal fields should matter because they interact with life, materials, and tools:
+Thermal fields should matter because they interact with individuals, materials, and tools:
 
 - heat stress and cold stress
-- evaporation and desiccation
+- evaporation and dehydration
 - insulation and heat storage
 - chemical reaction rates
 - phase-like thresholds for water, ice, vapor, or future materials
@@ -152,19 +152,19 @@ Structures lose durability through reusable wear channels:
 - `radiation`: light exposure and UV-sensitive materials.
 - `fatigue`: repeated use of channels, gradient harvesters, filters, and reaction surfaces.
 
-This is how sea-side rust, rotting wood, sun-cracked resin, long-lived stone, and short-lived filters emerge from shared fields rather than special-case rules.
+This is how sea-side rust, rotting wood, sun-cracked resin, long-lasting stone, and short-lived filters emerge from shared fields rather than special-case rules.
 
 ## Agent-Relevant Consequences
 
 The physics kernel should create opportunities for:
 
-- sheltering from heat, water, salt, or predators
+- sheltering from heat, water, salt, or attackers
 - riding currents or resisting them
 - filtering nutrients from flow
 - storing heat or carrying water
 - using gravity for transport or mechanical work
 - opening locked resources through pressure, heat, chemistry, or force
-- making habitats accessible through tools or evolved body traits
+- making environments accessible through tools or evolved body attributes
 - creating inside/outside boundaries that may shelter, trap, filter, incubate reactions, or make movement harder
 
 None of these should be directly rewarded. They matter only if they change survival, reproduction, prediction, or energy capture.
@@ -187,11 +187,11 @@ This keeps the layer compatible with CPU runs now and vectorized/GPU backends la
 
 1. Add place fields for temperature, elevation, fluid level, pressure/depth, current exposure, humidity, and salinity.
 2. Add edge fields for slope, current, permeability, and conductance.
-3. Add a deterministic physics update before organism actions.
+3. Add a deterministic physics update before individual actions.
 4. Let movement, marks, signals, and loose resources be affected by currents and slope.
 5. Let artifacts interact with field gradients through `contain`, `traverse`, `insulate`, `conduct`, `concentrate_heat`, `filter`, `anchor`, and `float` capabilities.
 6. Add persistent structures whose material-derived capabilities can enclose, channel, support, filter, and harvest gradients.
-7. Log field-driven ecological stories compactly: washouts, heat bottlenecks, current-assisted spread, depth specialization, and barrier crossings.
+7. Log field-driven environmental stories compactly: washouts, heat bottlenecks, current-assisted spread, depth specialization, and barrier crossings.
 
 The goal is not photorealistic physics. The goal is a consistent universe where causal structure is rich enough for evolution to exploit.
 
@@ -203,7 +203,7 @@ The current implementation now includes:
 - edge physics fields: slope, current, permeability, heat conductance, fluid conductance, traversal requirement, and danger
 - local heat diffusion, fluid/current advection, chemical transport, evaporation, pressure update, and climate/season coupling
 - signal advection through currents and mark erosion from water, current, volatility, and heat
-- organism stress from heat/cold, pressure, drowning, desiccation, salinity mismatch, and current exposure
+- individual stress from heat/cold, pressure, fluid overload, dehydration, salinity mismatch, and current exposure
 - current-assisted movement, current washout, and gravity/fall hazards
 - material-derived artifact capabilities for `filter`, `float`, and `anchor`, alongside the existing tool capabilities
 - persistent material structures with `enclose`, `permeable`, `shelter`, `support`, `channel`, `gradient_harvest`, and `reaction_surface` capabilities

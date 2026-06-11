@@ -3,10 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from random import Random
 
-from .brain import TinyBrain
+from .brain import TinyController
 from .config import RunConfig
 from .genome import Genome
-from .organisms import Organism
+from .organisms import Individual
 
 
 @dataclass(slots=True)
@@ -25,14 +25,14 @@ class OffspringPlan:
     child_energy: float
     generation: int
     parent_ids: tuple[int, ...]
-    brain_template: TinyBrain | None
+    controller_template: TinyController | None
     parent_costs: dict[int, float]
 
 
 class EvolutionEngine:
-    """Variation operators for producing new organisms.
+    """Variation operators for producing new individuals.
 
-    The simulation handles world constraints such as local capacity and death.
+    The simulation handles world constraints such as local capacity and deactivation.
     This class owns the search operators: which inherited material is copied,
     mutated, recombined, or eventually selected by non-biological farm policies.
     """
@@ -41,16 +41,16 @@ class EvolutionEngine:
         self.rng = rng
         self.config = config
 
-    def clone_mutate_reserve_threshold(self, parent: Organism) -> float:
+    def clone_mutate_reserve_threshold(self, parent: Individual) -> float:
         return parent.clone_mutate_energy_threshold()
 
-    def recombine_reserve_threshold(self, parent: Organism) -> float:
+    def recombine_reserve_threshold(self, parent: Individual) -> float:
         return parent.recombine_energy_threshold() * (0.34 + parent.genome.offspring_investment * 0.10)
 
-    def compatible_for_recombine(self, a: Organism, b: Organism) -> bool:
+    def compatible_for_recombine(self, a: Individual, b: Individual) -> bool:
         return a.genome.distance(b.genome) < 0.50
 
-    def plan_clone_mutate(self, parent: Organism) -> EvolutionDecision:
+    def plan_clone_mutate(self, parent: Individual) -> EvolutionDecision:
         threshold = self.clone_mutate_reserve_threshold(parent)
         strain = self._complexity_strain(parent)
         cost = threshold * (0.32 + parent.genome.offspring_investment * 0.28) * (1.0 + strain * 0.18)
@@ -70,12 +70,12 @@ class EvolutionEngine:
                 child_energy=child_energy,
                 generation=parent.generation + 1,
                 parent_ids=(parent.id,),
-                brain_template=self._inherit_template_clone_mutate(parent, child_genome, strain),
+                controller_template=self._inherit_template_clone_mutate(parent, child_genome, strain),
                 parent_costs={parent.id: cost},
             )
         )
 
-    def plan_recombine(self, a: Organism, b: Organism) -> EvolutionDecision:
+    def plan_recombine(self, a: Individual, b: Individual) -> EvolutionDecision:
         if not self.compatible_for_recombine(a, b):
             return EvolutionDecision(failure="recombine_incompatible", energy_penalty=0.0)
         cost_a = self._recombine_cost(a)
@@ -95,38 +95,38 @@ class EvolutionEngine:
                 child_energy=child_energy,
                 generation=max(a.generation, b.generation) + 1,
                 parent_ids=(a.id, b.id),
-                brain_template=self._inherit_template_recombine(a, b, child_genome),
+                controller_template=self._inherit_template_recombine(a, b, child_genome),
                 parent_costs={a.id: cost_a, b.id: cost_b},
             )
         )
 
-    def _complexity_strain(self, parent: Organism) -> float:
+    def _complexity_strain(self, parent: Individual) -> float:
         soft_limit = getattr(self.config, "clone_complexity_soft_limit", self.config.asexual_complexity_ceiling)
         return max(0.0, parent.genome.complexity() - soft_limit)
 
-    def _recombine_cost(self, parent: Organism) -> float:
+    def _recombine_cost(self, parent: Individual) -> float:
         return parent.recombine_energy_threshold() * (0.035 + parent.genome.offspring_investment * 0.050)
 
-    def _inherit_template_clone_mutate(self, parent: Organism, child_genome: Genome, strain: float) -> TinyBrain | None:
-        if parent.brain_template is None or child_genome.neural_budget < 2.0:
+    def _inherit_template_clone_mutate(self, parent: Individual, child_genome: Genome, strain: float) -> TinyController | None:
+        if parent.controller_template is None or child_genome.neural_budget < 2.0:
             return None
         target_hidden = int(round(child_genome.neural_budget))
         mutation_scale = 0.025 + child_genome.mutation_rate * 0.25 + strain * 0.010
-        # When child genome calls for a different brain size, clone_for_offspring
+        # When child genome calls for a different controller size, clone_for_offspring
         # resizes the inherited template instead of returning None - the parent's
         # learned function is preserved across size changes.
-        return parent.brain_template.clone_for_offspring(
+        return parent.controller_template.clone_for_offspring(
             self.rng, mutation_scale=mutation_scale, target_hidden_size=target_hidden
         )
 
-    def _inherit_template_recombine(self, a: Organism, b: Organism, child_genome: Genome) -> TinyBrain | None:
+    def _inherit_template_recombine(self, a: Individual, b: Individual, child_genome: Genome) -> TinyController | None:
         target_hidden = int(round(child_genome.neural_budget))
         if target_hidden < 2:
             return None
         # Prefer parents whose template size already matches; fall back to either
         # parent (size will be reconciled via resize during cloning).
-        exact = [parent.brain_template for parent in (a, b) if parent.brain_template and parent.brain_template.hidden_size == target_hidden]
-        any_template = [parent.brain_template for parent in (a, b) if parent.brain_template]
+        exact = [parent.controller_template for parent in (a, b) if parent.controller_template and parent.controller_template.hidden_size == target_hidden]
+        any_template = [parent.controller_template for parent in (a, b) if parent.controller_template]
         templates = exact or any_template
         if not templates:
             return None

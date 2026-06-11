@@ -28,13 +28,13 @@ def checkpoint_rows(run_dir: Path) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for path in sorted((run_dir / "checkpoints").glob("*.json")):
         data = load_json(path)
-        organism = data["organism"]
+        individual = data["organism"]
         reason = data["reason"]
         score = (
-            organism["offspring_count"] * 5.0
-            + organism["successful_tools"] * 2.0
-            + organism["age"] / 500.0
-            + organism["generation"] * 0.5
+            individual["offspring_count"] * 5.0
+            + individual["successful_tools"] * 2.0
+            + individual["age"] / 500.0
+            + individual["generation"] * 0.5
             + (3.0 if reason.startswith("first_") else 0.0)
             + (2.0 if reason == "interval_champion" else 0.0)
             + (4.0 if "reproductive_champion" in reason else 0.0)
@@ -48,13 +48,13 @@ def checkpoint_rows(run_dir: Path) -> list[dict[str, Any]]:
                 "score": round(score, 3),
                 "tick": data["tick"],
                 "reason": reason,
-                "id": organism["id"],
-                "age": organism["age"],
-                "generation": organism["generation"],
-                "energy": organism["energy"],
-                "offspring": organism["offspring_count"],
-                "tools": organism["successful_tools"],
-                "complexity": organism["complexity"],
+                "id": individual["id"],
+                "age": individual["age"],
+                "generation": individual["generation"],
+                "energy": individual["energy"],
+                "offspring": individual["offspring_count"],
+                "tools": individual["successful_tools"],
+                "complexity": individual["complexity"],
                 "file": path.name,
             }
         )
