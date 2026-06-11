@@ -13,3 +13,5 @@ runs/*
 analysis/sae_models/*
 !analysis/sae_models/.gitkeep
 *.log
+kaggle/_packages/
+kaggle/results/
