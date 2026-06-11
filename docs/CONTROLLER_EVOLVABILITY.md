@@ -45,6 +45,23 @@ lineage ever crosses ~16, growth is being strangled, and the economics fix is ju
 by data rather than theory.
 
 ### Phase 1 — fix the growth economics (small change, big unlock)
+
+**RESULT (2026-06-11, capacity demography, 3 seeds/arm, 3000 ticks, ~19k
+small-capacity individuals per arm as matched baseline):** the developmental
+subsidy (grace 150, floor 0.35) **establishes the 17-48 capacity corridor** -
+2.65x more mid-capacity individuals (100 -> 265), reach-age-150 up 51% -> 61%,
+and reproduction up 0.62 -> 1.18 offspring (+90%), while leaving the small-
+capacity baseline undistorted (70/75% reach-150, ~1.95 offspring, both arms).
+Large (49-128) survives under subsidy (67% vs 0% reach-150) but did not yet
+reproduce; random-init giants (>128) never establish in either arm - the
+subsidy delays their death (median 32 -> 54 ticks), nothing more.
+
+Interpretation: the valley is a *staircase*, not one cliff, and the subsidy
+opens exactly the corridor that Phase 2's structural growth climbs through -
+duplicate-and-diverge adds ~8-unit blocks on top of already-fit behavior, so
+capacity ascends stepwise through the now-open mid range rather than leaping
+to a random giant. The "giant leap" path (rare budget resets to 100+) is dead
+on arrival and was never the modular mechanism anyway.
 Pick one (or A/B them):
 - **Developmental subsidy:** young individuals pay a ramp (say 30%→100% of size-upkeep
   over the first ~150 ticks) — gives lifetime learning time to make capacity pay.
