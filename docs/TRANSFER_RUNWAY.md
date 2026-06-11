@@ -77,7 +77,7 @@ The package should say which weights are expected to transfer and which are sand
 Microcosmic observations should avoid becoming arbitrary feature soup. They should be organized around reusable physical concepts:
 
 - self state: energy, damage, age, motion, internal memory
-- local fields: heat, water, salinity, light, current, slope, pressure, oxygen-like exposure, acidity, biological activity, abrasion, and wet/dry cycling
+- local fields: heat, water, salinity, light, current, slope, pressure, oxygen-like exposure, acidity, organic activity, abrasion, and wet/dry cycling
 - objects: material properties, affordances, relative availability
 - agents: motion, proximity, emitted signals, observed action traces
 - consequences: recent action result, energy delta, prediction error

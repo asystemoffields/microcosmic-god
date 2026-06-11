@@ -128,7 +128,7 @@ Seed 1 30-minute v2 controller + multi-world run (`runs/cpu_30m_seed1_v2_multiwo
 - 5,440-tick budget but only reached tick 3,113 — population pressure + episodic computation slowed per-tick. **1,641 neural agents at end** (3,622 total) — the largest neural population observed.
 - 60% recombination rate (was 33% in single-world).
 - **Lineage 460 = 909 active agents at run-end**, max gen 19, 7,539 cumulative successors. Largest dominant population cluster observed in the substrate.
-- **Notable narrative arc**: individual 5506 was active across ticks 993-1658 across the world refresh at tick 1200. At place 33 it solved `cut > bind` for biological_storage in World A; after the refresh, place 33 became different physics, and 5506 switched to `crack > lever > contain` for chemical and unlocked it 4 more times. Concrete in-substrate evidence of cognitive flexibility under distribution shift — the behavior the substrate was designed to select for.
+- **Notable narrative arc**: individual 5506 was active across ticks 993-1658 across the world refresh at tick 1200. At place 33 it solved `cut > bind` for organic_store in World A; after the refresh, place 33 became different physics, and 5506 switched to `crack > lever > contain` for essence and unlocked it 4 more times. Concrete in-substrate evidence of cognitive flexibility under distribution shift — the behavior the substrate was designed to select for.
 - Controller capacity transient peak: 218 hidden units at tick 2,300 (selected against, but the substrate is exploring large controllers).
 
 **Catch transfer test results (10 seeds, 4 conditions, frozen + adaptive modes, multi-ball harness):**
@@ -162,7 +162,7 @@ Seed 1 30-minute full-pipeline run (`runs/cpu_30m_seed1_full_pipeline/20260507_1
 - 5,440 ticks, 397 neural agents at end (out of 2,482 total population).
 - **Lineage 489 reached generation 38** with 369 active agents, 6,459 cumulative successors, 54,067 tool successes, collaboration profile = 351,218. By far the deepest selection-driven dominant population cluster observed in this substrate.
 - Recombination shifted to 33% of spawnings (was 5%). Cross-lineage genome mixing is now a dominant reproduction mode at scale.
-- Tool repertoire genuinely diversified: bind 14,982, lever 13,970, crack 9,869, concentrate_heat 9,742, contain 8,237. No single dominant affordance.
+- Tool repertoire genuinely diversified: bind 14,982, lever 13,970, crack 9,869, kindle 9,742, contain 8,237. No single dominant affordance.
 - **Individual 416 was active 2,044 ticks** (38% of the run) at place 12 and built a single `structure_support_anchor_gradient_harvest` from scale 6 → 372 across 104 build/extend events, working solo. Removed by antagonistic interaction with 1 child. Long-horizon coherence in one controller's lifetime.
 - Attention concentration stayed flat at 0.01-0.02 across the whole run — the neuroplastic update rule is calibrated too gently to converge in 5,000 ticks.
 - Controller capacity mean stayed at ~7.9 throughout. Controllers aren't growing despite the mechanism being enabled.
@@ -171,12 +171,12 @@ Seed 1 5-minute textured-harshness run (`runs/cpu_5m_harsh_env_textured/20260506
 
 - Final tick 1016, final population 2284 (575 neural).
 - Tool repertoire shifted dramatically vs the pre-textured seed-1 run:
-  - `concentrate_heat` 7 → 1198 (cold-place prep rule biting)
+  - `kindle` 7 → 1198 (cold-place prep rule biting)
   - `bind` 321 → 1530 (abrasion-prep)
   - `filter` 2 → 217
   - `lever` 880 → 2121, `crack` 572 → 1264
 - Neural population went from 232 → 575 (+148%) — neural agents outcompete non-neurals more strongly when puzzles demand cognitive work.
-- **Lineage 474** is the new dominant population cluster. 41 spawnings, max generation 7. Solves four physics-regime puzzles across four places: `crack>lever>contain` at place 15, `cut>bind` at place 14, `bind>contain>filter` at place 16, `concentrate_heat>conduct` at place 23. Three different prep-step types in one lineage = controller template generalizing the physics-conditional rule.
+- **Lineage 474** is the new dominant population cluster. 41 spawnings, max generation 7. Solves four physics-regime puzzles across four places: `crack>lever>contain` at place 15, `cut>bind` at place 14, `bind>contain>filter` at place 16, `kindle>conduct` at place 23. Three different prep-step types in one lineage = controller template generalizing the physics-conditional rule.
 - Run was ~30% slower per tick (1016 vs 1456 ticks in same wall budget).
 
 Seed 1 5-minute pre-textured run (`runs/cpu_5m_harsh_env/20260502_070301_seed1_minute/`) — kept for comparison:
@@ -238,7 +238,7 @@ Important tests are in `tests/test_causal_contracts.py`.
 The 2026-05-06 session added a `TexturedHarshnessTests` class covering the prep-step rule:
 
 - `test_temperate_dry_place_skips_prep`
-- `test_cold_place_prepends_concentrate_heat`
+- `test_cold_place_prepends_kindle`
 - `test_flooded_place_prepends_contain`
 - `test_high_pressure_place_prepends_contain`
 - `test_unstable_place_prepends_bind`

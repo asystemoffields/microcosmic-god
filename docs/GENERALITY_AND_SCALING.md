@@ -49,17 +49,17 @@ When possible, add fields and material laws that multiple behaviors can use. Avo
 
 Tools should be capability transformers. A composite artifact can matter because it changes what physical regimes are reachable:
 
-- `cut`: opens fibrous/thorn/soft biological barriers.
+- `cut`: opens fibrous/thorn/soft organic barriers.
 - `crack`: opens brittle shells, stones, and mineral seams up to a resistance tier.
 - `lever`: moves heavy barriers or exposes mechanically locked resources.
-- `contain`: carries fluid, buffers wet environments, or enables chemical concentration.
+- `contain`: carries fluid, buffers wet environments, or enables essence concentration.
 - `filter`: harvests suspended resources from flows, fluids, or porous media.
 - `float`: changes how currents, water barriers, pressure, and movement hazards apply.
 - `anchor`: resists current, slope, washout, and some traversal hazards.
 - `traverse`: reduces movement penalties through water, height, unstable ground, or future terrain.
-- `insulate`: buffers heat, cold, conductivity, or chemical exposure.
+- `insulate`: buffers heat, cold, conductivity, or essence exposure.
 - `conduct`: routes electrical/thermal/electrochemical gradients.
-- `concentrate_heat`: converts radiant or thermal gradients into higher local intensity.
+- `kindle`: converts solar or thermal gradients into higher local intensity.
 
 Hardness and resistance tiers matter. A weak cutting artifact can work on fiber and fail or break against diamond-like material. The same rule should handle wood, shell, stone, crystal, deep vents, ocean edges, and future exotic environments.
 
@@ -83,7 +83,7 @@ The important rule is that collaboration helps through the same physical channel
 
 ## Causal Inference Substrate
 
-Puzzle solving should be a world-law consequence, not a separate objective. The first substrate is a finite local causal challenge: a place can contain an affordance sequence implied by its fields and materials. For example, a high-flow wet place may expose more chemical energy after `contain` then `filter`, while a mineral/geothermal place may respond to `concentrate_heat` then `conduct`.
+Puzzle solving should be a world-law consequence, not a separate objective. The first substrate is a finite local causal challenge: a place can contain an affordance sequence implied by its fields and materials. For example, a high-flow wet place may expose more essence energy after `contain` then `filter`, while a mineral/geothermal place may respond to `kindle` then `conduct`.
 
 Agents are not told the sequence as a score label. They can only experience the consequences of tool attempts, remember recent effects, learn prediction heads, and maybe communicate useful traces. This gives us a cheap reasoning/inference pressure while keeping the sealed run honest: the payoff is still local energy released by consistent interaction.
 
@@ -97,11 +97,11 @@ Place-level structures are artifacts left in the world. They are built from mate
 - `channel`: redirects flows and can make gradients more exploitable.
 - `support`: changes footing, traversal, and resistance to collapse or washout.
 - `gradient_harvest`: converts flow/slope/current gradients into mechanical or electrical energy when materials support it.
-- `reaction_surface`: makes chemical/thermal reactions easier by exposing area, porosity, or conductivity.
+- `reaction_surface`: makes essence/thermal reactions easier by exposing area, porosity, or conductivity.
 
 This is the groundwork for dams, bridges, dens, rafts, traps, kilns, hydro-like structures, aquaculture filters, or future machinery without hardcoding any of those as recipes.
 
-Structures also decay through general wear channels. The same material-environment law should explain corrosion near salty water, biological rot in warm wet environments, abrasion in high-current places, thermal cracking, soluble materials leaching away, and durable materials lasting longer.
+Structures also decay through general wear channels. The same material-environment law should explain corrosion near salty water, organic rot in warm wet environments, abrasion in high-current places, thermal cracking, soluble materials leaching away, and durable materials lasting longer.
 
 ## Neural Growth And Plasticity
 
@@ -134,8 +134,8 @@ Reproduction is now routed through an `EvolutionEngine`, which owns variation an
 - `clone_mutate` preserves useful local solutions and explores nearby variants.
 - `recombine` mixes genomes and controller templates, and currently requires behavioral coordination so coordination can itself matter.
 - The old asexual/sexual framing is legacy vocabulary only; it should not shape future design choices.
-- Future intelligence-farming modes may add non-biological operators such as tournament selection, novelty archives, cross-world trials, curriculum transfer, or task-adoption trials.
-- Any non-biological operator must be separated from sealed environment runs or logged as garden/search machinery.
+- Future intelligence-farming modes may add non-organic operators such as tournament selection, novelty archives, cross-world trials, curriculum transfer, or task-adoption trials.
+- Any non-organic operator must be separated from sealed environment runs or logged as garden/search machinery.
 
 The aim is not to mimic animal drives unless those drives are useful. The aim is to create robust selection toward agents that learn, adapt, communicate, manipulate environments, and transfer.
 

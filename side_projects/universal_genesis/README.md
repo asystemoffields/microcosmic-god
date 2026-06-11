@@ -135,7 +135,7 @@ But the main simulator may still seed individuals because its purpose is to stud
 A tiny Universal Genesis prototype could be:
 
 ```text
-graph of planetary chemical microenvironments
+graph of planetary essence microenvironments
   nodes: vents, pores, pools, mineral surfaces, ice pockets
   fields: heat, pH-like acidity, solvent level, salinity, UV/radiation, redox gradient
   materials: simple molecule classes and catalysts

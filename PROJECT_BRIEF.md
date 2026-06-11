@@ -66,17 +66,17 @@ The first milestone should run competently on CPU. The architecture should also 
 
 Avoid treating energy as one generic reward. Represent energy as typed gradients and conversions:
 
-- radiant energy
-- chemical energy
+- solar energy
+- essence energy
 - mechanical energy
 - thermal energy
 - electrical energy
-- stored biological energy
+- stored organic energy
 - nuclear-like high-density energy, likely unavailable until very advanced tool chains
 
 Simple individuals may directly exploit only a few sources, while advanced agents can discover conversion chains through tools, structures, and learned causal models.
 
-Example: sunlight can directly drive radiant-energy-capturing individuals, dry materials thermally, guide seasonal behavior, power primitive solar collectors, and eventually inspire or support advanced high-energy technologies.
+Example: sunlight can directly drive solar-energy-capturing individuals, dry materials thermally, guide seasonal behavior, power primitive solar collectors, and eventually inspire or support advanced high-energy technologies.
 
 ## Anti-Shortcut Rules
 

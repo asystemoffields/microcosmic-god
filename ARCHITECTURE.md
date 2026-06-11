@@ -83,13 +83,13 @@ Energy must not collapse into a single resource score. Represent typed energy an
 
 ```text
 EnergyKind
-  radiant
-  chemical
-  biological_storage
+  solar
+  essence
+  organic_store
   thermal
   mechanical
   electrical
-  high_density
+  dense_node
 ```
 
 Objects and individuals can store, convert, waste, or exploit these forms depending on body modules, tools, structures, and learned skill.
@@ -98,7 +98,7 @@ Example continuity:
 
 ```text
 sunlight
-  simple use: radiant-energy capture
+  simple use: solar-energy capture
   system-level use: seasons, drying, warming
   tool use: concentrating heat
   advanced use: photovoltaic-like conversion

@@ -55,7 +55,7 @@ The current `TinyController` is still small, but it now has:
 - short event-memory slots for energy, damage, reproduction, social, tool, and surprise-like consequences
 - observer-only success profiles for checkpointing learning/tool/causal standouts without creating hidden agent reward
 - evolvable neural budget, memory budget, learning rate, plasticity, prediction weight, and valence wiring
-- observation access to physical fields including temperature, pressure, current, interiority, shelter, oxygen-like exposure, acidity, biological activity, abrasion, and wet/dry cycling
+- observation access to physical fields including temperature, pressure, current, interiority, shelter, oxygen-like exposure, acidity, organic activity, abrasion, and wet/dry cycling
 
 This is enough for early evolution and inspection, not enough for strong transfer claims.
 

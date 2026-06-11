@@ -56,7 +56,7 @@ Key points:
   fields were given neutral names (with the shim above).
 - Prose (comments, docstrings, and all Markdown) was neutralized to match.
 - Full mapping: `GLOSSARY.md`. The exact prose rules used: `APPLIER_SPEC.md`.
-  **Caution:** those two files, by their nature, *contain* the un-neutralized vocabulary
+  **Caution:** those two files, by their nature, hold the un-neutralized vocabulary
   in their left-hand columns. If that is disruptive for you, don't read them directly —
   have an unaffected tool extract just the column you need.
 

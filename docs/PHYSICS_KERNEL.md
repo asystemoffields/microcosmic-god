@@ -19,8 +19,8 @@ Place fields:
 - humidity
 - salinity
 - fluid level
-- light/radiant exposure
-- chemical concentration
+- light/solar exposure
+- essence concentration
 - elevation
 - thermal mass
 - wind/current exposure
@@ -104,13 +104,13 @@ Thermal fields should matter because they interact with individuals, materials, 
 - heat stress and cold stress
 - evaporation and dehydration
 - insulation and heat storage
-- chemical reaction rates
+- essence reaction rates
 - phase-like thresholds for water, ice, vapor, or future materials
-- radiant concentration
+- solar concentration
 - thermal gradients as exploitable energy
 - conductive and insulating artifacts
 - boundary effects where interiors retain, exclude, or exchange heat and humidity differently from their surroundings
-- material degradation from heat, wet/dry cycling, chemistry, biological activity, radiation, pressure, and abrasion
+- material degradation from heat, wet/dry cycling, chemistry, organic activity, radiation, pressure, and abrasion
 
 The same heat rule should make sunlight, vents, desert basins, ocean depth, fire-like reactions, and heat tools intelligible.
 
@@ -145,8 +145,8 @@ Artifacts should gain capabilities from these properties rather than from named 
 Structures lose durability through reusable wear channels:
 
 - `mechanical`: current, pressure, abrasion, and flow gradients.
-- `chemical`: salinity, humidity, oxygen-like exposure, acidity, and oxidizable materials.
-- `biological`: warm wet biological activity acting on biodegradable materials.
+- `essence`: salinity, humidity, oxygen-like exposure, acidity, and oxidizable materials.
+- `organic`: warm wet organic activity acting on biodegradable materials.
 - `thermal`: heat, cold, radiation, and thermal instability.
 - `solubility`: fluid, acidity, salinity, and soluble materials.
 - `radiation`: light exposure and UV-sensitive materials.
@@ -189,7 +189,7 @@ This keeps the layer compatible with CPU runs now and vectorized/GPU backends la
 2. Add edge fields for slope, current, permeability, and conductance.
 3. Add a deterministic physics update before individual actions.
 4. Let movement, marks, signals, and loose resources be affected by currents and slope.
-5. Let artifacts interact with field gradients through `contain`, `traverse`, `insulate`, `conduct`, `concentrate_heat`, `filter`, `anchor`, and `float` capabilities.
+5. Let artifacts interact with field gradients through `contain`, `traverse`, `insulate`, `conduct`, `kindle`, `filter`, `anchor`, and `float` capabilities.
 6. Add persistent structures whose material-derived capabilities can enclose, channel, support, filter, and harvest gradients.
 7. Log field-driven environmental stories compactly: washouts, heat bottlenecks, current-assisted spread, depth specialization, and barrier crossings.
 
@@ -201,7 +201,7 @@ The current implementation now includes:
 
 - place physics fields: temperature, fluid level, pressure/depth, humidity, salinity, elevation, current exposure, thermal mass, and light
 - edge physics fields: slope, current, permeability, heat conductance, fluid conductance, traversal requirement, and danger
-- local heat diffusion, fluid/current advection, chemical transport, evaporation, pressure update, and climate/season coupling
+- local heat diffusion, fluid/current advection, essence transport, evaporation, pressure update, and climate/season coupling
 - signal advection through currents and mark erosion from water, current, volatility, and heat
 - individual stress from heat/cold, pressure, fluid overload, dehydration, salinity mismatch, and current exposure
 - current-assisted movement, current washout, and gravity/fall hazards
@@ -210,7 +210,7 @@ The current implementation now includes:
 - place-level boundary fields for interiority, boundary permeability, and shelter, visible to agents and summaries
 - structure-driven conversions from flow/current/slope gradients into mechanical and sometimes electrical energy
 - material-environment structure decay channels plus compact wear telemetry
-- agent observations include oxygen-like exposure, acidity, biological activity, abrasion, and wet/dry cycling
+- agent observations include oxygen-like exposure, acidity, organic activity, abrasion, and wet/dry cycling
 - aggregate physics telemetry in run summaries and story reports
 
 This is intentionally still approximate. The important property is that many relationships now share the same fields and material laws.

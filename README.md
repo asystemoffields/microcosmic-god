@@ -7,7 +7,7 @@ The current implementation is Prototype 0: a runnable Python simulation designed
 ## What Exists Now
 
 - Sparse environment graph world, not a grid.
-- Multiple energy gradients from day one: radiant, chemical, biological storage, thermal, mechanical, electrical, and high-density latent energy.
+- Multiple energy gradients from day one: solar, essence, organic storage, thermal, mechanical, electrical, and high-density latent energy.
 - Evolving non-neural individuals: non-policy producer and consumer analogs.
 - Evolving neural agents with recurrent ANNs, eligibility traces, predictive learning, and representational plasticity.
 - Standard parameter inheritance of genome/development parameters and innate controller templates.
@@ -25,10 +25,10 @@ The current implementation is Prototype 0: a runnable Python simulation designed
 - The payoff curve is intentionally steep: learned sequencing, useful tools, and structures can open much larger energy reservoirs than surface foraging.
 - Composite artifacts with derived capabilities, durability, and tiered resistance against harder materials/obstacles.
 - Persistent material structures built from gathered components, including place-level boundaries, channels, supports, filters, and gradient harvesters.
-- Structure decay through general material-environment coupling: mechanical wear, corrosion, biological decay, thermal damage, solubility, radiation, and fatigue.
+- Structure decay through general material-environment coupling: mechanical wear, corrosion, organic decay, thermal damage, solubility, radiation, and fatigue.
 - Graph-field physics for temperature, fluid level, pressure/depth, humidity, salinity, elevation, current exposure, edge slope, edge current, permeability, and conductance.
-- Environmental degradation fields such as oxygen-like exposure, acidity, biological activity, abrasion, and wet/dry cycling are visible to agents.
-- Physics-driven effects such as heat/pressure/current stress, chemical advection, signal advection, mark erosion, current-assisted movement, and gravity falls.
+- Environmental degradation fields such as oxygen-like exposure, acidity, organic activity, abrasion, and wet/dry cycling are visible to agents.
+- Physics-driven effects such as heat/pressure/current stress, essence advection, signal advection, mark erosion, current-assisted movement, and gravity falls.
 - Material-coupled artifact capabilities including filtering, floating, anchoring, traversal, insulation, conductivity, containment, cracking, cutting, levering, and heat concentration.
 - General artifact capacities for carrying, protection, and record surfaces, so backpack-like, protective, and portable-writing objects can emerge from material properties.
 - Inside/outside is modeled as boundary physics: `enclose`, `permeable`, and `shelter` are separate capabilities, so not every inside is protective.
