@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import pprint
 import re
 import subprocess
 import sys
@@ -48,6 +49,8 @@ def main() -> None:
     parser.add_argument("--neural-grace-ticks", type=int, default=150)
     parser.add_argument("--neural-grace-floor", type=float, default=0.35)
     parser.add_argument("--modular-fraction", type=float, default=0.5)
+    parser.add_argument("--modular-max-blocks", type=int, default=1)
+    parser.add_argument("--structural-rate", type=float, default=0.06)
     parser.add_argument("--world-refresh-every", type=int, default=0)
     parser.add_argument("--checkpoint-every", type=int, default=1000)
     parser.add_argument("--checkpoint-limit", type=int, default=64)
@@ -67,6 +70,8 @@ def main() -> None:
         "neural_grace_ticks": args.neural_grace_ticks,
         "neural_grace_floor": args.neural_grace_floor,
         "modular_fraction": args.modular_fraction,
+        "modular_max_blocks": args.modular_max_blocks,
+        "structural_rate": args.structural_rate,
         "world_refresh_every": args.world_refresh_every,
         "checkpoint_every": args.checkpoint_every,
         "checkpoint_limit": args.checkpoint_limit,
@@ -79,7 +84,8 @@ def main() -> None:
     template = (HERE / "kernel_template.py").read_text()
     body = re.sub(
         r"CONFIG = \{.*?\n\}",
-        "CONFIG = " + json.dumps(config, indent=4),
+        # pformat, not json.dumps: the kernel is Python source (None, not null).
+        "CONFIG = " + pprint.pformat(config, indent=4, sort_dicts=False),
         template,
         count=1,
         flags=re.DOTALL,
