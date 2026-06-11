@@ -42,6 +42,7 @@ import json
 import math
 import shutil
 import statistics
+from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 from random import Random
@@ -185,6 +186,15 @@ class RunMetrics:
     pred_err_early: float       # mean |prediction error| over first third of active span
     pred_err_late: float        # mean |prediction error| over last third of active span
     pred_err_delta: float       # late - early (negative => lifetime learning)
+    # Behavioral fingerprint (defaults keep pre-fingerprint .runs.jsonl loadable;
+    # don't mix resumed pre-fingerprint records into a fingerprint analysis).
+    # Distinguishes strategic conservation from stasis, and skill from spam.
+    action_entropy: float = 0.0     # mean per-founder entropy (nats) of action distribution
+    move_rate: float = 0.0          # fraction of active ticks spent on each action family
+    observe_rate: float = 0.0
+    rest_rate: float = 0.0
+    tool_attempt_rate: float = 0.0  # use_tool/craft/build attempts (successes are tool_successes)
+    places_visited: float = 0.0     # mean unique places per founder
 
 
 def _mean(values: list[float]) -> float:
@@ -241,6 +251,9 @@ def evaluate_run(
     energy_peak = {fid: 0.0 for fid in founder_ids}
     # Prediction-error trajectory: (life_tick_index, mean_abs_pred_err) per founder.
     pred_traj: dict[int, list[float]] = {fid: [] for fid in founder_ids}
+    # Behavioral fingerprint accumulators.
+    action_counts: dict[int, Counter[str]] = {fid: Counter() for fid in founder_ids}
+    visited: dict[int, set[int]] = {fid: set() for fid in founder_ids}
 
     for _ in range(ticks):
         sim.step()
@@ -254,6 +267,8 @@ def evaluate_run(
                 energy_peak[fid] = org.energy
             pe = org.prediction_error_profile
             pred_traj[fid].append(_mean([abs(float(v)) for v in pe]))
+            action_counts[fid][org.last_action] += 1
+            visited[fid].add(org.location)
 
     # Aggregate.
     alive = [1.0 if (sim.organisms.get(fid) and sim.organisms[fid].alive) else 0.0 for fid in founder_ids]
@@ -287,6 +302,21 @@ def evaluate_run(
     pred_err_early = _mean(early_vals)
     pred_err_late = _mean(late_vals)
 
+    # Behavioral fingerprint aggregation.
+    def _entropy(counter: Counter[str]) -> float:
+        total = sum(counter.values())
+        if total == 0:
+            return 0.0
+        return -sum((c / total) * math.log(c / total) for c in counter.values() if c)
+
+    def _rate(names: set[str]) -> float:
+        vals = []
+        for fid in founder_ids:
+            total = sum(action_counts[fid].values())
+            if total:
+                vals.append(sum(v for k, v in action_counts[fid].items() if k in names) / total)
+        return _mean(vals)
+
     return RunMetrics(
         cohort_size=len(founder_ids),
         ticks=ticks,
@@ -302,6 +332,12 @@ def evaluate_run(
         pred_err_early=pred_err_early,
         pred_err_late=pred_err_late,
         pred_err_delta=pred_err_late - pred_err_early,
+        action_entropy=_mean([_entropy(action_counts[fid]) for fid in founder_ids]),
+        move_rate=_rate({"move"}),
+        observe_rate=_rate({"observe"}),
+        rest_rate=_rate({"rest"}),
+        tool_attempt_rate=_rate({"use_tool", "craft", "build"}),
+        places_visited=_mean([float(len(visited[fid])) for fid in founder_ids]),
     )
 
 
@@ -319,6 +355,12 @@ METRIC_FIELDS = (
     "structures",
     "energy_gain",
     "pred_err_delta",
+    "action_entropy",
+    "move_rate",
+    "observe_rate",
+    "rest_rate",
+    "tool_attempt_rate",
+    "places_visited",
 )
 
 
