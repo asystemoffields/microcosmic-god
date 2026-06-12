@@ -8,6 +8,21 @@ current state.
 
 ---
 
+## 2026-06-12 ~12:30 — recombination-boom leak suspicion CLEARED by code reading
+
+Suspected my own lever had opened a new channel (juveniles committing
+infeasible coordinate add their place to `active_recombine_places` at
+simulation.py:341-343 regardless of the handler no-op). Cleared:
+`_resolve_recombine` filters candidates on `recombine_intent_until >= tick`,
+and intent is set only inside the handler for adults with reserve energy; the
+intent-holder sweep at lines 347-349 already adds every pairing-relevant
+place, so the line-343 add is redundant, not exploitable. The Stage 0 boom is
+real ecology. Working hypothesis (untested, single seed): k=1 no-ops
+(-0.015) are cheaper than the legacy fall-through actions juveniles would
+otherwise execute, so more survive to adulthood — compounding through
+pairing. The h1.6 validation kernels are the test: harshness should tax idle
+no-ops far harder than the permissive h1.35 world did.
+
 ## 2026-06-12 ~12:15 — Stage 0.5: 2 of 3 validation kernels RUNNING
 
 mg-percept-v-s341 and mg-percept-v-s44 are RUNNING (campaign config h1.6,
