@@ -64,6 +64,72 @@ new machinery must close.
    encoders only; core stays slow. A dedicated re-mapping mechanism instead of
    overloading survival-tuned learning. Tests against R1/R3 directly.
 
+## 2026-06-12 — R1 measured, and the diagnosis went deeper than the ladder
+
+**R1 result (n=29/36 at writing, 12 paired worlds, same battery as the
+gauntlet): remapped alive 0.634 vs trained 0.635.** No cliff. The registered
+prediction (death between R0 and R1) is falsified — but not for the hopeful
+reason (typing as the portable boundary). Trace analysis found the real
+mechanism:
+
+- On its own live observation stream (1600 forward calls in a probe world),
+  #2867 emits **2 distinct action rankings**, differing by one adjacent swap.
+  Zero-observation input reproduces the behavioral head exactly:
+  `attack > coordinate > build > move ≈ use_tool > clone_mutate`.
+- Per-action output std over time is 0.002-0.004; the fixed gaps between
+  actions are 0.05-0.5. The observation pathway is functionally disconnected
+  — a two-orders-of-magnitude-too-small perturbation on a constant program.
+- The program is attractor-encoded, not a bias trick: bias_o alone gives a
+  different head (`attack > eat > pickup`); the settled recurrent state
+  contributes 2× the output spread (std 0.144 vs 0.070) and produces the
+  realized ordering. The competence genuinely lives in weight *arrangement* —
+  which is why `permuted` collapses to 0.02 — but none of it is perceptual.
+- Realized behavior in-world: ~84% coordinate (cheap idle), ~11% attack
+  (whenever feasible), everything else at the exploration floor. A blind
+  predator: energy via predation on whatever becomes adjacent.
+
+**The world's action-resolution mechanism is doing the perceiving.** Action
+choice walks the controller's ranked list until something is *feasible*; the
+feasibility gates (target adjacent? materials in hand? adult + energy?) are
+computed by the world from exactly the state the controller would otherwise
+have to observe. A fixed priority list + feasibility fallback IS a reactive,
+context-sensitive policy — with the context sensitivity supplied free by the
+harness. Selection found this channel and used it instead of perception,
+because wiring real perception through perturbation is expensive and the
+leak is free. This explains every arm in one stroke: frozen ≈ trained
+(learning never mattered), remapped ≈ trained (inputs never mattered),
+permuted dead (the ordering is destroyed), random poor (wrong ordering).
+
+**Confirmation arms (in flight on the same 12 worlds):** `blind` (encoder
+weights zeroed — prediction: ≈ trained; already byte-identical to trained in
+a 60-tick smoke) and `outswapped` (action identities permuted on the output
+side only — prediction: collapse toward permuted; smoke agrees). If they land
+as predicted, the obs-side ladder (R1-R4) collapses to a single point for
+this champion and the effector side is the only real axis.
+
+## What this does to the program
+
+1. The inventions list above is mooted *in this order*: schema drift can't
+   bite (nothing reads the schema), fast-weights binding has nothing to bind,
+   typed contracts protect an interface that carries no information. They
+   become relevant only after perception pays.
+2. **The actual lever: close the feasibility leak.** Make blindness
+   unprofitable, then re-measure. Options, cheapest first: (a)
+   feasibility-blind resolution — an infeasible chosen action wastes the tick
+   (and a little energy) instead of falling through to the next ranked
+   feasible one; (b) state that matters but isn't gate-visible — e.g. a
+   resource variant that harms unless a cue channel distinguishes it; (c) the
+   already-planned cue-reliability world feature. (a) is a one-knob change to
+   `_choose_action_from_outputs` and converts the gates from oracle to cost.
+3. Pre-registered predictions for feasibility-blind resolution: blind arm
+   drops below trained; obs-output coupling (output std on a fixed trace)
+   becomes selectable and rises across cycles; only then does the ladder
+   measure anything, and only then is Catch worth re-asking.
+4. This unifies with the capacity-erosion stream: capacity erodes and
+   perception is absent for the same reason — the world asks no question that
+   only observation can answer. The transfer barrier and capacity erosion are
+   one phenomenon seen from two sides.
+
 ## Why this may matter beyond the sandbox
 
 "What makes a learned competence portable across interfaces rather than tied

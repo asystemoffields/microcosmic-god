@@ -252,6 +252,53 @@ def _remapped_template_modular(controller_dict: dict[str, Any], seed: int) -> Mo
     return _reset_transient_modular(controller)
 
 
+def _blind_template(controller_dict: dict[str, Any], seed: int = 0) -> TinyController:
+    """Trained weights with ALL observation input weights zeroed: the maximum
+    interface distance on the perception side. If this matches trained, the
+    policy never read its observations — competence is an innate action
+    program, and the obs-side rungs of the ladder collapse to one point.
+    Deterministic; the seed parameter only keeps the builder signature uniform."""
+    controller = TinyController.from_dict(controller_dict)
+    controller.weights_in = np.zeros_like(controller.weights_in)
+    if controller.attention_weights.size:
+        controller.attention_weights = np.zeros_like(controller.attention_weights)
+    return _reset_transient_and_memory(controller)
+
+
+def _blind_template_modular(controller_dict: dict[str, Any], seed: int = 0) -> ModularController:
+    """Modular blind variant: zero every typed encoder's weight matrix (the
+    encoder biases stay, so tokens are constant). The controller keeps its
+    full recurrent/output machinery but receives zero observation information."""
+    controller = ModularController.from_dict(controller_dict)
+    controller.encoders = [(np.zeros_like(W), b) for W, b in controller.encoders]
+    return _reset_transient_modular(controller)
+
+
+def _outswapped_template(controller_dict: dict[str, Any], seed: int) -> TinyController:
+    """Trained weights with the ACTION identities permuted: rows of weights_out
+    and bias_o move together under one permutation, so the same computation
+    drives relabeled effectors. The effector-side mirror of the remapped arm —
+    if competence is a fixed action-priority ordering, this alone collapses it."""
+    controller = TinyController.from_dict(controller_dict)
+    rs = np.random.RandomState(seed)
+    perm = rs.permutation(controller.weights_out.shape[0])
+    controller.weights_out = controller.weights_out[perm, :]
+    controller.bias_o = controller.bias_o[perm]
+    return _reset_transient_and_memory(controller)
+
+
+def _outswapped_template_modular(controller_dict: dict[str, Any], seed: int) -> ModularController:
+    """Modular outswap variant: one shared action permutation applied to every
+    block's weights_out rows and to the controller-level bias_o."""
+    controller = ModularController.from_dict(controller_dict)
+    rs = np.random.RandomState(seed)
+    perm = rs.permutation(controller.bias_o.shape[0])
+    controller.bias_o = controller.bias_o[perm]
+    for blk in controller.blocks:
+        blk.weights_out = blk.weights_out[perm, :]
+    return _reset_transient_modular(controller)
+
+
 @dataclass
 class BrainInstance:
     condition: str
@@ -260,7 +307,8 @@ class BrainInstance:
 
 
 def build_brain_instances(
-    checkpoint: dict[str, Any], n_random: int, n_permuted: int, n_frozen: int = 0, n_remapped: int = 0
+    checkpoint: dict[str, Any], n_random: int, n_permuted: int, n_frozen: int = 0, n_remapped: int = 0,
+    n_blind: int = 0, n_outswapped: int = 0
 ) -> list[BrainInstance]:
     controller_dict = checkpoint["brain"]
     modular = _is_modular(controller_dict)
@@ -268,6 +316,8 @@ def build_brain_instances(
     random_b = _random_template_modular if modular else _random_template
     permuted_b = _permuted_template_modular if modular else _permuted_template
     remapped_b = _remapped_template_modular if modular else _remapped_template
+    blind_b = _blind_template_modular if modular else _blind_template
+    outswapped_b = _outswapped_template_modular if modular else _outswapped_template
 
     instances = [BrainInstance("trained", "trained", trained(controller_dict))]
     for i in range(n_random):
@@ -276,6 +326,10 @@ def build_brain_instances(
         instances.append(BrainInstance("permuted", f"permuted_{i}", permuted_b(controller_dict, seed=2000 + i)))
     for i in range(n_remapped):
         instances.append(BrainInstance("remapped", f"remapped_{i}", remapped_b(controller_dict, seed=3000 + i)))
+    for i in range(n_blind):
+        instances.append(BrainInstance("blind", f"blind_{i}", blind_b(controller_dict, seed=4000 + i)))
+    for i in range(n_outswapped):
+        instances.append(BrainInstance("outswapped", f"outswapped_{i}", outswapped_b(controller_dict, seed=5000 + i)))
     # Frozen arm: the trained weights with lifetime learning disabled — the
     # "is its merit what it knows at init, or what it keeps re-learning?"
     # control. The flag survives the per-individual serialization round-trip.
@@ -502,6 +556,10 @@ def main() -> None:
                         help="trained weights with lifetime learning disabled (re-learning control)")
     parser.add_argument("--n-remapped", type=int, default=0,
                         help="trained weights with input columns permuted (interface-remap arm)")
+    parser.add_argument("--n-blind", type=int, default=0,
+                        help="trained weights with observation inputs zeroed (deterministic; 1 is enough)")
+    parser.add_argument("--n-outswapped", type=int, default=0,
+                        help="trained weights with action identities permuted (effector-side remap arm)")
     parser.add_argument("--world-refresh-every", type=int, default=0,
                         help="rewrite world physics every N ticks inside each probe (0 = never)")
     parser.add_argument("--out", default=str(REPO_ROOT / "transfer" / "probe_worlds_results.json"))
@@ -518,7 +576,10 @@ def main() -> None:
             f"controller input_size {controller_dict['input_size']} != current OBSERVATION_SIZE {OBSERVATION_SIZE}"
         )
 
-    instances = build_brain_instances(checkpoint, args.n_random, args.n_permuted, args.n_frozen, args.n_remapped)
+    instances = build_brain_instances(
+        checkpoint, args.n_random, args.n_permuted, args.n_frozen, args.n_remapped,
+        args.n_blind, args.n_outswapped,
+    )
     world_seeds = [args.world_seed_base + i for i in range(args.worlds)]
 
     # Incremental per-run results, so a crash mid-sweep never loses finished
@@ -638,6 +699,7 @@ def main() -> None:
             "start_energy": args.start_energy,
             "n_random": args.n_random, "n_permuted": args.n_permuted,
             "n_frozen": args.n_frozen, "n_remapped": args.n_remapped,
+            "n_blind": args.n_blind, "n_outswapped": args.n_outswapped,
             "world_refresh_every": args.world_refresh_every,
         },
         "summary": summary,
