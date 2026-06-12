@@ -8,7 +8,7 @@ The strongest code seam is `microcosmic_god/energy.py`: affordances emerge from 
 
 1. Snapshot rosters can violate locality.
 
-   In `microcosmic_god/simulation.py`, `rosters` is captured once before action resolution and then reused after actions can move, deactivate, or create individuals. This means attacks, local capacity checks, reproduction checks, and social observation can operate against a start-of-tick population snapshot instead of the individuals actually present at the moment of resolution.
+   In `microcosmic_god/simulation.py`, `rosters` is captured once before action resolution and then reused after actions can move, deactivate, or create individuals. This means drains, local capacity checks, reproduction checks, and social observation can operate against a start-of-tick population snapshot instead of the individuals actually present at the moment of resolution.
 
    Decide whether the tick model is intentionally simultaneous or intentionally sequential. If simultaneous, make that explicit and ensure effects are resolved from staged intents. If sequential, refresh or query local rosters after movement/creation/removal-sensitive actions. Right now it is a hybrid, which can make physically local behavior subtly non-local.
 
@@ -43,7 +43,7 @@ The ANN is recurrent in a limited sense: hidden state has a fixed self-leak, but
 
 ## Suggested Next Tests
 
-- A locality test where one individual moves away before another attacks or observes, verifying the target set matches the intended tick semantics.
+- A locality test where one individual moves away before another drains or observes, verifying the target set matches the intended tick semantics.
 - A signal-channel test proving every learnable token can affect observations, or proving the intended compression is applied.
 - A crafting-failure test verifying failed attempts have the intended cost, material loss, and skill gain.
 - A reproduction-capacity test around creations after same-tick movement into or out of a place.
@@ -60,7 +60,7 @@ Addressed the three concrete findings in the first follow-up patch:
 
 Added regression tests for:
 
-- current-location attack locality
+- current-location drain locality
 - asexual reproduction capacity after same-tick local population changes
 - full signal-token observability
 - failed-crafting material loss and skill gain

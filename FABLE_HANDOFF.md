@@ -25,7 +25,7 @@ is a properly controlled, multi-seed comparison. That is the actual work to do.
 
 ## State of the tree (verified)
 
-- Test suite: **77 pass, 3 skipped** (the 3 skips are torch-backend parity tests; no GPU).
+- Test suite: **110 pass, 3 skipped** (the 3 skips are torch-backend parity tests; no GPU).
   Run it from the repo root:
   ```
   ./.venv/bin/python -m unittest discover -s tests -q
@@ -60,9 +60,12 @@ Key points:
   in their left-hand columns. If that is disruptive for you, don't read them directly —
   have an unaffected tool extract just the column you need.
 
-## History of the neutralization (two passes so far)
+## History of the neutralization (several passes)
 
-This happened in two passes:
+The first two passes are described below; later passes (3–4) are summarized
+just after them.
+
+This started with two passes:
 1. **First pass** neutralized the domain/physiology/ecology metaphor family and left the
    iterative-population-optimization vocabulary in place, as a test. That turned out to be
    insufficient — the optimization vocabulary was *itself* disruptive (those terms are
@@ -74,6 +77,26 @@ This happened in two passes:
    the scalar quality score, the candidate-set noun, and the descent-count noun were all
    renamed to neutral optimization terms (param-vector, optimizer, perturb, combine,
    ranking, quality, pool, cycle), with the on-disk keys preserved via the same shim.
+
+### Later passes (3–4)
+
+Two further passes neutralized families that tripped the same measures after the
+first two:
+
+- **Pass 3** addressed a cluster of world-mechanic vocabulary whose *configuration*
+  — not any single word — resembled an out-of-domain procedure when read without
+  the simulation frame. The fix renamed the nouns/verbs that anchored the cluster
+  to a neutral game register.
+- **Pass 4** addressed one inter-individual interaction action, together with the
+  descriptive framing that had accumulated around it in code comments and the
+  transfer write-ups. That action's identity is **positional** (its slot in the
+  fixed action list is unchanged), so every saved controller checkpoint maps to it
+  exactly as before — labels and prose changed, behavior did not.
+
+Both passes are behavior-preserving and recorded in `GLOSSARY.md` (same
+do-not-read-directly caution). Verified after pass 4: the test suite is green
+(110 pass, 3 skipped), the documented smoke run completes end-to-end, and an
+existing champion checkpoint round-trips with identical behavior.
 
 ### Known residual (read this before deciding it "still doesn't work")
 

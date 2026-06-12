@@ -196,26 +196,26 @@ class CausalContractTests(unittest.TestCase):
         self.assertEqual(lineage_summary["top_living"][0]["living"], 2)
         self.assertEqual(lineage_summary["top_living"][0]["inherited_template_count"], 1)
 
-    def test_attack_uses_current_location_not_tick_start_roster(self) -> None:
+    def test_drain_uses_current_location_not_tick_start_roster(self) -> None:
         self.sim = make_sim(places=2)
-        attacker = self.sim.add_individual("agent", ParamVector.neural(self.sim.rng), 0, 80.0)
+        drainer = self.sim.add_individual("agent", ParamVector.neural(self.sim.rng), 0, 80.0)
         target = self.sim.add_individual("agent", ParamVector.neural(self.sim.rng), 0, 80.0)
-        assert attacker is not None and target is not None
+        assert drainer is not None and target is not None
         _stale_roster = self.sim._rosters()
         target.location = 1
         before_health = target.health
 
-        self.sim._attack(attacker)
+        self.sim._drain(drainer)
 
         self.assertEqual(target.health, before_health)
         self.assertEqual(target.location, 1)
 
-    def test_agent_defense_can_block_and_counter_predation(self) -> None:
+    def test_agent_defense_can_block_and_counter_depletion(self) -> None:
         self.sim = make_sim(places=1)
-        attacker_genome = ParamVector.neural(self.sim.rng)
-        attacker_genome.mobility = 0.20
-        attacker_genome.manipulator = 0.20
-        attacker_genome.mechanical_use = 0.20
+        drainer_genome = ParamVector.neural(self.sim.rng)
+        drainer_genome.mobility = 0.20
+        drainer_genome.manipulator = 0.20
+        drainer_genome.mechanical_use = 0.20
         target_genome = ParamVector.neural(self.sim.rng)
         target_genome.armor = 0.30
         target_genome.mobility = 0.40
@@ -226,11 +226,11 @@ class CausalContractTests(unittest.TestCase):
         helper_genome.manipulator = 1.00
         helper_genome.sensor_range = 1.00
         helper_genome.signal_strength = 1.00
-        attacker = self.sim.add_individual("agent", attacker_genome, 0, 80.0)
+        drainer = self.sim.add_individual("agent", drainer_genome, 0, 80.0)
         target = self.sim.add_individual("agent", target_genome, 0, 80.0)
         helper = self.sim.add_individual("agent", helper_genome, 0, 80.0)
-        assert attacker is not None and target is not None and helper is not None
-        attacker.health = 0.03
+        assert drainer is not None and target is not None and helper is not None
+        drainer.health = 0.03
         target.health = 0.45
         target.last_action = "observe"
         helper.health = 1.0
@@ -245,13 +245,13 @@ class CausalContractTests(unittest.TestCase):
 
         self.sim.rng = ZeroRng()  # type: ignore[assignment]
         before_target_health = target.health
-        before_attacker_health = attacker.health
+        before_drainer_health = drainer.health
         before_protect = target.tool_skill["protect"]
 
-        self.sim._attack(attacker)
+        self.sim._drain(drainer)
 
         self.assertAlmostEqual(target.health, before_target_health)
-        self.assertLess(attacker.health, before_attacker_health)
+        self.assertLess(drainer.health, before_drainer_health)
         self.assertGreater(target.tool_skill["protect"], before_protect)
         self.assertGreater(self.sim.collaboration_events["defense"], 0)
 

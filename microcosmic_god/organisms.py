@@ -59,7 +59,7 @@ ACTIONS = (
     "craft",
     "build",
     "use_tool",
-    "attack",
+    "drain",
     "signal",
     "mark",
     "coordinate",

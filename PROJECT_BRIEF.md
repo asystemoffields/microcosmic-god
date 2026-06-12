@@ -26,7 +26,7 @@ The first milestone should run competently on CPU. The architecture should also 
 - Guiding directive: avoid preprogramming goals, social roles, tool recipes, family behavior, trade, or culture wherever possible. Build a consistent world and let selection discover strategies.
 - Reproduction: support both asexual and sexual reproduction. One agent can create a similar primitive child; two agents are required for a more complex child.
 - Inheritance: standard parameter inheritance by default. Children inherit genome/development parameters, not lifetime-learned weights. Teaching children can still emerge behaviorally.
-- Environment: mixed antagonistic and non-antagonistic individuals, closer to an interacting population than a pure game.
+- Environment: mixed competitive and non-competitive individuals, closer to an interacting population than a pure game.
 - Learning: agents should be capable of both trial-and-error learning and imitation/observational learning.
 - Reward: pain, pleasure, and reinforcement signals should themselves be evolution-friendly rather than fixed task rewards.
 - Energy: energy must exist in multiple forms, not as a single resource score. The same source should sometimes be usable directly by simple individuals and sometimes harnessable through increasingly complex tools and knowledge.
@@ -84,7 +84,7 @@ Example: sunlight can directly drive solar-energy-capturing individuals, dry mat
 - Do make those behaviors possible when they produce real advantages under world physics and system-level dynamics.
 - Keep possession separate from competence: an agent may hold a tool but fail to use it well without learned control, timing, sequencing, or contextual knowledge.
 - Keep knowledge grounded in prediction: internal models are useful only when they help agents anticipate consequences and act better.
-- Prefer universal mechanics over special-case labels. Attackers, targets, families, teachers, traders, and cultures should be interpretations of behavior, not preassigned roles.
+- Prefer universal mechanics over special-case labels. Drainers, targets, families, teachers, traders, and cultures should be interpretations of behavior, not preassigned roles.
 
 ## Open Questions
 

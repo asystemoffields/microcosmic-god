@@ -552,7 +552,7 @@ class Simulation:
             "raw": raw,
         }
 
-    def _agent_defense_context(self, target: Individual, attack_power: float) -> dict[str, Any]:
+    def _agent_defense_context(self, target: Individual, drain_power: float) -> dict[str, Any]:
         if target.kind != "agent":
             return {"bonus": 0.0, "support": 0.0, "structure": 0.0, "shelter": 0.0, "collaboration": None}
         place = self.world.places[target.location]
@@ -564,7 +564,7 @@ class Simulation:
             structure_capability(place.structures, "anchor") * 0.18,
         )
         guarded = 0.05 if target.last_action in {"observe", "signal", "coordinate", "build"} else 0.0
-        collaboration = self._collective_support(target, "protect", attack_power)
+        collaboration = self._collective_support(target, "protect", drain_power)
         support = float(collaboration.get("support", 0.0))
         bonus = shelter * 0.16 + structure * 0.24 + support * 0.30 + guarded
         return {
@@ -1427,8 +1427,8 @@ class Simulation:
             self._build_structure(individual, feedback)
         elif action == "use_tool":
             self._use_tool(individual, feedback)
-        elif action == "attack":
-            self._attack(individual)
+        elif action == "drain":
+            self._drain(individual)
         elif action == "signal":
             self._signal(individual, feedback)
         elif action == "mark":
@@ -2308,20 +2308,20 @@ class Simulation:
                     place.materials[name] = min(99, place.materials.get(name, 0) + 1)
         return lost
 
-    def _attack(self, individual: Individual) -> None:
+    def _drain(self, individual: Individual) -> None:
         local = [self.organisms[oid] for oid in self._living_ids_at(individual.location) if oid != individual.id]
         if not local:
             individual.energy -= 0.04
             return
         target = min(local, key=lambda candidate: (candidate.health + candidate.params.armor * 0.7, -candidate.energy))
-        attack_power = individual.params.mobility * 0.40 + individual.params.manipulator * 0.35 + individual.params.mechanical_use * 0.25
+        drain_power = individual.params.mobility * 0.40 + individual.params.manipulator * 0.35 + individual.params.mechanical_use * 0.25
         protection = artifact_capability(target.artifacts, "protect")
-        defense_context = self._agent_defense_context(target, attack_power)
+        defense_context = self._agent_defense_context(target, drain_power)
         defense = target.params.armor * 0.45 + target.params.mobility * 0.25 + target.health * 0.20 + protection * 0.34 + float(defense_context["bonus"])
-        damage = max(0.0, attack_power - defense + self.rng.gauss(0.0, 0.05))
-        individual.energy -= 0.10 + attack_power * 0.08
+        damage = max(0.0, drain_power - defense + self.rng.gauss(0.0, 0.05))
+        individual.energy -= 0.10 + drain_power * 0.08
         if target.kind == "agent" and float(defense_context["support"]) > 0.01 and defense_context["collaboration"] is not None:
-            self._apply_collaboration_effects(target, "protect", "defense", defense_context["collaboration"], attack_power)
+            self._apply_collaboration_effects(target, "protect", "defense", defense_context["collaboration"], drain_power)
         if damage > 0.0:
             if protection > 0.0:
                 damage *= max(0.35, 1.0 - protection * 0.38)
@@ -2329,7 +2329,7 @@ class Simulation:
                 self._wear_artifacts(target, "protect", amount=damage * (0.55 + protection * 0.35))
             target.health -= damage
         elif target.kind == "agent":
-            self._increase_skill(target, "protect", 0.002 + max(0.0, defense - attack_power) * 0.006, transfer=0.05)
+            self._increase_skill(target, "protect", 0.002 + max(0.0, defense - drain_power) * 0.006, transfer=0.05)
         if target.kind == "agent" and target.health > 0.0:
             counter_base = (
                 target.params.armor * 0.16
@@ -2339,7 +2339,7 @@ class Simulation:
                 + float(defense_context["structure"]) * 0.12
                 + float(defense_context["support"]) * 0.18
             )
-            counter_window = counter_base - attack_power * 0.38 + self.rng.gauss(0.0, 0.035)
+            counter_window = counter_base - drain_power * 0.38 + self.rng.gauss(0.0, 0.035)
             if counter_window > 0.12:
                 counter_damage = min(0.32, (counter_window - 0.12) * 0.42)
                 individual.health -= counter_damage
@@ -2347,11 +2347,11 @@ class Simulation:
                 target.record_success("collaboration", float(defense_context["support"]) * 0.25)
                 self._increase_skill(target, "protect", 0.003 + counter_damage * 0.030, transfer=0.07)
                 if individual.health <= 0.0:
-                    self._deactivate(individual, "counterattack")
+                    self._deactivate(individual, "recoil")
         if target.health <= 0.0 and individual.alive:
             gained = target.energy * (0.30 + individual.params.essence_conversion * 0.45)
             individual.energy += max(0.0, gained)
-            self._deactivate(target, "predation")
+            self._deactivate(target, "depletion")
 
     def _signal(self, individual: Individual, feedback: dict[str, float]) -> None:
         intensity = individual.params.signal_strength * (0.5 + individual.energy / max(1.0, individual.storage_limit()))
@@ -3125,7 +3125,7 @@ class Simulation:
         self.deaths_by_kind_cause[f"{individual.kind}:{cause}"] += 1
         place = self.world.places[individual.location]
         place.resources["organic_store"] = min(180.0, place.resources["organic_store"] + max(0.0, individual.energy) * 0.35 + 2.0)
-        if cause in {"predation", "starvation"}:
+        if cause in {"depletion", "starvation"}:
             place.materials["bone"] = min(99, place.materials.get("bone", 0) + 1)
         checkpoint_score = self._checkpoint_score(individual) if individual.controller is not None else 0.0
         notable = (

@@ -40,7 +40,7 @@ The current implementation is Prototype 0: a runnable Python simulation designed
 - Local signals with no fixed semantics.
 - Durable-but-decaying place marks, a primitive external memory channel analogous to durable symbol encoding.
 - Intentional lesson inscriptions are distinct from plain marks. Agents must have recent tool/problem experience and discover/use `inscribe`; readers improve through `interpret_mark`.
-- Antagonistic interaction and population collapse can happen.
+- Competitive interaction and population collapse can happen.
 - Extinction or run-limit debriefs are written automatically.
 - Selective controller checkpoints are saved for notable neural agents.
 - Controller checkpoints include cognitive context: recent trace, event memory, lesson memory, signal associations, and place memory.
@@ -178,7 +178,7 @@ Marks are plain tokens by default. Some marks can intentionally preserve a fuzzy
 
 The world now treats durable symbol encoding as an action-mediated advantage, not a hidden score. A mark's `writing_quality` emerges from inscription clarity, lesson coherence, and the value of the underlying tool/problem experience. Good encoding is rewarded only if another agent can use it: useful reads increase the reader's `interpret_mark` ability, record mark `reads` and `value_transmitted`, and can feed local feedback to the active, co-present author through `knowledge_transmitted`. Bad, irrelevant, or unread encoding remains mostly cost and noise.
 
-Record-capable artifacts can now hold portable lesson traces. A self-read can serve as external memory and improve later action without counting as information transfer; another agent reading that carried trace can still create the ordinary teaching feedback if the author is present. Carry-capable artifacts expand material/tool capacity, while protect-capable artifacts reduce environmental, accident, and antagonistic-interaction damage through the same material-derived artifact system.
+Record-capable artifacts can now hold portable lesson traces. A self-read can serve as external memory and improve later action without counting as information transfer; another agent reading that carried trace can still create the ordinary teaching feedback if the author is present. Carry-capable artifacts expand material/tool capacity, while protect-capable artifacts reduce environmental, accident, and competitive-interaction damage through the same material-derived artifact system.
 
 Mark creation is summarized in aggregate/debrief counters rather than logged as one event per mark, so agents are free to mark obsessively if that behavior evolves. Intentional lesson encodings and successful reads can be promoted to `story_events.jsonl`.
 

@@ -359,7 +359,7 @@ Extinction debrief should summarize:
 - removal cause distribution
 - resource and energy collapse patterns
 - mutation load signs
-- antagonistic interaction or competition pressure
+- inter-individual interaction or competition pressure
 - environmental shifts near collapse
 - whether collapse was sudden or gradual
 

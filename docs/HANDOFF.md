@@ -21,7 +21,7 @@ This is the quick-start context for a fresh Codex instance taking over Microcosm
   - `c634607` Add neuroplastic attention head with bounded fidelity budget
   - `10b93d4` Allow brains to grow and shrink across reproduction
   - `e10a91c` Move TinyBrain core to numpy (~11x brain ops speedup)
-  - `eb5dd82` Add environment harshness + situation-aware affordance + lineage tracking + counterattack + exposure-pressure
+  - `eb5dd82` Add environment harshness + situation-aware affordance + lineage tracking + counterdrain + exposure-pressure
   - `2eee68e` Add arc report (`analysis/scripts/arc_report.py`)
   - `696fc43` Drop senescence as a death cause
   - `7d22c19` Specialist-trap penalty in arc scoring
@@ -72,7 +72,7 @@ Useful docs:
 - Intelligence should pay off only because actions become better: less wasted movement, better tool outcomes, remembered places, causal unlocks, useful marks, survival, reproduction.
 - Specialists are legitimate. A narrow master should not masquerade as a universal engineer, but genuine repeated mastery should count.
 - Inactive controllers disappear unless checkpoint policy saved them.
-- Antagonistic interaction currently exists through agent `attack` behavior. Do not add a separate attacker species yet; the user explicitly became unsure that dedicated attacker individuals are the right lever.
+- Competitive interaction currently exists through agent `drain` behavior. Do not add a separate drainer species yet; the user explicitly became unsure that dedicated drainer individuals are the right lever.
 - Movement must cost energy. This is now locked by tests for easy success, failure, and helper-assisted expeditions.
 
 ## Current Mechanics Snapshot
@@ -154,7 +154,7 @@ Seed 1 30-minute payoff-rebalance run (`runs/cpu_30m_seed1_payoff_v2/20260507_12
 - 5,429 ticks, 546 neural agents at end (peaked at 861 active at tick 4,900).
 - **Controller capacity grew across the run for the first time**: mean 7.7 → 10.8 (+40%), max 13 → 26 (2x). Earlier runs had controllers stuck at ~8 throughout.
 - **Three competing lineage strategies** (vs v1's single dominant): lineage 490 collaborate-heavy (241 active, 3,060 successors), lineage 430 balanced (195 active, 3,990 tools), lineage 489 tool-master (105 active, 9,882 tools). Genuinely differentiated cognitive specializations in the same world.
-- Environment denser and more competitive: energy depletion 1,240 (was 701 in v1), counterattack 246 (was 53).
+- Environment denser and more competitive: energy depletion 1,240 (was 701 in v1), counterdrain 246 (was 53).
 - Attention concentration moved from 0.01 → 0.02 — slight movement after the raw-values rule fix, but still well below the convergence we'd want. Probably needs longer runs.
 
 Seed 1 30-minute full-pipeline run (`runs/cpu_30m_seed1_full_pipeline/20260507_113805_seed1_minute/`):
@@ -163,7 +163,7 @@ Seed 1 30-minute full-pipeline run (`runs/cpu_30m_seed1_full_pipeline/20260507_1
 - **Lineage 489 reached generation 38** with 369 active agents, 6,459 cumulative successors, 54,067 tool successes, collaboration profile = 351,218. By far the deepest selection-driven dominant population cluster observed in this substrate.
 - Recombination shifted to 33% of spawnings (was 5%). Cross-lineage genome mixing is now a dominant reproduction mode at scale.
 - Tool repertoire genuinely diversified: bind 14,982, lever 13,970, crack 9,869, kindle 9,742, contain 8,237. No single dominant affordance.
-- **Individual 416 was active 2,044 ticks** (38% of the run) at place 12 and built a single `structure_support_anchor_gradient_harvest` from scale 6 → 372 across 104 build/extend events, working solo. Removed by antagonistic interaction with 1 child. Long-horizon coherence in one controller's lifetime.
+- **Individual 416 was active 2,044 ticks** (38% of the run) at place 12 and built a single `structure_support_anchor_gradient_harvest` from scale 6 → 372 across 104 build/extend events, working solo. Removed by competitive interaction with 1 child. Long-horizon coherence in one controller's lifetime.
 - Attention concentration stayed flat at 0.01-0.02 across the whole run — the neuroplastic update rule is calibrated too gently to converge in 5,000 ticks.
 - Controller capacity mean stayed at ~7.9 throughout. Controllers aren't growing despite the mechanism being enabled.
 
@@ -183,7 +183,7 @@ Seed 1 5-minute pre-textured run (`runs/cpu_5m_harsh_env/20260502_070301_seed1_m
 
 - Final tick 1456, final population 2123 (232 neural).
 - Lever-dominated tool monoculture (lever 880, crack 572, all others <250). One 3-step unlock in the entire run.
-- Codex-flagged narrative arcs: 424 (early crack specialist removed by an attacker), 422 (founder of dominant lineage), 1551 (clean crack→lever causal arc), 3692 (best team-problem-solving), 3427 (builder-then-solver across places 7+8). The arc tool also surfaces 2025 as the run's biggest specialist trap (tool_use=330 from 328 lever-only successes at place 8, removed by energy depletion, no children).
+- Codex-flagged narrative arcs: 424 (early crack specialist removed by a drainer), 422 (founder of dominant lineage), 1551 (clean crack→lever causal arc), 3692 (best team-problem-solving), 3427 (builder-then-solver across places 7+8). The arc tool also surfaces 2025 as the run's biggest specialist trap (tool_use=330 from 328 lever-only successes at place 8, removed by energy depletion, no children).
 
 Seed 63 10-minute run:
 
@@ -207,7 +207,7 @@ Recent smoke after movement-cost test lock:
 - Run dir: `runs\20260501_223958_seed73_smoke`
 - Seed 73, 100 ticks.
 - Movement average energy cost was about `0.235`.
-- Existing antagonistic interaction was visible as `deaths: {'predation': 15}` from agent attacks.
+- Existing competitive interaction was visible as `deaths: {'depletion': 15}` from agent drains.
 
 ## Verification Commands
 
@@ -288,7 +288,7 @@ Earlier carry-over ideas (still good):
 
 Avoid for now:
 
-- Do not add a separate attacker species unless the user reaffirms it. Existing antagonistic interaction via agent attack is enough pressure to inspect first.
+- Do not add a separate drainer species unless the user reaffirms it. Existing competitive interaction via agent drain is enough pressure to inspect first.
 - Do not make cooperation mandatory.
 - Do not add recipe-like tools such as "axe cuts wood" as a special case. Note: textured-harshness prep steps are *not* recipes — the rule is global (e.g., "cold places need warming first") and physics varies per place.
 - Do not reward marks/durable symbol encoding directly; only changed action consequences should matter.

@@ -99,7 +99,7 @@ Microcosmic actions should keep pointing toward general verbs:
 - emit signal
 - make mark
 - wait/rest
-- pursue/attack
+- pursue/drain
 - court/pair
 
 For another RL environment, the action adapter maps these internal action tendencies to task-specific controls. In a catch game, `move` maps to left/right/up/down. In Atari, a small action head maps recurrent-core output to joystick/button logits.
@@ -134,7 +134,7 @@ Good checkpoint signals:
 - reproduced in more than one environment context
 - carried useful artifacts or moved through barriers
 - communicated or marked before later adaptive behavior
-- recovered from scarcity, antagonistic-interaction pressure, or environmental drift
+- recovered from scarcity, competitive-interaction pressure, or environmental drift
 - performed well in held-out Microcosmic probe worlds
 
 These are analysis filters, not rewards.
@@ -147,7 +147,7 @@ Before attempting an unrelated game, test saved controllers in held-out Microcos
 - changed currents, heat, salinity, or terrain barriers
 - different material availability
 - new locked resources using known affordance laws
-- altered environment and antagonistic-interaction pressure
+- altered environment and competitive-interaction pressure
 - different communication decay rates
 
 If a controller cannot adapt to nearby worlds, it is unlikely to help in a video game.

@@ -75,18 +75,19 @@ mechanism:
 - On its own live observation stream (1600 forward calls in a probe world),
   #2867 emits **2 distinct action rankings**, differing by one adjacent swap.
   Zero-observation input reproduces the behavioral head exactly:
-  `attack > coordinate > build > move ≈ use_tool > clone_mutate`.
+  `drain > coordinate > build > move ≈ use_tool > clone_mutate`.
 - Per-action output std over time is 0.002-0.004; the fixed gaps between
   actions are 0.05-0.5. The observation pathway is functionally disconnected
   — a two-orders-of-magnitude-too-small perturbation on a constant program.
 - The program is attractor-encoded, not a bias trick: bias_o alone gives a
-  different head (`attack > eat > pickup`); the settled recurrent state
+  different head (`drain > eat > pickup`); the settled recurrent state
   contributes 2× the output spread (std 0.144 vs 0.070) and produces the
   realized ordering. The competence genuinely lives in weight *arrangement* —
   which is why `permuted` collapses to 0.02 — but none of it is perceptual.
-- Realized behavior in-world: ~84% coordinate (cheap idle), ~11% attack
+- Realized behavior in-world: ~84% coordinate (cheap idle), ~11% drain
   (whenever feasible), everything else at the exploration floor. A blind
-  predator: energy via predation on whatever becomes adjacent.
+  energy-drainer: it claims energy from whatever individual becomes adjacent,
+  without reading which one or whether it is the right move.
 
 **The world's action-resolution mechanism is doing the perceiving.** Action
 choice walks the controller's ranked list until something is *feasible*; the

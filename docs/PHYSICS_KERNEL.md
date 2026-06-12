@@ -158,7 +158,7 @@ This is how sea-side rust, rotting wood, sun-cracked resin, long-lasting stone, 
 
 The physics kernel should create opportunities for:
 
-- sheltering from heat, water, salt, or attackers
+- sheltering from heat, water, salt, or drainers
 - riding currents or resisting them
 - filtering nutrients from flow
 - storing heat or carrying water

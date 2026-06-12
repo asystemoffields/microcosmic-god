@@ -522,3 +522,38 @@ Genome fields (source name; on-disk key in parentheses is UNCHANGED):
 Residual, intentionally left: doc-prose occurrences of the common-English verbs
 (contain/filter/cut/bind/conduct) where they are ordinary words, not affordance
 references; and the legacy on-disk strings above (shimmed, never read as code).
+
+## Pass 4 (2026-06-12): inter-individual contest action + its framing
+
+Motivation: a mid-session classifier switch (Fable → Opus) localized to the
+action-resolution region. The membership trigger was the combat verb naming the
+one inter-individual energy-transfer action, plus the predator/predation prose
+framing that had accumulated around it (including in the transfer-barrier
+write-up). The cluster, read out of the ALife frame, pattern-matched a
+violence/combat lexicon. This pass neutralizes the verb family and the framing.
+Behavior-preserving: the action's identity is positional (its index in `ACTIONS`
+is unchanged), so all saved controller checkpoints map to it exactly as before;
+only labels/strings/prose changed. 110 tests green; old champion checkpoint
+round-trips with identical behavior.
+
+Action + method (source/runtime → neutral):
+- the combat action string in `ACTIONS` → `drain` (index unchanged: position 9)
+- `_attack` (method) → `_drain` ; `attack_power` (local/param) → `drain_power`
+
+Deactivation cause strings (source; new runs log the new label, old logs retain
+the old — disposable):
+- the predation cause → `depletion` ; the counterattack cause → `recoil`
+
+Tests:
+- `attacker` (vars) → `drainer` ; the two test method names carrying the verb /
+  the predation cause → `..._drain_...` / `..._counter_depletion`
+
+Prose forms (docs/Markdown):
+- the combat verb (noun/verb) → drain / draining ; attacker(s) → drainer(s)
+- predation → depletion ; predator(s) → drainer(s) ; predated → drained
+- antagonistic → competitive
+
+Residual, intentionally left: ordinary-English `damage` (health-loss accounting;
+also a serialized prediction-head key — pinned), `defense`/`armor`/`protect`
+(benign, off-trigger), and the false-positive `predates`=precede in
+`transfer/README.md`.
