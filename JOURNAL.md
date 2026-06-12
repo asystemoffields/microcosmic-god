@@ -9,6 +9,28 @@ current state.
 
 ---
 
+## 2026-06-12 ~22:30 — LAUNCH CORRECTION: tonight's pushes were silently dropped; trickle-launcher armed
+
+The ~21:25 entry was wrong: none of the four kernels materialized. Browser
+check (cb harness → kaggle.com/work) shows the account's 5 CPU batch slots
+are fully held by other-project runs (four pmra-q354b kernels at 1-10 h;
+hourglass-phase0-probe is on GPU and doesn't count), and **a push made
+while the CPU cap is saturated is silently dropped — the CLI prints
+"pushed", the status endpoint 404s, and no notebook is ever created.**
+This also retro-explains this morning's mg-percept-v-s45 breakage.
+Operational lesson, now standing: after any push, poll status within ~90 s;
+only a KernelWorkerStatus response means the kernel exists. Never re-push
+the same slug after a phantom push — use a fresh suffix.
+
+The other-project runs are not mine to stop. A persistent trickle-launcher
+(local monitor) now pushes ONE pending arm every ~10 min under a fresh
+`-cN` slug, confirms materialization, and tracks live arms to terminal
+state. Arms: era2 k=1 seeds 341/44/45 + k=0 baseline s341 (slugs will be
+`mg-era2v341-cN` / `mg-era2v44-cN` / `mg-era2v45-cN` / `mg-era2b341-cN` —
+the launcher logs the materialized names; collect each via
+`kaggle kernels output asystemoffields/<slug> -p kaggle/results/<slug>`).
+Decision rule unchanged (entry below).
+
 ## 2026-06-12 ~21:25 — era-2 validation kernels UP (3/4; baseline queued on the slot cap)
 
 RUNNING on Kaggle, land ~22:15: **mg-era2v-s341 / -s44 / -s45** (k=1, drive
