@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from random import Random
 from typing import Any
 
-from .brain import PREDICTION_HEADS, TinyController
+from .controller import PREDICTION_HEADS, TinyController
 from .energy import AFFORDANCES, STRUCTURE_CAPABILITIES, Artifact
 from .params import ParamVector
 
@@ -16,7 +16,7 @@ RECENT_TRACE_LABELS = (
     "health_delta",
     "damage",
     "prediction_error",
-    "reproduction",
+    "spawning",
     "social",
     "tool",
 )
@@ -25,7 +25,7 @@ EVENT_MEMORY_LABELS = (
     "energy_loss",
     "health_gain",
     "damage",
-    "reproduction",
+    "spawning",
     "social",
     "tool",
     "surprise",
@@ -42,7 +42,7 @@ SUCCESS_PROFILE_LABELS = (
     "social_learning",
     "written_learning",
     "knowledge_transmitted",
-    "reproduction",
+    "spawning",
 )
 RECENT_TRACE_SIZE = len(RECENT_TRACE_LABELS)
 PREDICTION_ERROR_SIZE = len(PREDICTION_HEADS)
@@ -63,7 +63,7 @@ ACTIONS = (
     "signal",
     "mark",
     "coordinate",
-    "clone_mutate",
+    "clone_perturb",
     "observe",
 )
 
@@ -85,9 +85,9 @@ class Individual:
     age: int = 0
     cycle: int = 0
     parent_ids: tuple[int, ...] = ()
-    lineage_root_id: int = 0
-    parent_lineage_ids: tuple[int, ...] = ()
-    inherited_brain_template: bool = False
+    line_root_id: int = 0
+    parent_line_ids: tuple[int, ...] = ()
+    inherited_controller_template: bool = False
     controller: TinyController | None = None
     controller_template: TinyController | None = None
     inventory: dict[str, int] = field(default_factory=dict)
@@ -105,14 +105,14 @@ class Individual:
     recent_health_delta: float = 0.0
     recent_damage: float = 0.0
     recent_prediction_error: float = 0.0
-    recent_reproduction_feedback: float = 0.0
+    recent_spawn_feedback: float = 0.0
     recent_social_feedback: float = 0.0
     recent_tool_feedback: float = 0.0
-    recombine_intent_until: int = -1
+    combine_intent_until: int = -1
     coordination_token: int = 0
     successful_tools: int = 0
     tool_use_counts: dict[str, int] = field(default_factory=dict)
-    offspring_count: int = 0
+    child_count: int = 0
     success_profile: dict[str, float] = field(default_factory=lambda: {label: 0.0 for label in SUCCESS_PROFILE_LABELS})
     last_tool_affordance: str = ""
     last_craft_target: str = ""
@@ -177,7 +177,7 @@ class Individual:
             + self.params.plasticity_rate * 0.010
             + episodic
         )
-        if self.kind in {"plant", "fungus"}:
+        if self.kind in {"collector", "converter"}:
             base *= 0.55
             body *= 0.35
         # Developmental subsidy: capacity's benefit arrives only after lifetime
@@ -192,17 +192,17 @@ class Individual:
     def adult(self) -> bool:
         return self.age >= 25 and self.health > 0.35
 
-    def clone_mutate_energy_threshold(self) -> float:
+    def clone_perturb_energy_threshold(self) -> float:
         return 22.0 + self.params.single_parent_threshold * 45.0 + self.params.complexity() * 7.0
 
-    def recombine_energy_threshold(self) -> float:
+    def combine_energy_threshold(self) -> float:
         return 26.0 + self.params.two_parent_threshold * 55.0 + self.params.complexity() * 8.0
 
-    def asexual_energy_threshold(self) -> float:
-        return self.clone_mutate_energy_threshold()
+    def solo_energy_threshold(self) -> float:
+        return self.clone_perturb_energy_threshold()
 
-    def sexual_energy_threshold(self) -> float:
-        return self.recombine_energy_threshold()
+    def paired_energy_threshold(self) -> float:
+        return self.combine_energy_threshold()
 
     def choose_signal_token(self) -> int:
         if self.controller is not None and self.controller.last_outputs.size:
@@ -220,7 +220,7 @@ class Individual:
             _clip(self.recent_health_delta * 4.0),
             _clip(self.recent_damage * 4.0, 0.0, 1.5),
             _clip(self.recent_prediction_error),
-            _clip(self.recent_reproduction_feedback, 0.0, 1.5),
+            _clip(self.recent_spawn_feedback, 0.0, 1.5),
             _clip(self.recent_social_feedback),
             _clip(self.recent_tool_feedback, 0.0, 1.5),
         ]
@@ -232,7 +232,7 @@ class Individual:
         health_delta: float,
         damage: float,
         prediction_error: float,
-        reproduction_feedback: float,
+        spawn_feedback: float,
         social_feedback: float,
         tool_feedback: float,
         prediction_errors: dict[str, float] | None = None,
@@ -245,14 +245,14 @@ class Individual:
         self.recent_damage = damage
         self.recent_prediction_error = prediction_errors.get("energy", prediction_error)
         self.prediction_error_profile = [_clip(prediction_errors.get(head, 0.0)) for head in PREDICTION_HEADS]
-        self.recent_reproduction_feedback = reproduction_feedback
+        self.recent_spawn_feedback = spawn_feedback
         self.recent_social_feedback = social_feedback
         self.recent_tool_feedback = tool_feedback
         self._write_event_memory(
             energy_delta=energy_delta,
             health_delta=health_delta,
             damage=damage,
-            reproduction_feedback=reproduction_feedback,
+            spawn_feedback=spawn_feedback,
             social_feedback=social_feedback,
             tool_feedback=tool_feedback,
             prediction_errors=prediction_errors,
@@ -260,7 +260,7 @@ class Individual:
         if energy_delta > 0.0:
             self.record_success("energy_gain", min(3.0, energy_delta / 8.0))
         average_error = sum(abs(prediction_errors.get(head, 0.0)) for head in PREDICTION_HEADS) / max(1, len(PREDICTION_HEADS))
-        if average_error < 1.0 and (abs(energy_delta) + abs(health_delta) + reproduction_feedback + social_feedback + tool_feedback) > 0.0:
+        if average_error < 1.0 and (abs(energy_delta) + abs(health_delta) + spawn_feedback + social_feedback + tool_feedback) > 0.0:
             self.record_success("prediction_fit", (1.0 - average_error) * 0.04)
 
     def _write_event_memory(
@@ -268,7 +268,7 @@ class Individual:
         energy_delta: float,
         health_delta: float,
         damage: float,
-        reproduction_feedback: float,
+        spawn_feedback: float,
         social_feedback: float,
         tool_feedback: float,
         prediction_errors: dict[str, float],
@@ -284,7 +284,7 @@ class Individual:
             _clip(max(0.0, -energy_delta) / 10.0, 0.0, 1.5),
             _clip(max(0.0, health_delta) * 4.0, 0.0, 1.5),
             _clip(damage * 4.0, 0.0, 1.5),
-            _clip(reproduction_feedback, 0.0, 1.5),
+            _clip(spawn_feedback, 0.0, 1.5),
             _clip(social_feedback),
             _clip(tool_feedback, 0.0, 1.5),
             _clip(surprise, 0.0, 1.5),
@@ -332,14 +332,14 @@ class Individual:
             "kind": self.kind,
             "location": self.location,
             "age": self.age,
-            "generation": self.cycle,
-            "lineage_root_id": self.lineage_root_id,
-            "parent_lineage_ids": list(self.parent_lineage_ids),
-            "inherited_brain_template": self.inherited_brain_template,
+            "cycle": self.cycle,
+            "line_root_id": self.line_root_id,
+            "parent_line_ids": list(self.parent_line_ids),
+            "inherited_controller_template": self.inherited_controller_template,
             "energy": round(self.energy, 4),
             "health": round(self.health, 4),
             "neural": self.neural,
-            "offspring_count": self.offspring_count,
+            "child_count": self.child_count,
             "successful_tools": self.successful_tools,
             "tool_use_counts": dict(sorted(self.tool_use_counts.items())),
             "success_profile": {key: round(value, 4) for key, value in sorted(self.success_profile.items()) if value > 0.0},
@@ -358,11 +358,11 @@ class Individual:
     def cognitive_snapshot(self) -> dict[str, Any]:
         place_memory = sorted(self.place_memory.items(), key=lambda item: item[1], reverse=True)[:8]
         return {
-            "lineage": {
-                "root_id": self.lineage_root_id,
+            "line": {
+                "root_id": self.line_root_id,
                 "parents": list(self.parent_ids),
-                "parent_lineages": list(self.parent_lineage_ids),
-                "inherited_brain_template": self.inherited_brain_template,
+                "parent_lines": list(self.parent_line_ids),
+                "inherited_controller_template": self.inherited_controller_template,
             },
             "last_action": self.last_action,
             "last_valence": round(self.last_valence, 6),
@@ -390,7 +390,7 @@ def controller_from_dict(data: dict) -> "TinyController":
     return TinyController.from_dict(data)
 
 
-def make_brain_for_genome(rng: Random, params: ParamVector) -> tuple[TinyController | None, TinyController | None]:
+def make_controller_for_params(rng: Random, params: ParamVector) -> tuple[TinyController | None, TinyController | None]:
     hidden = int(round(params.neural_budget))
     if hidden < 2:
         return None, None
@@ -400,11 +400,11 @@ def make_brain_for_genome(rng: Random, params: ParamVector) -> tuple[TinyControl
     return controller, template
 
 
-def make_modular_brain_for_genome(rng: Random, params: ParamVector, n_blocks: int = 1):
-    """Modular counterpart of make_brain_for_genome (Phase 2 wire-in).
+def make_modular_controller_for_params(rng: Random, params: ParamVector, n_blocks: int = 1):
+    """Modular counterpart of make_controller_for_params (Phase 2 wire-in).
 
-    The genome's neural_budget seeds per-block size; afterwards structure owns
-    capacity and the genome budget follows it (synced at reproduction by the
+    The params's neural_budget seeds per-block size; afterwards structure owns
+    capacity and the params budget follows it (synced at spawning by the
     optimizer, and at seeding by the caller for n_blocks > 1).
     """
     from .modular import ModularController
@@ -416,7 +416,7 @@ def make_modular_brain_for_genome(rng: Random, params: ParamVector, n_blocks: in
     return controller, template
 
 
-def individual_from_genome(
+def individual_from_params(
     rng: Random,
     id_: int,
     kind: str,
@@ -433,7 +433,7 @@ def individual_from_genome(
         template = controller_template
         controller = controller_from_dict(template.to_dict(include_state=False))
     elif params.neural_budget >= 2.0 and kind == "agent":
-        controller, template = make_brain_for_genome(rng, params)
+        controller, template = make_controller_for_params(rng, params)
     return Individual(
         id=id_,
         kind=kind,
@@ -442,7 +442,7 @@ def individual_from_genome(
         energy=energy,
         cycle=cycle,
         parent_ids=parent_ids,
-        inherited_brain_template=controller_template is not None,
+        inherited_controller_template=controller_template is not None,
         controller=controller,
         controller_template=template,
     )

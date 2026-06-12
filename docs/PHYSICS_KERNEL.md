@@ -95,7 +95,7 @@ Aquatic places should have flow. Currents can:
 - create pressure, salinity, and depth gradients
 - make anchoring, floating, filtering, and channeling useful
 
-This gives ocean populations real physical pressures without simulating every unit of water.
+This gives ocean pools real physical pressures without simulating every unit of water.
 
 ## Thermodynamics
 
@@ -110,7 +110,7 @@ Thermal fields should matter because they interact with individuals, materials, 
 - thermal gradients as exploitable energy
 - conductive and insulating artifacts
 - boundary effects where interiors retain, exclude, or exchange heat and humidity differently from their surroundings
-- material degradation from heat, wet/dry cycling, chemistry, organic activity, radiation, pressure, and abrasion
+- material degradation from heat, wet/dry cycling, chemistry, residue activity, radiation, pressure, and abrasion
 
 The same heat rule should make sunlight, vents, desert basins, ocean depth, fire-like reactions, and heat tools intelligible.
 
@@ -146,7 +146,7 @@ Structures lose durability through reusable wear channels:
 
 - `mechanical`: current, pressure, abrasion, and flow gradients.
 - `essence`: salinity, humidity, oxygen-like exposure, acidity, and oxidizable materials.
-- `organic`: warm wet organic activity acting on biodegradable materials.
+- `residue`: warm wet residue activity acting on biodegradable materials.
 - `thermal`: heat, cold, radiation, and thermal instability.
 - `solubility`: fluid, acidity, salinity, and soluble materials.
 - `radiation`: light exposure and UV-sensitive materials.
@@ -164,10 +164,10 @@ The physics kernel should create opportunities for:
 - storing heat or carrying water
 - using gravity for transport or mechanical work
 - opening locked resources through pressure, heat, chemistry, or force
-- making environments accessible through tools or evolved body attributes
+- making environments accessible through tools or developed body attributes
 - creating inside/outside boundaries that may shelter, trap, filter, incubate reactions, or make movement harder
 
-None of these should be directly rewarded. They matter only if they change survival, reproduction, prediction, or energy capture.
+None of these should be directly rewarded. They matter only if they change persistence, spawning, prediction, or energy capture.
 
 ## Scaling Rules
 
@@ -210,7 +210,7 @@ The current implementation now includes:
 - place-level boundary fields for interiority, boundary permeability, and shelter, visible to agents and summaries
 - structure-driven conversions from flow/current/slope gradients into mechanical and sometimes electrical energy
 - material-environment structure decay channels plus compact wear telemetry
-- agent observations include oxygen-like exposure, acidity, organic activity, abrasion, and wet/dry cycling
+- agent observations include oxygen-like exposure, acidity, residue activity, abrasion, and wet/dry cycling
 - aggregate physics telemetry in run summaries and story reports
 
 This is intentionally still approximate. The important property is that many relationships now share the same fields and material laws.

@@ -1,11 +1,11 @@
 # Learning Architecture North Star
 
-The simulation should try to evolve agents that are not merely good at this sandbox, but good at learning structured worlds.
+The simulation should try to develop agents that are not merely good at this sandbox, but good at learning structured worlds.
 
 The long-term question is:
 
 ```text
-Can a population evolving in a rich causal universe produce compact ANN cores that adapt well to new real or simulated environments when paired with the right input and action adapters?
+Can a pool developing in a rich causal universe produce compact ANN cores that adapt well to new real or simulated environments when paired with the right input and action adapters?
 ```
 
 ## Target Shape
@@ -39,7 +39,7 @@ Good general learners need a world where shallow tricks are not enough. The simu
 - social information that can be useful but is not guaranteed truthful or useful
 - held-out worlds where old habits only partly transfer
 
-No direct reward should say "be intelligent" or "learn language." Intelligence should matter because it helps individuals survive, reproduce, and adapt in a changing causal universe.
+No direct reward should say "be intelligent" or "learn language." Intelligence should matter because it helps individuals persist, spawn, and adapt in a changing causal universe.
 
 ## Current Prototype Foothold
 
@@ -49,13 +49,13 @@ The current `TinyController` is still small, but it now has:
 - input and hidden eligibility traces
 - valence-modulated action learning
 - prediction-weight learning
-- multiple prediction heads for energy, damage, reproduction, social, tool, and movement-hazard outcomes
+- multiple prediction heads for energy, damage, spawning, social, tool, and movement-hazard outcomes
 - input-to-hidden representational plasticity
 - recent action-result traces exposed back into observation
-- short event-memory slots for energy, damage, reproduction, social, tool, and surprise-like consequences
+- short event-memory slots for energy, damage, spawning, social, tool, and surprise-like consequences
 - observer-only success profiles for checkpointing learning/tool/causal standouts without creating hidden agent reward
-- evolvable neural budget, memory budget, learning rate, plasticity, prediction weight, and valence wiring
-- observation access to physical fields including temperature, pressure, current, interiority, shelter, oxygen-like exposure, acidity, organic activity, abrasion, and wet/dry cycling
+- adaptable neural budget, memory budget, learning rate, plasticity, prediction weight, and valence wiring
+- observation access to physical fields including temperature, pressure, current, interiority, shelter, oxygen-like exposure, acidity, residue activity, abrasion, and wet/dry cycling
 
 This is enough for early evolution and inspection, not enough for strong transfer claims.
 
@@ -71,15 +71,15 @@ Implemented pressure should look like this:
 - Relocation is costly enough that agents must learn when to stay, when to explore, and when tools/social support make a hostile transition worth attempting.
 - Mark reading and durable symbol encoding improve only when they transmit useful causal traces into later action, so durable symbol encoding is valuable through changed outcomes rather than direct reward.
 - Larger neural machinery costs upkeep, so unused capacity is a liability.
-- Selection can favor cognition through survival, energy control, tool success, and reproduction, not through a hidden intelligence score.
+- Selection can favor cognition through persistence, energy control, tool success, and spawning, not through a hidden intelligence score.
 
-This keeps the project pointed at possible minds while preserving the rule that the environment, not hand-authored achievement labels, decides what survives.
+This keeps the project pointed at possible minds while preserving the rule that the environment, not hand-authored achievement labels, decides what persists.
 
 ## Required Next Controller Upgrades
 
 1. Split the controller into named modules: encoder, recurrent core, prediction heads, action heads, memory state.
 2. Add multiple prediction heads: energy delta, damage risk, resource changes, social signal outcome, place transition outcome.
-3. Add neuromodulators: separate surprise, pain/damage, energy gain, reproduction, social, novelty, and uncertainty signals.
+3. Add neuromodulators: separate surprise, pain/damage, energy gain, spawning, social, novelty, and uncertainty signals.
 4. Add longer-lived memory with learned write/read gates rather than only place-value tables.
 5. Add curiosity only indirectly through prediction error or uncertainty, never as a fixed external objective.
 6. Add held-out world evaluation where saved cores are tested against random cores and shuffled controls.
@@ -91,19 +91,19 @@ These are cheap enough to add before a major backend rewrite:
 
 - Done: add explicit recent-action/result traces to observations so agents can connect action, context, and consequence.
 - Done: add short event memory slots for "what changed after I acted" rather than only place value.
-- Done: add prediction heads for damage, reproduction opportunity, tool success, and movement hazard.
+- Done: add prediction heads for damage, spawning opportunity, tool success, and movement hazard.
 - Done: add a cheap causal-challenge substrate where short affordance sequences can unlock finite local energy payoffs.
 - Done: make intentional marks carry quality/value signals that only matter when readers successfully extract and use them.
 - Let individuals attend to a subset of local materials/structures instead of seeing only aggregate place fields.
 - Partly done: save richer checkpoint context around standouts, including recent trace, event memory, signal values, place memory, local world summaries, and reason saved.
-- Keep increasing neural capacity only behind upkeep cost and successful reproduction.
+- Keep increasing neural capacity only behind upkeep cost and successful spawning.
 
 ## More Sophisticated Mind Upgrades
 
 These are the deeper architecture path:
 
 - Modular recurrent core with separate sensory encoder, world-model state, policy heads, and value/valence heads.
-- Differentiable external memory with evolved write/read gates.
+- Differentiable external memory with developed write/read gates.
 - Learned attention over local objects, structures, agents, signals, and marks.
 - Predictive coding loops where surprise changes exploration and memory allocation.
 - Meta-learning parameters that control plasticity schedules, not just one learning rate.
@@ -123,7 +123,7 @@ Start near the sandbox and move outward:
 4. Simple vector games such as catch, pursuit, balancing, or navigation.
 5. Richer RL environments with learned visual or symbolic encoders.
 
-The claim only matters if saved evolved cores adapt faster, more robustly, or with better exploration than same-size random cores.
+The claim only matters if saved developed cores adapt faster, more robustly, or with better exploration than same-size random cores.
 
 ## Guardrails
 

@@ -105,7 +105,7 @@ class EventObserver:
             key: value
             for key, value in payload.items()
             if key in {
-                "organism_id",
+                "individual_id",
                 "source_id",
                 "child_id",
                 "parent_ids",

@@ -2,19 +2,19 @@
 
 ## Purpose
 
-Microcosmic God is a headless artificial life research sandbox. Its first job is not to solve a task, but to host a small, consistent, evolving universe where intelligence, tool use, communication, prediction, reproduction, and social behavior can become useful if the environment makes them useful.
+Microcosmic God is a headless artificial life research sandbox. Its first job is not to solve a task, but to host a small, consistent, developing universe where intelligence, tool use, communication, prediction, spawning, and social behavior can become useful if the environment makes them useful.
 
-Prototype 0 should run in minutes on CPU. Longer runs, larger populations, and GPU-scale epochs should be possible later without changing the conceptual model.
+Prototype 0 should run in minutes on CPU. Longer runs, larger pools, and GPU-scale epochs should be possible later without changing the conceptual model.
 
 ## Design Commitments
 
 - Encode world laws, not desired behaviors.
-- Let survival, reproduction, energy capture, and causal consequences drive selection.
+- Let persistence, spawning, energy capture, and causal consequences drive selection.
 - Make intelligence expensive in upkeep from the beginning.
 - Do not directly reward tool use, cooperation, communication, curiosity, teaching, family behavior, trade, culture, or science.
-- Keep genomes readable enough to debug early collapses.
-- Infer species after runs; do not assign fixed species labels.
-- Allow extinction and produce useful debriefs when it happens.
+- Keep param_vectors readable enough to debug early collapses.
+- Infer type after runs; do not assign fixed type labels.
+- Allow washout and produce useful debriefs when it happens.
 - Keep a logged intervention hatch for garden runs while preserving sealed runs.
 
 ## Current Stack
@@ -32,8 +32,8 @@ Prototype 0 currently uses a dependency-light Python 3.12 core with analysis-fri
   - binary snapshots later when volume grows
 - Python analysis layer:
   - plotting
-  - extinction debriefs
-  - species/lineage clustering
+  - washout debriefs
+  - type/line clustering
   - saved-controller transfer experiments
   - notebooks or scripts
 
@@ -69,13 +69,13 @@ Each simulation tick should be deterministic given seed and configuration.
 4. Run neural policies and local learning.
 5. Resolve actions through world laws.
 6. Apply upkeep, damage, repair, growth, and decay.
-7. Resolve reproduction attempts.
+7. Resolve spawning attempts.
 8. Remove inactive individuals and decay abandoned state.
 9. Record compact logs and optional checkpoints.
-10. Stop or debrief if extinction or time limit occurs.
+10. Stop or debrief if washout or time limit occurs.
 ```
 
-Use short runs first. A useful Prototype 0 run should complete in minutes, even if it ends in extinction.
+Use short runs first. A useful Prototype 0 run should complete in minutes, even if it ends in washout.
 
 ## Energy And Matter
 
@@ -85,7 +85,7 @@ Energy must not collapse into a single resource score. Represent typed energy an
 EnergyKind
   solar
   essence
-  organic_store
+  residue_store
   thermal
   mechanical
   electrical
@@ -132,7 +132,7 @@ Not every individual needs a neural network.
 ```text
 Individual
   id
-  genome
+  params
   body
   upkeep
   location
@@ -141,7 +141,7 @@ Individual
   health/damage state
   optional controller
   optional memory
-  lineage metadata
+  line metadata
 ```
 
 Early individual categories:
@@ -150,14 +150,14 @@ Early individual categories:
 - Primitive neural individuals: mobile agents with small expensive controllers.
 - Higher-cost neural individuals: rare agents with memory, prediction, tool manipulation, or richer learning.
 
-These are implementation categories, not permanent species labels.
+These are implementation categories, not permanent type labels.
 
-## Genome And Development
+## Params And Development
 
-Use structured, debuggable genomes at first.
+Use structured, debuggable param_vectors at first.
 
 ```text
-Genome
+Params
   upkeep parameters
   body module parameters
   sensor parameters
@@ -166,16 +166,16 @@ Genome
   learning/plasticity parameters
   valence wiring parameters
   communication parameters
-  reproduction parameters
-  mutation/recombination parameters
+  spawning parameters
+  perturbation/combination parameters
   developmental budget parameters
 ```
 
-Mutation should eventually affect every attribute with a real-world analog. Early implementation can expose a small set of numeric parameters and expand from there.
+Perturbation should eventually affect every attribute with a real-world analog. Early implementation can expose a small set of numeric parameters and expand from there.
 
 Inheritance follows standard parameter inheritance by default:
 
-- Children inherit genome/development parameters.
+- Children inherit params/development parameters.
 - Lifetime-learned neural weights are not directly inherited.
 - Teaching, imitation, parental investment, and cultural transfer can emerge behaviorally.
 
@@ -194,10 +194,10 @@ ControllerCore
   small recurrent policy
   compact hidden state
   optional prediction head
-  evolved plasticity parameters
+  developed plasticity parameters
 ```
 
-The controller receives local observations, body state, memory summaries, available action affordances, and evolved valence signals. It outputs action choices, signal emissions, attention/use priorities, and possibly learning gates.
+The controller receives local observations, body state, memory summaries, available action affordances, and developed valence signals. It outputs action choices, signal emissions, attention/use priorities, and possibly learning gates.
 
 ## Learning
 
@@ -205,13 +205,13 @@ Learning should be real but not task-rewarded.
 
 Inputs to learning:
 
-- evolved pain/pleasure/valence signals from body state
+- developed pain/pleasure/valence signals from body state
 - prediction errors about local consequences
 - success/failure of actions under physics
 - observation of other individuals' actions
 - memory retrieval
 
-Avoid direct novelty rewards. Novelty matters only when predictive improvements, resource discovery, survival, reproduction, or cultural transfer make it useful.
+Avoid direct novelty rewards. Novelty matters only when predictive improvements, resource discovery, persistence, spawning, or cultural transfer make it useful.
 
 ## Tools And Skill
 
@@ -231,27 +231,27 @@ Represent skill through a combination of:
 - body/tool compatibility
 - prior practice or observation
 
-## Reproduction
+## Spawning
 
-Support both asexual and sexual reproduction.
+Support both solo and paired spawning.
 
-Asexual reproduction:
+Solo spawning:
 
 - one parent
 - lower coordination burden
 - lower developmental complexity ceiling
-- mutated copy of genome/development parameters
+- perturbed copy of params/development parameters
 
-Sexual reproduction:
+Paired spawning:
 
 - two parents
 - requires behavioral coordination
 - requires compatibility
-- recombines genomes
+- combines param_vectors
 - can unlock higher developmental complexity budgets
-- allows pairing selection to evolve from perception and behavior
+- allows pairing selection to develop from perception and behavior
 
-Do not expose a direct pairing fitness score. Individuals may perceive health, energy, age, behavior, territory, signals, morphology, tool competence, or past outcomes if their sensors and memory support it.
+Do not expose a direct pairing quality score. Individuals may perceive health, energy, age, behavior, territory, signals, morphology, tool competence, or past outcomes if their sensors and memory support it.
 
 ## Communication
 
@@ -267,7 +267,7 @@ Signal
   medium constraints
 ```
 
-Signals begin without fixed semantic meaning. Meaning emerges if agents learn or evolve useful associations.
+Signals begin without fixed semantic meaning. Meaning emerges if agents learn or develop useful associations.
 
 ## Environmental Variation
 
@@ -307,13 +307,13 @@ Active controllers exist in memory. Inactive agents' learned weights disappear b
 Checkpoint candidates:
 
 - manual selection
-- lineage champions
+- line champions
 - novelty outliers
 - first use of a new tool chain
 - long-lived individuals
-- reproductively successful individuals
+- via_spawning successful individuals
 - rare system-level strategies
-- random population samples
+- random pool samples
 
 Saved controller package:
 
@@ -321,11 +321,11 @@ Saved controller package:
 ControllerCheckpoint
   controller weights
   architecture metadata
-  genome
+  params
   body configuration
   adapter/schema version
   memory summary, optional
-  lineage
+  line
   run configuration
   environment context
   reason saved
@@ -340,25 +340,25 @@ Logs should be compact but scientifically useful.
 Core logs:
 
 - run configuration and seed
-- population counts
+- pool counts
 - creations, removals, and causes
 - energy availability by type and place
-- lineage events
-- reproduction events
-- mutation summaries
+- line events
+- spawning events
+- perturbation summaries
 - major environmental changes
 - intervention events
 - checkpoint events
-- extinction state, if reached
+- washout state, if reached
 
-Extinction debrief should summarize:
+Washout debrief should summarize:
 
-- final population timeline
-- last surviving lineages
+- final pool timeline
+- last persisting lines
 - likely bottlenecks
 - removal cause distribution
 - resource and energy collapse patterns
-- mutation load signs
+- perturbation load signs
 - inter-individual interaction or competition pressure
 - environmental shifts near collapse
 - whether collapse was sudden or gradual
@@ -398,15 +398,15 @@ microcosmic-god/
   README.md
   pyproject.toml
   microcosmic_god/
-    brain.py
+    controller.py
     checkpoints.py
     cli.py
     config.py
     debrief.py
     energy.py
-    genome.py
+    params.py
     interventions.py
-    organisms.py
+    individuals.py
     runlog.py
     simulation.py
     world.py
@@ -414,9 +414,9 @@ microcosmic-god/
     sim/
       src/
         world/
-        organisms/
-        genome/
-        brain/
+        individuals/
+        params/
+        controller/
         energy/
         logging/
         experiments/

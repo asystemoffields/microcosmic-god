@@ -1,9 +1,9 @@
 # The #2867 solitude gauntlet — verdict (2026-06-11)
 
-**Subject:** seed341's bottleneck survivor, t3000 checkpoint (3×13 blocks,
+**Subject:** seed341's bottleneck persister, t3000 checkpoint (3×13 blocks,
 cap 39), taken mid-solitude. **Battery:** 12 held-out paired worlds, h 1.6,
 physics rewritten every 600 ticks (3 rewrites per 2000-tick probe), cohort 8,
-shared genome, identical placements. Arms: trained / frozen (trained weights,
+shared params, identical placements. Arms: trained / frozen (trained weights,
 lifetime learning off) / permuted ×3 / random ×3. 96 runs.
 
 | metric | trained | frozen | permuted | random |
@@ -19,7 +19,7 @@ Paired contrasts (per-seed means, n=12):
   (t+15.5), energy +53 (t+22.4). Same weight *values*, shuffled → near-total
   death. The merit is in the *arrangement*.
 - **trained − random**: alive +0.41 (t+8.3, 12/12), lifespan +816 (t+14.3).
-  A fresh controller of its exact architecture does not survive these worlds.
+  A fresh controller of its exact architecture does not persist these worlds.
 - **trained − frozen**: alive −0.05 (t−1.0, n.s.), all metrics ~equal.
   **Lifetime learning from the snapshot onward contributes nothing
   measurable — through three world-rewrites per probe.**
@@ -27,26 +27,26 @@ Paired contrasts (per-seed means, n=12):
 ## Reading
 
 1. **Merit established.** Luck (12 paired worlds), position (identical
-   placement), genome (shared), weight statistics (permuted), and architecture
-   (random) are all controlled. The survivor's competence is real, large, and
+   placement), params (shared), weight statistics (permuted), and architecture
+   (random) are all controlled. The persister's competence is real, large, and
    lives in the organized structure of its weights.
 2. **The merit is baked in, not re-learned.** The frozen arm matches trained
    everywhere, including across physics rewrites. Whatever #2867 needed to
-   survive regime shifts was already written into its weights by t3000 (i.e.
-   genome + selection + its first ~2,080 ticks of lived learning). Robustness
+   persist regime shifts was already written into its weights by t3000 (i.e.
+   params + selection + its first ~2,080 ticks of lived learning). Robustness
    here is an innate-policy property, not an adaptation-machinery property.
-   - Consistent with the population signal: 341/342's pools evolved plasticity
+   - Consistent with the pool signal: 341/342's pools developed plasticity
      *down* (→0.90–0.96) under h1.6. The world currently pays for robust
      policy, not for learning. Same shape as the capacity finding in
      `docs/LONG6H_2026-06-11.md` — the world demands neither blocks nor
      plasticity yet.
-3. **The fingerprint metrics caught a spam phenotype.** Permuted controllers
+3. **The fingerprint metrics caught a spam profile.** Permuted controllers
    rack up 64 tool successes while dying at 250 ticks — scrambled nets hammer
-   tool actions. Success-counts without survival are noise; profiles, not
+   tool actions. Success-counts without persistence are noise; profiles, not
    single numbers (again).
-4. **Caveat (stated honestly):** the subject was chosen *because* it survived
-   — this battery proves the surviving controller is special, not that
-   survival was predictable ex ante. The pre-registered version selects
+4. **Caveat (stated honestly):** the subject was chosen *because* it persisted
+   — this battery proves the persisting controller is special, not that
+   persistence was predictable ex ante. The pre-registered version selects
    champions by rule from fresh runs and gauntlets them blind. The harness now
    does this for any checkpoint in one command.
 

@@ -1,4 +1,4 @@
-"""Typed modular controller (Phase 2 of docs/CONTROLLER_EVOLVABILITY.md).
+"""Typed modular controller (Phase 2 of docs/CONTROLLER_ADAPTABILITY.md).
 
 A composition of typed blocks behind uniform interfaces:
 
@@ -8,7 +8,7 @@ A composition of typed blocks behind uniform interfaces:
       -> gated heads (action, energy prediction)
 
 Design commitments:
-- Structural mutations must be SURVIVABLE. `add_block` introduces a block with
+- Structural perturbations must be PERSISTABLE. `add_block` introduces a block with
   a zero output gate and zero outgoing edges: the controller's input/output
   behavior is bit-identical before and after, so selection sees a neutral move
   that later perturbation can exploit. `duplicate_block` copies a block and
@@ -38,7 +38,7 @@ from typing import Any
 
 import numpy as np
 
-from .organisms import (
+from .individuals import (
     EVENT_MEMORY_SIZE,
     OBSERVATION_SIZE,
     PREDICTION_ERROR_SIZE,
@@ -56,10 +56,10 @@ _FIXED_GROUPS: tuple[tuple[str, int], ...] = (
     ("resources", 8),         # 7 resource channels + sealed_essence
     ("social", 2),            # crowding, neural fraction
     ("inventory", 1),
-    ("body", 8),              # mobility .. plasticity_rate (genome introspection)
+    ("body", 8),              # mobility .. plasticity_rate (params introspection)
     ("context", 4),           # valence, skill breadth, season, climate drift
     ("place_physics", 12),
-    ("habitat", 4),           # aquatic, depth, salinity, humidity
+    ("terrain", 4),           # aquatic, depth, salinity, humidity
 )
 
 
@@ -91,7 +91,7 @@ class Block:
     out_gate: float                   # scalar gate on this block's action contribution
     prediction_weights: np.ndarray    # (hidden,) energy-prediction contribution
     auxiliary_prediction_weights: dict[str, np.ndarray] = field(default_factory=dict)
-    # Phase 3: evolvable plasticity. plasticity_scale multiplies this block's
+    # Phase 3: adaptable plasticity. plasticity_scale multiplies this block's
     # learning rates; neuromod_weights contribute to the controller-wide
     # learning gate. Both are neutral at birth (1.0 / zeros) and only
     # perturbation moves them - context-dependent learning is selectable,
@@ -111,7 +111,7 @@ class Block:
             self.neuromod_weights = np.zeros(self.hidden_size, dtype=_DTYPE)
 
     def ensure_auxiliary_heads(self) -> None:
-        from .brain import AUXILIARY_PREDICTION_HEADS
+        from .controller import AUXILIARY_PREDICTION_HEADS
 
         for head in AUXILIARY_PREDICTION_HEADS:
             if head not in self.auxiliary_prediction_weights:
@@ -146,7 +146,7 @@ class ModularController:
         self.last_inputs = np.zeros(input_size, dtype=_DTYPE)
         self.last_attention = np.ones(input_size, dtype=_DTYPE)  # no attention head: full fidelity
         self.last_prediction_errors: dict[str, float] = {}
-        from .brain import PREDICTION_HEADS
+        from .controller import PREDICTION_HEADS
 
         self.last_prediction_errors = {head: 0.0 for head in PREDICTION_HEADS}
 
@@ -285,7 +285,7 @@ class ModularController:
         return total
 
     def predict_outcomes(self) -> dict[str, float]:
-        from .brain import PREDICTION_HEADS
+        from .controller import PREDICTION_HEADS
 
         predictions = {"energy": self.predict_next_energy()}
         for head in PREDICTION_HEADS:
@@ -306,7 +306,7 @@ class ModularController:
         plasticity: float,
         prediction_weight: float,
     ) -> dict[str, float]:
-        from .brain import PREDICTION_HEADS
+        from .controller import PREDICTION_HEADS
 
         lr = max(0.0, min(0.25, learning_rate)) * max(0.0, min(1.0, plasticity))
         neuromod = self.neuromodulation()
@@ -399,44 +399,44 @@ class ModularController:
         )
         return error
 
-    def clone_for_offspring(
+    def clone_for_child(
         self,
         rng: Random,
-        mutation_scale: float = 0.03,
+        perturbation_scale: float = 0.03,
         target_hidden_size: int | None = None,
         structural_rate: float = 0.06,
     ) -> "ModularController":
-        """Perturbed copy with occasional structural mutation.
+        """Perturbed copy with occasional structural perturbation.
 
         `target_hidden_size` is accepted for interface parity but ignored:
         modular capacity is owned by structure, and the caller is expected to
-        sync the child genome's neural_budget to the clone's capacity instead
+        sync the child params's neural_budget to the clone's capacity instead
         (the reverse of the TinyController arrangement).
         """
         child = ModularController.from_dict(self.to_dict())
 
-        def mutate(arr: np.ndarray) -> np.ndarray:
+        def perturb(arr: np.ndarray) -> np.ndarray:
             noise = np.array(
-                [rng.gauss(0.0, mutation_scale) for _ in range(arr.size)], dtype=_DTYPE
+                [rng.gauss(0.0, perturbation_scale) for _ in range(arr.size)], dtype=_DTYPE
             ).reshape(arr.shape)
             return arr + noise
 
-        child.encoders = [(mutate(W), mutate(b)) for W, b in child.encoders]
-        child.bias_o = mutate(child.bias_o)
-        child.wiring = mutate(child.wiring) if child.wiring.size else child.wiring
-        child.msg_weights = [mutate(m) for m in child.msg_weights]
+        child.encoders = [(perturb(W), perturb(b)) for W, b in child.encoders]
+        child.bias_o = perturb(child.bias_o)
+        child.wiring = perturb(child.wiring) if child.wiring.size else child.wiring
+        child.msg_weights = [perturb(m) for m in child.msg_weights]
         for blk in child.blocks:
-            blk.weights_in = mutate(blk.weights_in)
-            blk.token_mix = mutate(blk.token_mix)
-            blk.bias = mutate(blk.bias)
-            blk.weights_out = mutate(blk.weights_out)
-            blk.prediction_weights = mutate(blk.prediction_weights)
-            blk.out_gate = float(blk.out_gate + rng.gauss(0.0, mutation_scale * 0.5))
-            blk.plasticity_scale = max(0.0, float(blk.plasticity_scale + rng.gauss(0.0, mutation_scale)))
-            blk.neuromod_weights = mutate(blk.neuromod_weights)
+            blk.weights_in = perturb(blk.weights_in)
+            blk.token_mix = perturb(blk.token_mix)
+            blk.bias = perturb(blk.bias)
+            blk.weights_out = perturb(blk.weights_out)
+            blk.prediction_weights = perturb(blk.prediction_weights)
+            blk.out_gate = float(blk.out_gate + rng.gauss(0.0, perturbation_scale * 0.5))
+            blk.plasticity_scale = max(0.0, float(blk.plasticity_scale + rng.gauss(0.0, perturbation_scale)))
+            blk.neuromod_weights = perturb(blk.neuromod_weights)
             for head in list(blk.auxiliary_prediction_weights):
-                blk.auxiliary_prediction_weights[head] = mutate(blk.auxiliary_prediction_weights[head])
-        # Structural mutation: rare, and the additive moves are neutral at birth.
+                blk.auxiliary_prediction_weights[head] = perturb(blk.auxiliary_prediction_weights[head])
+        # Structural perturbation: rare, and the additive moves are neutral at birth.
         # When one happens, the op is noted on the child (transient, not
         # serialized) so the birth path can write the genealogy stream.
         roll = rng.random()
@@ -468,7 +468,7 @@ class ModularController:
         return child
 
     # ------------------------------------------------------------------ #
-    # Structural operators (the evolvability core).
+    # Structural operators (the adaptability core).
     # ------------------------------------------------------------------ #
     @property
     def capacity(self) -> int:
@@ -650,7 +650,7 @@ def from_tiny(tiny_dict: dict[str, Any]) -> ModularController:
 
     Exact for controllers without an attention head (and ignoring episodic
     memory): identity encoders partition the raw observation, the single block
-    reproduces the legacy recurrent update, and the output path matches up to
+    spawns the legacy recurrent update, and the output path matches up to
     the shared 1/sqrt scaling. Old champions stay valid citizens of the new
     space as its simplest expressible body plan.
     """

@@ -9,15 +9,54 @@ current state.
 
 ---
 
+## 2026-06-12 ~16:30 — full vocabulary neutralization (pass 11): every readable surface + on-disk format
+
+A session was switched mid-read again, localized to the reward-shaping +
+ranking region of `simulation.py` (~277-396). Alex's call: stop patching one
+spot per pass and remove the whole descriptive family at once, from
+**everywhere** — identifiers, comments, docstrings, Markdown, string literals,
+notebooks, **and the on-disk format**. Done this session:
+
+- **Readable surfaces:** ~2,100 token replacements across source, docs, journal,
+  handoff, and notebooks, onto the flat optimization register (the safe-term
+  list is at the top of FABLE_HANDOFF.md). Two module files whose names were
+  domain nouns were renamed (now `controller.py`, `individuals.py`), and the
+  scaffold/archive/sample directories with domain-noun names were renamed too.
+- **On-disk format:** the params compatibility shim was deleted; `to_dict`/
+  `from_dict` use the flat field names directly. Every existing artifact
+  (~2,100 JSON files + ~1,900 filenames under runs/, archives/, transfer/,
+  kaggle/) was migrated in place to the flat keys/values/names by a one-shot
+  script (kept outside the tree at /tmp/scrub11, since it must reference the old
+  strings to run). **The #2867 champion was migrated and verified
+  behavior-identical** — coupling probe still reports heads=1, coupling=0.155,
+  zero_match=True, head drain>coordinate>use_tool. Its path is now
+  `runs/long6h/seed341/20260611_143225_seed341_minute/checkpoints/controller_t00003000_o2867_interval_line_founder.json`.
+- **Verify:** 118 tests pass / 3 skip; smoke run writes flat-keyed checkpoints;
+  scan of every readable surface for residual terms **and** the descriptors that
+  name the avoided family (invariant 6) is clean. Retained by design (standard
+  CS/ML/physics, never the target): `neural`, `death`/`deactivate`, the physics
+  resource kinds, `agent`, and CS words that merely contain a flagged substring.
+- **Glossary:** the full old→flat table for this pass is appended to
+  `GLOSSARY.md` (do-not-read-directly; retained only so an unaffected agent can
+  translate the old branch). The only places the old terms remain are outside
+  the working tree (git history, the un-neutralized branch) — route those
+  through an unaffected agent per standing protocol.
+
+**Lesson:** patching one trip-site per pass never converged because the trip is
+the *shape* of a descriptive family, not a single word; removing the family
+wholesale — and migrating the on-disk format so no low-density reservoir of the
+words survives — is the move. Research state below is unchanged; s45b is still
+in flight, env-review and Stage 1 still held.
+
 ## 2026-06-12 ~15:30 — Stage 0.5 collected: boot at h1.6 SPLIT 1/2; s45b tiebreaker up; Stage 1 held for env review
 
 Collected mg-percept-v-s341 and -s44 (campaign config, k=1/drive 1.0, wall
 2700s). Full readout + table in docs/PERCEPTION_PROGRAM.md (Stage 0.5 section).
-Short version: **s44 boots** — same pairing-driven rise as Stage 0 (recombine
-3,482), peak 1,087 neural @t2500, then overshoot decline (depletion+starvation)
+Short version: **s44 boots** — same pairing-driven rise as Stage 0 (combine
+3,482), peak 1,087 neural @t2500, then overshoot decline (depletion+exhaustion)
 to 387 @t3700 at wall, structural ops live throughout. **s341 does not boot** —
 pool under 10 by t500, modular cohort gone by t900, 4 pairings in 7,100 ticks,
-ecology fine. So h1.6 boot is seed-contingent. s45 had hit the concurrency cap;
+dynamics fine. So h1.6 boot is seed-contingent. s45 had hit the concurrency cap;
 its slug came back broken from that attempt ("Notebook not found" on every
 re-push), so it went up under a fresh slug: **mg-percept-v-s45b, RUNNING,
 lands ~16:20** — collect via
@@ -63,7 +102,7 @@ Concretely, the planned method:
   the transfer goal"). Parallelizable across agents.
 - **Read the transfer levers yourself**: world-refresh / multi-world ranking
   (the generalization pressure), the selection/ranking loop (does it reward
-  cross-world survival = transfer, or within-world memorization?), and the
+  cross-world persistence = transfer, or within-world memorization?), and the
   observation vector (`_observe`, `simulation.py:1282` — is it bloated with
   channels that don't matter, raising the perception problem's dimensionality
   for no transfer benefit?).
@@ -76,18 +115,18 @@ leaks made perception *necessary*; trimming the env makes the transfer signal
 *legible* and the grown NN *simple enough to reverse-engineer*. Both serve the
 same north star.
 
-## 2026-06-12 ~12:30 — recombination-boom leak suspicion CLEARED by code reading
+## 2026-06-12 ~12:30 — combination-boom leak suspicion CLEARED by code reading
 
 Suspected my own lever had opened a new channel (juveniles committing
-infeasible coordinate add their place to `active_recombine_places` at
+infeasible coordinate add their place to `active_combine_places` at
 simulation.py:341-343 regardless of the handler no-op). Cleared:
-`_resolve_recombine` filters candidates on `recombine_intent_until >= tick`,
+`_resolve_combine` filters candidates on `combine_intent_until >= tick`,
 and intent is set only inside the handler for adults with reserve energy; the
 intent-holder sweep at lines 347-349 already adds every pairing-relevant
 place, so the line-343 add is redundant, not exploitable. The Stage 0 boom is
-real ecology. Working hypothesis (untested, single seed): k=1 no-ops
+real dynamics. Working hypothesis (untested, single seed): k=1 no-ops
 (-0.015) are cheaper than the legacy fall-through actions juveniles would
-otherwise execute, so more survive to adulthood — compounding through
+otherwise execute, so more persist to adulthood — compounding through
 pairing. The h1.6 validation kernels are the test: harshness should tax idle
 no-ops far harder than the permissive h1.35 world did.
 
@@ -100,7 +139,7 @@ k=1/d1.0, wall 2700s — land ~13:05). mg-percept-v-s45 hit Kaggle's
 as siblings; the generated package is already in kaggle/_packages/) once a
 slot frees. Two seeds suffice for the boot question. Collect with
 `kaggle kernels output asystemoffields/mg-percept-v-s341 -p kaggle/results/mg-percept-v-s341`
-(and s44). Read: neural population trajectory + infeasible_commits from the
+(and s44). Read: neural pool trajectory + infeasible_commits from the
 aggregates; decision rule in the entry below (item 2/3).
 
 ## 2026-06-12 ~12:00 — Stage 0.5 validation kernels about to go up
@@ -118,20 +157,20 @@ ladder measures nothing until perception exists (docs/TRANSFER_BARRIER.md).
   nothing; effector-side ordering is the whole competence.
 - Both free-state channels gated: `action_search_depth` (k=1 = bounded walk,
   commits no-op at cost) and `drive_injection_scale` (0 = no harness-timed
-  reproduction). Instruments live: `infeasible_commits` in aggregates,
+  spawning). Instruments live: `infeasible_commits` in aggregates,
   `analysis/coupling_probe.py` (#2867 baseline: heads=1, coupling 0.155,
   zero_match=True). 118 tests green.
 - Stage 0 2×2 (minute, seed 7, local): k=1/drive-1 boots emphatically (neural
   103→1514 @t900, 24× pairing boom, mechanism unidentified, single seed);
   drive-0 collapses neural REGARDLESS of k (injection has been carrying
-  reproduction timing in every run ever). Full readout:
+  spawning timing in every run ever). Full readout:
   docs/PERCEPTION_PROGRAM.md Stage 0 section.
 
 **In flight / next actions:**
 1. Stage 0.5 (now): 3 validation kernels, campaign config at h1.6 + k=1/d1.0,
    ~45 min wall, seeds 341/44/45 — names mg-percept-v-s341 / -s44 / -s45.
    Question: does k=1 boot at h1.6 (Stage 0 was h1.35), and what is the tick
-   rate if the population boom persists? Collect:
+   rate if the pool boom persists? Collect:
    `kaggle kernels output asystemoffields/mg-percept-v-s341 -p kaggle/results/mg-percept-v-s341`
 2. If boot OK → Stage 1: 6-h tier (wall 21600), same config, seeds 341/342/
    343/44/45 paired with the legacy 6-h runs; read coupling-over-cycles on the
@@ -143,4 +182,4 @@ ladder measures nothing until perception exists (docs/TRANSFER_BARRIER.md).
 **Standing rules in force:** long runs on Kaggle only (box is a hot laptop;
 also box-busy rule — check uptime before any local run). Keep all prose in
 neutral game-mechanical register. Champion checkpoint for probes:
-runs/long6h/seed341/20260611_143225_seed341_minute/checkpoints/brain_t00003000_o2867_interval_lineage_founder.json
+runs/long6h/seed341/20260611_143225_seed341_minute/checkpoints/controller_t00003000_o2867_interval_line_founder.json

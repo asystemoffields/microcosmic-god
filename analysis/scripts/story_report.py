@@ -28,17 +28,17 @@ def checkpoint_rows(run_dir: Path) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for path in sorted((run_dir / "checkpoints").glob("*.json")):
         data = load_json(path)
-        individual = data["organism"]
+        individual = data["individual"]
         reason = data["reason"]
         score = (
-            individual["offspring_count"] * 5.0
+            individual["child_count"] * 5.0
             + individual["successful_tools"] * 2.0
             + individual["age"] / 500.0
             + individual["generation"] * 0.5
             + (3.0 if reason.startswith("first_") else 0.0)
             + (2.0 if reason == "interval_champion" else 0.0)
-            + (4.0 if "reproductive_champion" in reason else 0.0)
-            + (3.0 if "lineage_founder" in reason else 0.0)
+            + (4.0 if "spawn_champion" in reason else 0.0)
+            + (3.0 if "line_founder" in reason else 0.0)
             + (2.5 if "tool_champion" in reason else 0.0)
             + (2.0 if "overall_champion" in reason else 0.0)
             + (1.5 if reason.startswith("death_") else 0.0)
@@ -52,7 +52,7 @@ def checkpoint_rows(run_dir: Path) -> list[dict[str, Any]]:
                 "age": individual["age"],
                 "generation": individual["generation"],
                 "energy": individual["energy"],
-                "offspring": individual["offspring_count"],
+                "child": individual["child_count"],
                 "tools": individual["successful_tools"],
                 "complexity": individual["complexity"],
                 "file": path.name,
@@ -68,7 +68,7 @@ def print_timeline(aggregates: list[dict[str, Any]]) -> None:
     print("Timeline")
     stride = max(1, len(aggregates) // 8)
     for item in aggregates[::stride]:
-        pop = item["population"]
+        pop = item["pool"]
         tools = item.get("tool_successes", {})
         print(
             f"  tick {item['tick']:>6}: total={pop.get('total', 0):>5} "
@@ -79,7 +79,7 @@ def print_timeline(aggregates: list[dict[str, Any]]) -> None:
             f"fluid={item.get('world_physics', {}).get('avg_fluid_level', 0):>5.2f}"
         )
     last = aggregates[-1]
-    pop = last["population"]
+    pop = last["pool"]
     print(
         f"  tick {last['tick']:>6}: total={pop.get('total', 0):>5} "
         f"neural={pop.get('neural', 0):>4} "
@@ -95,7 +95,7 @@ def print_notes(summary: dict[str, Any], aggregates: list[dict[str, Any]]) -> No
     print(f"  reason: {summary['reason']}")
     print(f"  tick: {summary['tick']}")
     print(f"  elapsed_seconds: {summary['elapsed_seconds']}")
-    print(f"  final_population: {summary['population']}")
+    print(f"  final_pool: {summary['pool']}")
     print(f"  births_by_mode: {summary['births_by_mode']}")
     print(f"  deaths_by_cause: {summary['deaths_by_cause']}")
     print(f"  deaths_by_kind_cause: {summary.get('deaths_by_kind_cause', {})}")
@@ -111,16 +111,16 @@ def print_notes(summary: dict[str, Any], aggregates: list[dict[str, Any]]) -> No
     print(f"  structures_extended: {summary.get('structures_extended', {})}")
     print(f"  physics_events: {summary.get('physics_events', {})}")
     print(f"  world_physics: {summary.get('world_physics', {})}")
-    print(f"  reproduction_attempts: {summary.get('reproduction_attempts', {})}")
-    print(f"  reproduction_failures: {summary.get('reproduction_failures', {})}")
+    print(f"  spawn_attempts: {summary.get('spawn_attempts', {})}")
+    print(f"  spawn_failures: {summary.get('spawn_failures', {})}")
     print(f"  action_avg_energy_delta: {summary.get('action_avg_energy_delta', {})}")
-    if "recombine" not in summary.get("births_by_mode", {}) and "sexual" not in summary.get("births_by_mode", {}):
-        print("  observation: no sexual reproduction occurred in this run.")
-    if summary["reason"] == "neural_extinction":
-        print("  observation: neural agents vanished while non-neural ecology persisted.")
+    if "combine" not in summary.get("births_by_mode", {}) and "paired" not in summary.get("births_by_mode", {}):
+        print("  observation: no paired spawning occurred in this run.")
+    if summary["reason"] == "neural_washout":
+        print("  observation: neural agents vanished while non-neural dynamics persisted.")
     if aggregates:
-        first = aggregates[0]["population"].get("neural", 0)
-        last_neural = aggregates[-1]["population"].get("neural", 0)
+        first = aggregates[0]["pool"].get("neural", 0)
+        last_neural = aggregates[-1]["pool"].get("neural", 0)
         print(f"  neural_trajectory: {first} at first aggregate -> {last_neural} at last aggregate")
 
 
@@ -148,7 +148,7 @@ def main() -> None:
         print(
             f"  score={row['score']:>8} tick={row['tick']:>6} id={row['id']:>5} "
             f"reason={row['reason']:<34} age={row['age']:>5} gen={row['generation']:>2} "
-            f"offspring={row['offspring']:>2} tools={row['tools']:>4} energy={row['energy']:>8} "
+            f"child={row['child']:>2} tools={row['tools']:>4} energy={row['energy']:>8} "
             f"file={row['file']}"
         )
 

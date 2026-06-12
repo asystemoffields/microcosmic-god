@@ -14,7 +14,7 @@ Captured during project setup on 2026-05-01.
 
 ## Implications
 
-This machine is good for short and medium CPU-bound headless runs. It is not ideal for very large neural populations or heavy GPU workloads.
+This machine is good for short and medium CPU-bound headless runs. It is not ideal for very large neural pools or heavy GPU workloads.
 
 Default local strategy:
 

@@ -22,7 +22,7 @@ def show(run_root: Path) -> None:
                 continue
             if e.get("kind") == "aggregate" and "architecture" in e:
                 a = e["architecture"]
-                bc = e.get("brain_capacity", {})
+                bc = e.get("controller_capacity", {})
                 rows.append((e["tick"], a, bc))
         if not rows:
             continue

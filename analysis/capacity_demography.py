@@ -1,15 +1,15 @@
 """Capacity demography: do large-capacity controllers ESTABLISH, or only appear?
 
 The A/B aggregate analysis showed both arms *explore* large capacity (rare-reset
-mutations propose giants everywhere), so exploration does not discriminate. The
+perturbations propose giants everywhere), so exploration does not discriminate. The
 Phase 1 question is establishment: conditioned on being born big, does an
-individual survive longer and reproduce more under the developmental subsidy
+individual persist longer and spawn more under the developmental subsidy
 than under legacy pricing?
 
 This driver steps a Simulation directly and records, for every neural agent
 ever alive: capacity (hidden size), birth tick, death tick (or censored at end),
-offspring count, and death cause. Output: one JSONL per run + a summary table
-of survival and reproduction by capacity bin per arm.
+child count, and death cause. Output: one JSONL per run + a summary table
+of persistence and spawning by capacity bin per arm.
 
 Usage:
   python analysis/capacity_demography.py --seeds 201 202 203 --ticks 3000 \
@@ -48,15 +48,15 @@ def run_arm(arm: str, seed: int, ticks: int, grace: int, out_dir: Path) -> Path:
         checkpoint_every=10**9,
         neural_checkpoint_limit=0,
         event_detail=False,
-        stop_on_neural_extinction=False,
-        stop_on_full_extinction=False,
+        stop_on_neural_washout=False,
+        stop_on_full_washout=False,
         output_dir=str(out_dir / f"_scratch_{arm}_{seed}"),
     )
     sim = Simulation(config)
     ledger: dict[int, dict] = {}
     for tick in range(1, ticks + 1):
         sim.step()
-        for org in sim.organisms.values():
+        for org in sim.individuals.values():
             if org.kind != "agent" or not org.neural:
                 continue
             rec = ledger.get(org.id)
@@ -66,17 +66,17 @@ def run_arm(arm: str, seed: int, ticks: int, grace: int, out_dir: Path) -> Path:
                     "capacity": org.controller.hidden_size if org.controller else org.hidden_size(),
                     "born": tick - org.age,
                     "last_seen": tick,
-                    "offspring": org.offspring_count,
+                    "child": org.child_count,
                     "alive_at_end": True,
                 }
             else:
                 rec["last_seen"] = tick
-                rec["offspring"] = org.offspring_count
+                rec["child"] = org.child_count
         if tick % 500 == 0:
-            living = sum(1 for o in sim.organisms.values() if o.kind == "agent" and o.alive)
-            print(f"  [{arm} seed {seed}] tick {tick} living_agents={living} ledger={len(ledger)}", flush=True)
+            active = sum(1 for o in sim.individuals.values() if o.kind == "agent" and o.alive)
+            print(f"  [{arm} seed {seed}] tick {tick} active_agents={active} ledger={len(ledger)}", flush=True)
     for rec in ledger.values():
-        org = sim.organisms.get(rec["id"])
+        org = sim.individuals.get(rec["id"])
         rec["alive_at_end"] = bool(org is not None and org.alive)
         rec["lifespan"] = rec["last_seen"] - rec["born"]
     out = out_dir / f"{arm}_seed{seed}.jsonl"
@@ -93,12 +93,12 @@ def summarize(out_dir: Path) -> None:
         for line in path.open():
             rec = json.loads(line)
             by_arm_bin[(arm, bin_label(rec["capacity"]))].append(rec)
-    print(f"\n{'arm':<9}{'capacity bin':<15}{'n':>6}{'med life':>10}{'mean life':>11}{'% reach 150':>12}{'mean offspring':>15}")
+    print(f"\n{'arm':<9}{'capacity bin':<15}{'n':>6}{'med life':>10}{'mean life':>11}{'% reach 150':>12}{'mean child':>15}")
     for (arm, label), recs in sorted(by_arm_bin.items()):
         lives = [r["lifespan"] for r in recs]
         reach = sum(1 for r in recs if r["lifespan"] >= 150) / len(recs)
-        offspring = statistics.fmean(r["offspring"] for r in recs)
-        print(f"{arm:<9}{label:<15}{len(recs):>6}{statistics.median(lives):>10.0f}{statistics.fmean(lives):>11.1f}{reach*100:>11.1f}%{offspring:>15.2f}")
+        child = statistics.fmean(r["child"] for r in recs)
+        print(f"{arm:<9}{label:<15}{len(recs):>6}{statistics.median(lives):>10.0f}{statistics.fmean(lives):>11.1f}{reach*100:>11.1f}%{child:>15.2f}")
 
 
 def main() -> None:

@@ -4,15 +4,15 @@ from collections import defaultdict
 
 import numpy as np
 
-from .contracts import BrainLearningCase
-from microcosmic_god.brain import AUXILIARY_PREDICTION_HEADS, PREDICTION_HEADS, TinyController
+from .contracts import ControllerLearningCase
+from microcosmic_god.controller import AUXILIARY_PREDICTION_HEADS, PREDICTION_HEADS, TinyController
 
 
 def _clip(value: float, low: float, high: float) -> float:
     return max(low, min(high, float(value)))
 
 
-def _ensure_brain_state(controller: TinyController) -> None:
+def _ensure_controller_state(controller: TinyController) -> None:
     if controller.hidden.size != controller.hidden_size:
         controller.hidden = np.zeros(controller.hidden_size, dtype=np.float64)
     if controller.last_outputs.size != controller.output_size:
@@ -42,13 +42,13 @@ class TorchBrainRuntime:
         self.device = device
         self.dtype = torch.float32
 
-    def forward_many(self, brains: list[TinyController], observations: list[list[float]]) -> list[list[float]]:
-        if len(brains) != len(observations):
-            raise ValueError("brains and observations must have matching lengths")
-        outputs: list[list[float] | None] = [None for _ in brains]
+    def forward_many(self, controllers: list[TinyController], observations: list[list[float]]) -> list[list[float]]:
+        if len(controllers) != len(observations):
+            raise ValueError("controllers and observations must have matching lengths")
+        outputs: list[list[float] | None] = [None for _ in controllers]
         groups: dict[tuple[int, int, int], list[int]] = defaultdict(list)
-        for index, controller in enumerate(brains):
-            _ensure_brain_state(controller)
+        for index, controller in enumerate(controllers):
+            _ensure_controller_state(controller)
             groups[(controller.input_size, controller.hidden_size, controller.output_size)].append(index)
 
         for (input_size, hidden_size, output_size), indexes in groups.items():
@@ -57,21 +57,21 @@ class TorchBrainRuntime:
             inv = 1.0 / (max(1, input_size) ** 0.5)
             inv_h = 1.0 / (max(1, hidden_size) ** 0.5)
             x = torch.tensor([observations[i] for i in indexes], dtype=self.dtype, device=self.device)
-            hidden = torch.tensor([brains[i].hidden for i in indexes], dtype=self.dtype, device=self.device)
+            hidden = torch.tensor([controllers[i].hidden for i in indexes], dtype=self.dtype, device=self.device)
             weights_in = torch.tensor(
-                [brains[i].weights_in for i in indexes],
+                [controllers[i].weights_in for i in indexes],
                 dtype=self.dtype,
                 device=self.device,
             ).view(batch, hidden_size, input_size)
             weights_out = torch.tensor(
-                [brains[i].weights_out for i in indexes],
+                [controllers[i].weights_out for i in indexes],
                 dtype=self.dtype,
                 device=self.device,
             ).view(batch, output_size, hidden_size)
-            bias_h = torch.tensor([brains[i].bias_h for i in indexes], dtype=self.dtype, device=self.device)
-            bias_o = torch.tensor([brains[i].bias_o for i in indexes], dtype=self.dtype, device=self.device)
-            input_trace = torch.tensor([brains[i].input_trace for i in indexes], dtype=self.dtype, device=self.device)
-            hidden_trace = torch.tensor([brains[i].hidden_trace for i in indexes], dtype=self.dtype, device=self.device)
+            bias_h = torch.tensor([controllers[i].bias_h for i in indexes], dtype=self.dtype, device=self.device)
+            bias_o = torch.tensor([controllers[i].bias_o for i in indexes], dtype=self.dtype, device=self.device)
+            input_trace = torch.tensor([controllers[i].input_trace for i in indexes], dtype=self.dtype, device=self.device)
+            hidden_trace = torch.tensor([controllers[i].hidden_trace for i in indexes], dtype=self.dtype, device=self.device)
 
             input_trace = input_trace * 0.92 + x * 0.08
             new_hidden = torch.tanh(bias_h + hidden * 0.62 + torch.einsum("bhi,bi->bh", weights_in, x) * inv)
@@ -83,23 +83,23 @@ class TorchBrainRuntime:
             hidden_rows = new_hidden.detach().cpu().tolist()
             hidden_trace_rows = hidden_trace.detach().cpu().tolist()
             output_rows = out.detach().cpu().tolist()
-            for local, brain_index in enumerate(indexes):
-                controller = brains[brain_index]
+            for local, controller_index in enumerate(indexes):
+                controller = controllers[controller_index]
                 controller.last_inputs = np.array(x_rows[local], dtype=np.float64)
                 controller.input_trace = np.array(input_trace_rows[local], dtype=np.float64)
                 controller.hidden = np.array(hidden_rows[local], dtype=np.float64)
                 controller.hidden_trace = np.array(hidden_trace_rows[local], dtype=np.float64)
                 controller.last_outputs = np.array(output_rows[local], dtype=np.float64)
-                outputs[brain_index] = controller.last_outputs.tolist()
+                outputs[controller_index] = controller.last_outputs.tolist()
 
         return [row if row is not None else [] for row in outputs]
 
-    def learn_many(self, cases: list[BrainLearningCase]) -> list[float]:
+    def learn_many(self, cases: list[ControllerLearningCase]) -> list[float]:
         errors: list[float] = [0.0 for _ in cases]
         groups: dict[tuple[int, int, int], list[int]] = defaultdict(list)
         for index, case in enumerate(cases):
             controller = case.controller
-            _ensure_brain_state(controller)
+            _ensure_controller_state(controller)
             groups[(controller.input_size, controller.hidden_size, controller.output_size)].append(index)
 
         for (input_size, hidden_size, output_size), indexes in groups.items():
@@ -108,7 +108,7 @@ class TorchBrainRuntime:
 
     def _learn_group(
         self,
-        cases: list[BrainLearningCase],
+        cases: list[ControllerLearningCase],
         indexes: list[int],
         input_size: int,
         hidden_size: int,
@@ -118,18 +118,18 @@ class TorchBrainRuntime:
         torch = self.torch
         batch = len(indexes)
         inv_h = 1.0 / (max(1, hidden_size) ** 0.5)
-        brains = [cases[i].controller for i in indexes]
+        controllers = [cases[i].controller for i in indexes]
 
-        hidden = torch.tensor([controller.hidden for controller in brains], dtype=self.dtype, device=self.device)
-        hidden_trace = torch.tensor([controller.hidden_trace for controller in brains], dtype=self.dtype, device=self.device)
-        input_trace = torch.tensor([controller.input_trace for controller in brains], dtype=self.dtype, device=self.device)
-        weights_in = torch.tensor([controller.weights_in for controller in brains], dtype=self.dtype, device=self.device).view(batch, hidden_size, input_size)
-        weights_out = torch.tensor([controller.weights_out for controller in brains], dtype=self.dtype, device=self.device).view(batch, output_size, hidden_size)
-        bias_o = torch.tensor([controller.bias_o for controller in brains], dtype=self.dtype, device=self.device)
-        prediction_weights = torch.tensor([controller.prediction_weights for controller in brains], dtype=self.dtype, device=self.device)
+        hidden = torch.tensor([controller.hidden for controller in controllers], dtype=self.dtype, device=self.device)
+        hidden_trace = torch.tensor([controller.hidden_trace for controller in controllers], dtype=self.dtype, device=self.device)
+        input_trace = torch.tensor([controller.input_trace for controller in controllers], dtype=self.dtype, device=self.device)
+        weights_in = torch.tensor([controller.weights_in for controller in controllers], dtype=self.dtype, device=self.device).view(batch, hidden_size, input_size)
+        weights_out = torch.tensor([controller.weights_out for controller in controllers], dtype=self.dtype, device=self.device).view(batch, output_size, hidden_size)
+        bias_o = torch.tensor([controller.bias_o for controller in controllers], dtype=self.dtype, device=self.device)
+        prediction_weights = torch.tensor([controller.prediction_weights for controller in controllers], dtype=self.dtype, device=self.device)
         auxiliary_weights = {
             head: torch.tensor(
-                [controller.auxiliary_prediction_weights.get(head, [0.0 for _ in range(hidden_size)]) for controller in brains],
+                [controller.auxiliary_prediction_weights.get(head, [0.0 for _ in range(hidden_size)]) for controller in controllers],
                 dtype=self.dtype,
                 device=self.device,
             )

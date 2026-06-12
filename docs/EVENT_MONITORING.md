@@ -9,7 +9,7 @@ Most substrate dynamics should be counted, summarized, or sampled. Full event re
 The simulator needs three memory layers:
 
 - Hot counters: cheap aggregate counts for routine substrate events such as wear, drift, decay, failed actions, resource changes, and common movement.
-- Rolling context: bounded recent histories around individuals, places, structures, artifacts, marks, and lineages.
+- Rolling context: bounded recent histories around individuals, places, structures, artifacts, marks, and lines.
 - Promoted records: durable story events saved when an event crosses an interestingness threshold or becomes relevant through later success.
 
 ## What To Keep Cheap
@@ -33,13 +33,13 @@ Promote richer event records when something becomes causally interesting:
 
 - first successful affordance, structure type, causal unlock, or mark-read lesson
 - rare or high-payoff energy unlocks
-- a tool/structure/mark that is reused, copied, teaches another agent, or changes survival
-- sudden lineage expansion or collapse
+- a tool/structure/mark that is reused, copied, teaches another agent, or changes persistence
+- sudden line expansion or collapse
 - unexpected removal of a high-scoring learner/operator
 - cross-place information movement, such as reading a mark then making/marking elsewhere
 - durable-symbol-encoding-relevant reuse, such as a high-quality mark accumulating reads/value or feeding back to a present author
 - portable durable symbol encoding, such as lesson traces stored on carried artifacts and read in another place
-- sharp shifts in prediction error, tool skill, reproductive success, or environment mastery
+- sharp shifts in prediction error, tool skill, spawn success, or environment mastery
 - events involving agents later saved as checkpoints
 
 ## Retrospective Promotion
@@ -48,7 +48,7 @@ Some events only become interesting later. To support that without saving everyt
 
 - Keep bounded rolling traces per agent and place.
 - When a controller is checkpointed, include the recent local trace, relevant marks, tools, structures, and causal challenge state.
-- When a lineage becomes standout, promote a compact lineage story from recent parent/child/operator records.
+- When a line becomes standout, promote a compact line story from recent parent/child/operator records.
 - When a mark/tool/structure is reused often, start saving richer events for that object from that point onward.
 
 ## Interestingness Heuristic
@@ -62,12 +62,12 @@ interestingness =
   + surprise/prediction error
   + energy unlocked
   + tool/structure/mark reuse
-  + lineage/checkpoint relevance
+  + line/checkpoint relevance
   + cross-place or cross-agent transmission
   - routine background frequency
 ```
 
-This score is for logging and inspection only. It must not feed back into sealed-run fitness.
+This score is for logging and inspection only. It must not feed back into sealed-run quality.
 
 ## Storage Contract
 
@@ -77,7 +77,7 @@ Each run should produce:
 - bounded recent traces
 - promoted story events
 - checkpoint payloads for selected neural agents
-- final summaries with enough context to explain extinctions, standouts, and world changes
+- final summaries with enough context to explain washouts, standouts, and world changes
 
 The goal is to find the stories without being overwhelmed by the substrate.
 
@@ -85,7 +85,7 @@ The goal is to find the stories without being overwhelmed by the substrate.
 
 Runs now include `story_events.jsonl` alongside `events.jsonl`. Routine events still flow into counters and aggregates, while an observer promotes rare or consequential records such as causal unlocks, first/strong tool events, structures, intentional lesson inscriptions, successful mark reads, local author feedback from useful reads, notable creations/removals, and checkpoint saves.
 
-The observer keeps bounded recent context by subject (`organism:*`, `place:*`, `affordance:*`, etc.) and writes only compact payloads plus nearby context. It is descriptive only: story promotion does not alter fitness, action selection, reproduction, learning, or world physics.
+The observer keeps bounded recent context by subject (`individual:*`, `place:*`, `affordance:*`, etc.) and writes only compact payloads plus nearby context. It is descriptive only: story promotion does not alter quality, action selection, spawning, learning, or world physics.
 
 Plain marks remain cheap telemetry. Intentional lesson inscriptions and successful reads can become story events because they may connect tool knowledge across agents, places, and time. Compact mark-read payloads include durable symbol encoding fields such as `writing_quality`, `coherence`, `reads`, `portable`, and `self_read`; aggregate summaries include mark read value, portable mark counts, and author feedback by affordance, which should be enough to spot promising proto durable symbol encoding without overwhelming the run with inscription substrate.
 

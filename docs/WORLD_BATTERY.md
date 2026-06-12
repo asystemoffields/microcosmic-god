@@ -7,14 +7,14 @@ designed battery. Nothing here modifies the in-flight experiment.*
 ## Why named worlds
 
 The current sweep measures transfer to *generic* held-out worlds — same generator, new
-seeds, one harshness shift. That answers "does evolved structure help at all?" but
+seeds, one harshness shift. That answers "does developed structure help at all?" but
 compresses everything into a few numbers. A controller is a bundle of competencies
 (energy budgeting, spatial adaptation, causal unlocking, recovery from shocks), and a
 generic world exercises them in an uncontrolled mix.
 
 A **battery of named worlds**, each built to stress one competency, turns the transfer
-question into a *profile*: this champion carries its tool competence anywhere but starves
-under scarcity; that one survives everything and attempts nothing. Profiles are
+question into a *profile*: this champion carries its tool competence anywhere but exhausts
+under scarcity; that one persists everything and attempts nothing. Profiles are
 falsifiable, comparable across champions, and tell us what the substrate actually
 selects for.
 
@@ -27,7 +27,7 @@ Before any new world, the probe harness should log per-founder behavior, not jus
 outcomes: action-distribution entropy, move rate, observe rate, tool *attempts* (not just
 successes), places visited. Two open questions from the first sweep need exactly this:
 
-- **Strategy or stasis?** The learner champion survives on high energy with near-zero
+- **Strategy or stasis?** The learner champion persists on high energy with near-zero
   tool use. Smart conservation and catatonia look identical in outcome metrics.
 - **Skill or spam?** The tool champion posts 350–400 tool successes. Without the attempt
   denominator we can't distinguish precision from volume.
@@ -42,7 +42,7 @@ Worlds runnable **today** with existing config knobs:
 
 | World | Config | Competency under test |
 |---|---|---|
-| **Lean Season** | `initial_plants`/`initial_fungi` at ~40% of standard, harshness 1.6 | Energy budgeting under scarcity. The learner champion's presumptive home turf. |
+| **Lean Season** | `initial_collectors`/`initial_converters` at ~40% of standard, harshness 1.6 | Energy budgeting under scarcity. The learner champion's presumptive home turf. |
 | **Quiet Eden** | Abundant resources, harshness 0.8 | Control world. Does trained structure *cost* anything when pressure is off? Detects overfit-to-harshness. |
 | **Shifting Ground** | `world_refresh_every` ≈ 150 (physics resampled ~3× per 500-tick life) | Adaptation to distribution shift *within* a lifetime. The v2 multiworld champion was selected for exactly this; the battery tests whether that's real. |
 | **Season of Storms** | garden mode + a fixed intervention script: `disaster` at tick 150, `climate_shift` at 300 | Shock recovery. The same script applies to every condition, so the comparison stays paired. |
@@ -53,10 +53,10 @@ fields plumbed into `World.generate`):
 | World | New knobs | Competency under test |
 |---|---|---|
 | **The Torrent** | current/slope magnitude ranges | Spatial/motor adaptation when movement has strong costs and asymmetries. |
-| **Locked Larder** | causal-challenge density; fraction of energy gated behind challenges | Causal competence as survival necessity, not opportunity. Away game for everyone except (maybe) the tool champion. |
+| **Locked Larder** | causal-challenge density; fraction of energy gated behind challenges | Causal competence as persistence necessity, not opportunity. Away game for everyone except (maybe) the tool champion. |
 
 Battery protocol: same paired design as the current sweep (trained / random / permuted,
-shared genome, frozen reproduction, identical world seeds across conditions), ~8 seeds
+shared params, frozen spawning, identical world seeds across conditions), ~8 seeds
 per named world. A champion's result is its **transfer profile** across the battery —
 report the table, resist averaging it.
 
@@ -65,12 +65,12 @@ report the table, resist averaging it.
 1. **Plasticity ablation (2×2).** {trained, random} × {lifetime learning on, off}.
    Decomposes the transfer advantage into *inherited weights* vs *learning machinery*.
    The learning rule is part of what evolution tuned — this measures how much.
-2. **Genome swap.** Trained controller weights paired with a different champion's genome
+2. **Params swap.** Trained controller weights paired with a different champion's params
    (learning rates, valences, mobility). Is the advantage in the network or in the
-   hyperparameters it was evolved alongside?
+   hyperparameters it was developed alongside?
 3. **Experienced transplant.** The current harness resets hidden state and episodic
    memory on entry (correct for measuring weights). The complement: transplant a
-   *living* founder mid-life, memories intact. Does experience transfer, or anchor the
+   *active* founder mid-life, memories intact. Does experience transfer, or anchor the
    controller to the world it came from?
 
 ## Scale-aware discipline (how to apply the gate here)
@@ -78,7 +78,7 @@ report the table, resist averaging it.
 The vine-style gate (incremental + cross-draw-stable + held-out) transfers to this project,
 but with one substrate-specific amendment: **in mg, some effects need time and scale to
 show.** Lifetime learning accumulates over hundreds of ticks; tool chains and causal
-unlocks are rare events; evolved structure reflects how long and how hard selection ran.
+unlocks are rare events; developed structure reflects how long and how hard selection ran.
 A null at 500 ticks × cohort 16 × a 30-minute selection run is often "not visible at this
 scale," not "false."
 
@@ -106,8 +106,8 @@ substrate produces, not the ceiling.
 
 - **Harshness ladder.** Transfer as a function of world distance: harshness 1.35 → 1.65
   → 1.95 → 2.25 with fixed seeds. The current indist/ood pair gives two points; a curve
-  says whether evolved structure degrades gracefully or falls off a cliff.
-- **Evolve-in-battery.** If profiles are spiky (every champion a specialist), the next
+  says whether developed structure degrades gracefully or falls off a cliff.
+- **Develop-in-battery.** If profiles are spiky (every champion a specialist), the next
   selection run should *rotate worlds during evolution* (multi-world already exists) with
   the battery as held-out test — selecting for the profile, not a niche.
 - **Kaggle scale-out.** Each (champion × world × condition) cell is an independent

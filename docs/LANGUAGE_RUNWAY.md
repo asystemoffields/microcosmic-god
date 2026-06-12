@@ -7,7 +7,7 @@ The current communication substrate has two channels:
 - Temporary `signal` emissions, analogous to gesture or vocalization.
 - Durable but decaying `mark` inscriptions, analogous to primitive durable symbol encoding or environmental signs.
 
-Neither channel has fixed semantics. A token only matters if individuals learn or evolve useful associations between that token and later consequences.
+Neither channel has fixed semantics. A token only matters if individuals learn or develop useful associations between that token and later consequences.
 
 Marks are plain tokens unless an agent intentionally inscribes a lesson trace. Intentional traces require useful recent tool/problem experience plus enough body/material capacity, attention, memory, and `inscribe` skill to encode anything beyond the token. This is not a built-in word. It is a costly, lossy residue that can be attended to, ignored, misread, copied, or made useful by later agents with enough `interpret_mark` skill.
 
@@ -34,10 +34,10 @@ This keeps the door open for durable-symbol-encoding-like behavior while preserv
 2. Associative signaling:
    - agents learn that some tokens predict danger, food, tools, pairing, or movement
    - no grammar exists
-   - meaning is local and lineage-specific
+   - meaning is local and line-specific
 
 3. Socially useful signaling:
-   - tokens alter behavior in ways that improve survival or reproduction
+   - tokens alter behavior in ways that improve persistence or spawning
    - deception, alarm, recruitment, or pairing signals may appear
 
 4. External marks:
@@ -66,7 +66,7 @@ Controller checkpoints should preserve:
 
 - neural weights
 - innate controller template
-- genome and body configuration
+- params and body configuration
 - signal association values
 - memory summary
 - tool skills

@@ -2,7 +2,7 @@ import unittest
 from random import Random
 
 from microcosmic_god.config import RunConfig
-from microcosmic_god.organisms import individual_from_genome
+from microcosmic_god.individuals import individual_from_params
 from microcosmic_god.params import ParamVector
 from microcosmic_god.simulation import Simulation
 
@@ -11,7 +11,7 @@ def _agent(grace_ticks: int = 0, grace_floor: float = 0.35, budget: float = 24.0
     rng = Random(7)
     params = ParamVector.neural(rng)
     params.neural_budget = budget
-    individual = individual_from_genome(rng, 1, "agent", params, 0, 50.0)
+    individual = individual_from_params(rng, 1, "agent", params, 0, 50.0)
     individual.neural_upkeep_grace_ticks = grace_ticks
     individual.neural_upkeep_grace_floor = grace_floor
     return individual
@@ -68,7 +68,7 @@ class GrowthEconomicsTest(unittest.TestCase):
             output_dir="/tmp/mcg_grace_wire_test",
         )
         sim = Simulation(config)
-        agents = [o for o in sim.organisms.values() if o.kind == "agent"]
+        agents = [o for o in sim.individuals.values() if o.kind == "agent"]
         self.assertTrue(agents)
         self.assertTrue(all(a.neural_upkeep_grace_ticks == 120 for a in agents))
         self.assertTrue(all(abs(a.neural_upkeep_grace_floor - 0.4) < 1e-9 for a in agents))

@@ -2,7 +2,7 @@
 
 This folder holds speculative branches of the Microcosmic God idea that are worth preserving, but should not drive the near-term simulator.
 
-The main project remains focused on an artificial-life sandbox where the environment, tools, communication, learning, and reproduction can evolve in minutes-to-days. Side projects can imagine much larger or stranger versions without pulling Prototype 0 off course.
+The main project remains focused on an artificial-life sandbox where the environment, tools, communication, learning, and spawning can develop in minutes-to-days. Side projects can imagine much larger or stranger versions without pulling Prototype 0 off course.
 
 ## Projects
 

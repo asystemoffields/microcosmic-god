@@ -12,13 +12,13 @@ def _rand_weight(rng: Random) -> float:
     return rng.gauss(0.0, 0.45)
 
 
-PREDICTION_HEADS = ("energy", "damage", "reproduction", "social", "tool", "hazard")
+PREDICTION_HEADS = ("energy", "damage", "spawning", "social", "tool", "hazard")
 AUXILIARY_PREDICTION_HEADS = tuple(head for head in PREDICTION_HEADS if head != "energy")
 
 # Controller hidden-layer size cap. Controllers can grow up to this size if their
-# params.neural_budget evolves there; upkeep cost (in organisms.py) scales
+# params.neural_budget develops there; upkeep cost (in individuals.py) scales
 # with neural_budget, so growth pays off only when cognition does.
-BRAIN_HIDDEN_MAX = 512
+CONTROLLER_HIDDEN_MAX = 512
 
 # Information-as-attention: controllers learn (while active) where to look. Total
 # fidelity is bounded so the controller must choose; what's not attended to gets
@@ -31,9 +31,9 @@ BRAIN_HIDDEN_MAX = 512
 # (sigmoid(3.0) ≈ 0.95). Budget then bounds total attention at 0.95 * N, so
 # untrained avg fidelity ≈ 0.95 - learning bootstraps normally and the
 # information cost is gentle enough that early-stage agents still persist long
-# enough to reproduce. Selection pressure activates once the controller learns to
+# enough to spawn. Selection pressure activates once the controller learns to
 # push some features toward 1.0 (which requires pulling others down, since
-# total is bounded). Earlier 0.85 budget + 0.30 noise crashed early lineages
+# total is bounded). Earlier 0.85 budget + 0.30 noise crashed early lines
 # because untrained agents received too-noisy observations to bootstrap good
 # action policies before their energy ran out.
 ATTENTION_BUDGET_FRACTION = 0.95
@@ -42,7 +42,7 @@ ATTENTION_BIAS_INIT_SCALE = 0.10
 ATTENTION_NOISE_SCALE = 0.18
 # Attention learning rate raised 0.012 -> 0.040 (3.3x) because the 30-min
 # seed-1 run held attention concentration flat at 0.01-0.02 across 5000+
-# ticks - converging slower than agents could stay active and reproduce. This
+# ticks - converging slower than agents could stay active and spawn. This
 # couples directly to whether "cognition" actually pays off: a controller that
 # never learns to focus its attention can't outperform a smaller controller.
 ATTENTION_LEARNING_RATE_FACTOR = 0.040
@@ -55,7 +55,7 @@ ATTENTION_DECAY = 0.0008
 # prediction error) and valence (high-magnitude reward signals). Replay
 # during the `rest` action averages two random episodes and pushes them
 # back through the controller - the substrate for "offline replay association" /
-# offline consolidation. Capacity is params-controlled (mutates), so
+# offline consolidation. Capacity is params-controlled (perturbs), so
 # optimization decides whether episodic memory is worth its upkeep cost.
 EPISODIC_RETRIEVAL_TEMPERATURE = 1.0
 EPISODIC_INTEGRATION_WEIGHT = 0.18  # how much retrieved summary blends into hidden
@@ -122,7 +122,7 @@ class TinyController:
         with_attention: bool = True,
         episodic_capacity: int = 0,
     ) -> "TinyController":
-        hidden_size = max(1, min(BRAIN_HIDDEN_MAX, hidden_size))
+        hidden_size = max(1, min(CONTROLLER_HIDDEN_MAX, hidden_size))
         episodic_capacity = max(0, int(episodic_capacity))
 
         def _rand_matrix(shape: tuple[int, int]) -> np.ndarray:
@@ -289,7 +289,7 @@ class TinyController:
         Bounded by ATTENTION_BUDGET_FRACTION * input_size; what isn't attended
         to is replaced with gaussian noise. The controller's own hidden state shapes
         what it looks at, so attention is a function of context (adapts while
-        active via the learning rule below, and inheritable via clone_for_offspring).
+        active via the learning rule below, and inheritable via clone_for_child).
         """
         if not self._has_attention():
             self.last_attention = np.ones(self.input_size, dtype=_DTYPE)
@@ -487,12 +487,12 @@ class TinyController:
         hidden state with zeros - the existing function is preserved (the new
         units start near-inert and can learn to contribute over time). Shrink:
         rank hidden units by total |incoming|+|outgoing| weight magnitude and
-        keep the top new_size; the most heavily-used connections survive.
+        keep the top new_size; the most heavily-used connections persist.
 
-        This allows neural_budget mutations to actually change controller capacity
-        across generations without losing the parent's learned representations.
+        This allows neural_budget perturbations to actually change controller capacity
+        across cycles without losing the parent's learned representations.
         """
-        new_size = max(1, min(BRAIN_HIDDEN_MAX, int(new_size)))
+        new_size = max(1, min(CONTROLLER_HIDDEN_MAX, int(new_size)))
         old_size = self.hidden_size
         if new_size == old_size:
             return
@@ -562,10 +562,10 @@ class TinyController:
             self.last_episodic_attention = _empty_array(capacity)
         self.hidden_size = new_size
 
-    def clone_for_offspring(
+    def clone_for_child(
         self,
         rng: Random,
-        mutation_scale: float = 0.03,
+        perturbation_scale: float = 0.03,
         target_hidden_size: int | None = None,
     ) -> "TinyController":
         # Deep-copy state via the dict round-trip to avoid alias bugs, then
@@ -573,35 +573,35 @@ class TinyController:
         data = self.to_dict(include_state=False)
 
         # Each weight gets an independent gaussian perturbation. We loop the
-        # rng element-wise to use the caller-provided Random for reproducibility
+        # rng element-wise to use the caller-provided Random for repeatability
         # rather than numpy's separate global state.
-        def _mutate_array(arr: np.ndarray) -> np.ndarray:
+        def _perturb_array(arr: np.ndarray) -> np.ndarray:
             shape = arr.shape
             flat = arr.flatten()
             for i in range(flat.size):
-                flat[i] += rng.gauss(0.0, mutation_scale)
+                flat[i] += rng.gauss(0.0, perturbation_scale)
             return flat.reshape(shape)
 
-        def _mutated(name: str, fallback_shape: tuple[int, ...] | None = None) -> np.ndarray:
+        def _perturbed(name: str, fallback_shape: tuple[int, ...] | None = None) -> np.ndarray:
             arr = np.array(data[name], dtype=_DTYPE)
             if fallback_shape is not None and arr.size and arr.shape != fallback_shape:
                 arr = arr.reshape(fallback_shape)
-            return _mutate_array(arr)
+            return _perturb_array(arr)
 
-        weights_in = _mutated("weights_in", (self.hidden_size, self.input_size))
-        weights_out = _mutated("weights_out", (self.output_size, self.hidden_size))
-        bias_h = _mutated("bias_h")
-        bias_o = _mutated("bias_o")
-        prediction_weights = _mutated("prediction_weights")
+        weights_in = _perturbed("weights_in", (self.hidden_size, self.input_size))
+        weights_out = _perturbed("weights_out", (self.output_size, self.hidden_size))
+        bias_h = _perturbed("bias_h")
+        bias_o = _perturbed("bias_o")
+        prediction_weights = _perturbed("prediction_weights")
         auxiliary_prediction_weights: dict[str, np.ndarray] = {}
         for head, weights_list in data.get("auxiliary_prediction_weights", {}).items():
             arr = np.array(weights_list, dtype=_DTYPE)
-            auxiliary_prediction_weights[head] = _mutate_array(arr)
+            auxiliary_prediction_weights[head] = _perturb_array(arr)
         if self._has_attention() and data.get("attention_weights"):
-            attention_weights = _mutate_array(
+            attention_weights = _perturb_array(
                 np.array(data["attention_weights"], dtype=_DTYPE).reshape(self.hidden_size, self.input_size)
             )
-            attention_bias = _mutate_array(np.array(data["attention_bias"], dtype=_DTYPE))
+            attention_bias = _perturb_array(np.array(data["attention_bias"], dtype=_DTYPE))
         else:
             attention_weights = _empty_array((0, 0))
             attention_bias = _empty_array(0)

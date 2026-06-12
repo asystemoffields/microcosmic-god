@@ -85,7 +85,7 @@ class PatchRecoveryTest(unittest.TestCase):
     def test_substantial_feed_starts_recovery(self):
         config = RunConfig.from_profile("smoke", patch_recovery_ticks=40, seed=11)
         sim = Simulation(config)
-        agent = next(ind for ind in sim.organisms.values() if ind.kind == "agent" and ind.alive)
+        agent = next(ind for ind in sim.individuals.values() if ind.kind == "agent" and ind.alive)
         agent.location = 0
         sim.world.places[0].resources["essence"] = 60.0
         sim._eat(agent)

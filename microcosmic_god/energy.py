@@ -7,7 +7,7 @@ from typing import Any, Mapping
 ENERGY_KINDS = (
     "solar",
     "essence",
-    "organic_store",
+    "residue_store",
     "thermal",
     "mechanical",
     "electrical",
@@ -18,7 +18,7 @@ STRUCTURE_DECAY_CHANNELS = (
     "baseline",
     "mechanical",
     "essence",
-    "organic",
+    "residue",
     "thermal",
     "solubility",
     "radiation",
@@ -610,7 +610,7 @@ def structure_decay_channels(structure: Structure, environment: Mapping[str, flo
     salinity = _clamp01(environment.get("salinity", 0.0))
     oxygen = _clamp01(environment.get("oxygen", 0.35))
     acidity = _clamp01(environment.get("acidity", 0.10))
-    organic_activity = _clamp01(environment.get("organic_activity", 0.0))
+    residue_activity = _clamp01(environment.get("residue_activity", 0.0))
     abrasion = _clamp01(environment.get("abrasion", 0.0))
     wet_dry_cycle = _clamp01(environment.get("wet_dry_cycle", 0.0))
     current = _clamp01(environment.get("current_exposure", 0.0))
@@ -632,13 +632,13 @@ def structure_decay_channels(structure: Structure, environment: Mapping[str, flo
     exposed_surface = _clamp01(0.42 + permeable * 0.22 + porous * 0.24 + absorbent * 0.12 - coating * 0.32)
     mechanical_resistance = _clamp01(abrasion_resistance * 0.55 + support * 0.22 + anchor * 0.16 + flexible * 0.10)
     essence_resistance = _clamp01(corrosion_resistance * 0.62 + coating * 0.28 + density * 0.08)
-    organic_resistance = _clamp01(coating * 0.40 + corrosion_resistance * 0.16 + hard * 0.16 + max(0.0, 1.0 - porous) * 0.10)
+    residue_resistance = _clamp01(coating * 0.40 + corrosion_resistance * 0.16 + hard * 0.16 + max(0.0, 1.0 - porous) * 0.10)
     thermal_resistance = _clamp01(thermal_stability * 0.62 + caps.get("insulate", 0.0) * 0.14 + density * 0.10)
     fatigue_resistance = _clamp01(fatigue_resistance * 0.58 + support * 0.18 + flexible * 0.10 + anchor * 0.08)
 
     wet_contact = _clamp01(fluid * 0.48 + humidity * 0.32 + wet_dry_cycle * 0.20)
     corrosion_env = _clamp01(salinity * 0.42 + acidity * 0.38 + oxygen * humidity * 0.25 + wet_dry_cycle * 0.12)
-    organic_window = _clamp01(1.0 - abs(temperature - 0.46) * 1.65)
+    residue_window = _clamp01(1.0 - abs(temperature - 0.46) * 1.65)
     thermal_env = _clamp01(heat_excess * 1.20 + cold_excess * 1.50 + wet_dry_cycle * 0.18 + light * 0.08)
     movement_env = _clamp01(current * 0.42 + pressure * 0.18 + abrasion * 0.34 + flow_gradient * 0.22)
     use_env = _clamp01(flow_gradient * (channel * 0.35 + gradient_harvest * 0.45) + reaction_surface * acidity * 0.20 + winnow_cap * wet_contact * 0.10)
@@ -648,7 +648,7 @@ def structure_decay_channels(structure: Structure, environment: Mapping[str, flo
         "baseline": 0.0010 + exposed_surface * 0.0009,
         "mechanical": movement_env * size_load * max(0.04, 1.0 - mechanical_resistance * 0.82) * 0.026,
         "essence": corrosion_env * wet_contact * oxidizable * exposed_surface * max(0.03, 1.0 - essence_resistance * 0.86) * 0.040,
-        "organic": organic_activity * wet_contact * biodegradable * organic_window * max(0.04, 1.0 - organic_resistance * 0.78) * 0.030,
+        "residue": residue_activity * wet_contact * biodegradable * residue_window * max(0.04, 1.0 - residue_resistance * 0.78) * 0.030,
         "thermal": thermal_env * (combustible * 0.22 + brittle * 0.14 + 0.16) * max(0.04, 1.0 - thermal_resistance * 0.80) * 0.025,
         "solubility": fluid * (acidity * 0.42 + salinity * 0.22 + current * 0.18 + wet_dry_cycle * 0.18) * water_soluble * exposed_surface * max(0.05, 1.0 - coating * 0.72) * 0.034,
         "radiation": light * uv_sensitivity * max(0.04, 1.0 - shelter * 0.55 - enclose * 0.18) * 0.010,

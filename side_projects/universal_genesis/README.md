@@ -12,12 +12,12 @@ The simulation currently starts after many conveniences already exist:
 - typed energy gradients
 - materials
 - individuals
-- reproduction
+- spawning
 - neural agents
 - tools
 - communication channels
 
-Universal Genesis removes those conveniences. The simulation begins with no individuals, no genomes, no tools, and no preselected biosphere. If life appears, it appears because matter, energy, chemistry, and planetary conditions made it possible.
+Universal Genesis removes those conveniences. The simulation begins with no individuals, no param_vectors, no tools, and no preselected biosphere. If life appears, it appears because matter, energy, chemistry, and planetary conditions made it possible.
 
 ## Why It Matters
 
@@ -39,7 +39,7 @@ It would ask whether increasingly complex structure can arise through:
 - autocatalysis
 - self-maintaining boundaries
 - replication
-- interacting populations
+- interacting pools
 - learning
 - intelligence
 
@@ -90,9 +90,9 @@ A realistic version would need layers, not one monolithic simulator:
    - upkeep-like cycles
    - heredity-like persistence
 
-6. Biology:
+6. Adaptation:
    - cells or cell analogs
-   - interacting populations
+   - interacting pools
    - evolution
    - multicellularity-like aggregation
    - nervous systems or control networks
@@ -128,7 +128,7 @@ The main simulator can borrow principles from Universal Genesis:
 - energy gradients before individuals
 - chemistry and tools as continuous extensions of physics
 
-But the main simulator may still seed individuals because its purpose is to study evolved intelligence and artificial life on human-manageable timescales.
+But the main simulator may still seed individuals because its purpose is to study developed intelligence and artificial life on human-manageable timescales.
 
 ## First Prototype Idea
 

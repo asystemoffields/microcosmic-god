@@ -18,34 +18,22 @@ def perturb_float(rng: Random, value: float, rate: float, scale: float, low: flo
 
 
 NEURAL_BUDGET_MAX = 512.0
-# Mutations and combination distances on neural_budget were calibrated for a
+# Perturbations and combination distances on neural_budget were calibrated for a
 # 128-unit operating range. The cap was raised to 512 to allow controllers to grow,
-# but mutations should still produce the same absolute step magnitudes, not
+# but perturbations should still produce the same absolute step magnitudes, not
 # 4x larger ones - otherwise a single perturbation can shove a controller from 8 to 40
-# units, which spikes upkeep cost and crashes early lineages.
+# units, which spikes upkeep cost and crashes early lines.
 NEURAL_BUDGET_PERTURBATION_REFERENCE = 128.0
 MEMORY_BUDGET_MAX = 48.0
 # Episodic memory capacity: number of past hidden-state snapshots a controller can
-# store. 0 = no episodic memory (legacy behavior). ParamVector-controlled, mutates
-# like other budgets. Upkeep cost is added in organisms.upkeep_cost.
+# store. 0 = no episodic memory (legacy behavior). ParamVector-controlled, perturbs
+# like other budgets. Upkeep cost is added in individuals.upkeep_cost.
 EPISODIC_CAPACITY_MAX = 32.0
 
 
-# ParamVector field names were neutralized in source, but the on-disk checkpoint keys
-# keep their original strings so existing run artifacts and the transfer harness
-# round-trip unchanged. Map: source (neutral) name -> on-disk (legacy) key.
-_LEGACY_KEYS = {
-    "solar_energy_gain": "radiant_metabolism",
-    "essence_energy_gain": "chemical_metabolism",
-    "solar_capture_area": "photosynthesis_surface",
-    "essence_conversion": "digestion",
-    "pairing_selectivity": "mate_selectivity",
-    "single_parent_threshold": "asexual_threshold",
-    "two_parent_threshold": "sexual_threshold",
-    "perturbation_rate": "mutation_rate",
-    "resilience": "armor",
-}
-_LEGACY_TO_NEUTRAL = {legacy: neutral for neutral, legacy in _LEGACY_KEYS.items()}
+# On-disk checkpoint keys are the ParamVector field names directly. Older
+# artifacts that used different on-disk key strings were migrated to these names
+# in place during the pass-11 neutralization; no compatibility shim remains.
 
 
 @dataclass(slots=True)
@@ -74,7 +62,7 @@ class ParamVector:
     learning_rate: float
     signal_strength: float
     pairing_selectivity: float
-    offspring_investment: float
+    child_investment: float
     single_parent_threshold: float
     two_parent_threshold: float
     developmental_complexity: float
@@ -82,14 +70,14 @@ class ParamVector:
     valence_energy: float
     valence_health: float
     valence_damage: float
-    valence_reproduction: float
+    valence_spawn: float
     valence_social: float
     # Episodic memory capacity (number of stored hidden-state snapshots).
-    # Optional v2 controller feature; 0 disables. ParamVector-evolvable.
+    # Optional v2 controller feature; 0 disables. ParamVector-adaptable.
     episodic_capacity: float = 0.0
 
     @classmethod
-    def plant(cls, rng: Random) -> "ParamVector":
+    def collector(cls, rng: Random) -> "ParamVector":
         return cls(
             solar_energy_gain=rng.uniform(0.60, 0.95),
             essence_energy_gain=rng.uniform(0.02, 0.20),
@@ -115,7 +103,7 @@ class ParamVector:
             learning_rate=0.0,
             signal_strength=0.0,
             pairing_selectivity=0.0,
-            offspring_investment=rng.uniform(0.15, 0.45),
+            child_investment=rng.uniform(0.15, 0.45),
             single_parent_threshold=rng.uniform(0.25, 0.45),
             two_parent_threshold=rng.uniform(0.50, 0.85),
             developmental_complexity=rng.uniform(0.10, 0.35),
@@ -123,12 +111,12 @@ class ParamVector:
             valence_energy=rng.uniform(0.15, 0.55),
             valence_health=rng.uniform(0.10, 0.35),
             valence_damage=rng.uniform(0.25, 0.70),
-            valence_reproduction=rng.uniform(0.00, 0.25),
+            valence_spawn=rng.uniform(0.00, 0.25),
             valence_social=rng.uniform(0.00, 0.08),
         )
 
     @classmethod
-    def fungus(cls, rng: Random) -> "ParamVector":
+    def converter(cls, rng: Random) -> "ParamVector":
         return cls(
             solar_energy_gain=rng.uniform(0.00, 0.15),
             essence_energy_gain=rng.uniform(0.45, 0.95),
@@ -154,7 +142,7 @@ class ParamVector:
             learning_rate=0.0,
             signal_strength=0.0,
             pairing_selectivity=0.0,
-            offspring_investment=rng.uniform(0.12, 0.40),
+            child_investment=rng.uniform(0.12, 0.40),
             single_parent_threshold=rng.uniform(0.22, 0.45),
             two_parent_threshold=rng.uniform(0.45, 0.80),
             developmental_complexity=rng.uniform(0.10, 0.40),
@@ -162,7 +150,7 @@ class ParamVector:
             valence_energy=rng.uniform(0.10, 0.45),
             valence_health=rng.uniform(0.05, 0.25),
             valence_damage=rng.uniform(0.15, 0.50),
-            valence_reproduction=rng.uniform(0.00, 0.22),
+            valence_spawn=rng.uniform(0.00, 0.22),
             valence_social=rng.uniform(0.00, 0.08),
         )
 
@@ -193,7 +181,7 @@ class ParamVector:
             learning_rate=rng.uniform(0.03, 0.22),
             signal_strength=rng.uniform(0.00, 0.55),
             pairing_selectivity=rng.uniform(0.10, 0.85),
-            offspring_investment=rng.uniform(0.20, 0.70),
+            child_investment=rng.uniform(0.20, 0.70),
             single_parent_threshold=rng.uniform(0.35, 0.65),
             two_parent_threshold=rng.uniform(0.45, 0.85),
             developmental_complexity=rng.uniform(0.45, 0.95),
@@ -201,30 +189,27 @@ class ParamVector:
             valence_energy=rng.uniform(0.20, 0.85),
             valence_health=rng.uniform(0.15, 0.65),
             valence_damage=rng.uniform(0.35, 0.95),
-            valence_reproduction=rng.uniform(0.00, 0.55),
+            valence_spawn=rng.uniform(0.00, 0.55),
             valence_social=rng.uniform(0.00, 0.35),
             # Initial neural agents start with modest episodic capacity (0-8 slots).
-            # Mutation can grow it up to EPISODIC_CAPACITY_MAX or shrink it to 0.
+            # Perturbation can grow it up to EPISODIC_CAPACITY_MAX or shrink it to 0.
             # Controllers that find episodic memory useful keep it; controllers that don't
-            # pay upkeep cost for nothing and lose to lineages that mutated it away.
+            # pay upkeep cost for nothing and lose to lines that perturbed it away.
             episodic_capacity=rng.uniform(0.0, 8.0),
         )
 
     def to_dict(self) -> dict[str, Any]:
-        # Emit legacy on-disk keys so checkpoints/harness stay byte-compatible.
-        return {_LEGACY_KEYS.get(k, k): v for k, v in asdict(self).items()}
+        return asdict(self)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "ParamVector":
-        # Accept both legacy on-disk keys and neutral source names.
-        data = {_LEGACY_TO_NEUTRAL.get(k, k): v for k, v in data.items()}
         defaults = {
             "aquatic_affinity": 0.25,
             "salinity_tolerance": 0.20,
             "desiccation_tolerance": 0.55,
             "pressure_tolerance": 0.20,
             "buoyancy": 0.25,
-            "episodic_capacity": 0.0,  # backward-compat: legacy genomes had no episodic memory
+            "episodic_capacity": 0.0,  # backward-compat: legacy param_vectors had no episodic memory
         }
         for field in fields(cls):
             if field.name not in data and field.name in defaults:
@@ -261,7 +246,7 @@ class ParamVector:
                 data[key] = perturb_float(rng, value / MEMORY_BUDGET_MAX, rate, strength, 0.0, 1.0) * MEMORY_BUDGET_MAX
             else:
                 data[key] = perturb_float(rng, float(value), rate, strength)
-        data["mutation_rate"] = perturb_float(rng, data["mutation_rate"], rate, strength * 0.4, 0.001, 0.20)
+        data["perturbation_rate"] = perturb_float(rng, data["perturbation_rate"], rate, strength * 0.4, 0.001, 0.20)
         return ParamVector.from_dict(data)
 
     @staticmethod

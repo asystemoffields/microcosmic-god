@@ -1,7 +1,7 @@
 [project]
 name = "microcosmic-god"
 version = "0.1.0"
-description = "A headless artificial life sandbox for evolving ecology, intelligence, tools, and communication."
+description = "A headless artificial life sandbox for developing dynamics, intelligence, tools, and communication."
 requires-python = ">=3.12"
 dependencies = []
 

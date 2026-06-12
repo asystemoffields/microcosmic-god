@@ -8,7 +8,7 @@ The strongest code seam is `microcosmic_god/energy.py`: affordances emerge from 
 
 1. Snapshot rosters can violate locality.
 
-   In `microcosmic_god/simulation.py`, `rosters` is captured once before action resolution and then reused after actions can move, deactivate, or create individuals. This means drains, local capacity checks, reproduction checks, and social observation can operate against a start-of-tick population snapshot instead of the individuals actually present at the moment of resolution.
+   In `microcosmic_god/simulation.py`, `rosters` is captured once before action resolution and then reused after actions can move, deactivate, or create individuals. This means drains, local capacity checks, spawning checks, and social observation can operate against a start-of-tick pool snapshot instead of the individuals actually present at the moment of resolution.
 
    Decide whether the tick model is intentionally simultaneous or intentionally sequential. If simultaneous, make that explicit and ensure effects are resolved from staged intents. If sequential, refresh or query local rosters after movement/creation/removal-sensitive actions. Right now it is a hybrid, which can make physically local behavior subtly non-local.
 
@@ -26,12 +26,12 @@ The strongest code seam is `microcosmic_god/energy.py`: affordances emerge from 
 
 ## Architecture Opportunities
 
-`microcosmic_god/simulation.py` has become the monolithic central class. It currently holds action choice, action resolution, learning feedback, reproduction, system-level dynamics, physics coupling, interventions, logging, and checkpoint triggers. That is okay for Prototype 0, but the next stability step should be extracting law modules around:
+`microcosmic_god/simulation.py` has become the monolithic central class. It currently holds action choice, action resolution, learning feedback, spawning, system-level dynamics, physics coupling, interventions, logging, and checkpoint triggers. That is okay for Prototype 0, but the next stability step should be extracting law modules around:
 
 - `actions`
-- `reproduction`
+- `spawning`
 - `learning`
-- `ecology`
+- `dynamics`
 - `physics_effects`
 - `checkpoint_policy`
 
@@ -46,7 +46,7 @@ The ANN is recurrent in a limited sense: hidden state has a fixed self-leak, but
 - A locality test where one individual moves away before another drains or observes, verifying the target set matches the intended tick semantics.
 - A signal-channel test proving every learnable token can affect observations, or proving the intended compression is applied.
 - A crafting-failure test verifying failed attempts have the intended cost, material loss, and skill gain.
-- A reproduction-capacity test around creations after same-tick movement into or out of a place.
+- A spawning-capacity test around creations after same-tick movement into or out of a place.
 
 Overall assessment: keep going. The project has a real alife-shaped soul already. The next work should protect the causal contract with tests and small module boundaries, not pivot the design.
 
@@ -54,14 +54,14 @@ Overall assessment: keep going. The project has a real alife-shaped soul already
 
 Addressed the three concrete findings in the first follow-up patch:
 
-- Tick semantics are now explicit: perception uses a tick-start snapshot, while action effects query current live locations/populations during resolution.
+- Tick semantics are now explicit: perception uses a tick-start snapshot, while action effects query current live locations/pools during resolution.
 - All eight learned signal token values are exposed to the ANN observation vector.
 - Failed crafting can destroy or scatter attempted components, and bind skill gain scales with material risk.
 
 Added regression tests for:
 
 - current-location drain locality
-- asexual reproduction capacity after same-tick local population changes
+- solo spawning capacity after same-tick local pool changes
 - full signal-token observability
 - failed-crafting material loss and skill gain
 

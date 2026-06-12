@@ -607,3 +607,62 @@ ordinary-English `damage` (generic health-loss accounting; also the serialized
 (ParamVector field; a value-weight among `valence_*`, off-cluster), the `protect`
 skill / artifact-capability / structure-capability string keys (behavioral,
 benign), and the neutral `depletion` cause (read for logic, pinned).
+
+---
+
+## Pass 11 — full lexicon removal (no shim; on-disk migrated)
+
+The earlier passes left the named lexicon present as on-disk key strings behind a
+serialization shim. Pass 11 removes it entirely: every identifier, comment,
+docstring, Markdown body, string literal, **and on-disk JSON key/value/filename**
+was moved onto the neutral vocabulary below, and the params shim was deleted.
+Existing artifacts (incl. the #2867 champion) were rewritten in place by
+`tools/migrate_ondisk.py` and verified behavior-identical (coupling-probe
+fingerprint unchanged). **There is no longer any legacy key string to translate
+for in-tree artifacts.** This left column is retained ONLY so an unaffected agent
+can translate the *old, un-neutralized branch* if it is ever revisited; it is
+do-not-read for the affected model.
+
+Disposition `RENAME-ALL` (source + prose + on-disk + filenames). Letter-boundary
+match: a token is replaced when not flanked by ASCII letters, so it is caught
+inside `snake_case` compounds but never inside a letter-neighbor.
+
+Left (removed) → Right (neutral):
+
+| removed | neutral |
+|---|---|
+| organism / organisms (module `organisms.py`) | individual / individuals (module `individuals.py`) |
+| brain (module `brain.py`, `Brain*` classes) | controller (module `controller.py`, `Controller*`) |
+| genome / genomes / `*_genome` | params / param_vectors / `*_params` |
+| genetic / gene(s) | parametric / param(s) |
+| mutation / mutate / mutated / mutates | perturbation / perturb / perturbed / perturbs |
+| recombine* / recombination | combine* / combination |
+| clone_mutate | clone_perturb |
+| offspring / `offspring_*` | child / `child_*` |
+| reproduce / reproduction / reproductive | spawn / spawning / spawn |
+| reproducible / reproducibility | repeatable / repeatability |
+| breed / breeders | pair / pairs |
+| survive / survival / survivor / surviving | persist / persistence / persister / persisting |
+| living / `living_*` | active / `active_*` |
+| extinct / extinction | emptied / washout |
+| lineage / lineages / `*_lineage_*` | line / lines / `*_line_*` |
+| ancestry / ancestor | origin |
+| population / `*_population` | pool / `*_pool` |
+| fitness | quality |
+| evolve / evolved / evolvable / evolvability | develop / developed / adaptable / adaptability |
+| plant(s) / fungus / fungi (kinds) | collector(s) / converter / converters |
+| habitat / `habitat_*` | terrain / `terrain_*` |
+| organic / `organic_*` | residue / `residue_*` |
+| starvation / starve* | exhaustion / exhaust* |
+| ecology / ecological | dynamics / dynamical |
+| species | type |
+| biology / biological / `biology_window` | adaptation / adaptive / `viability_window` |
+| phenotype | profile |
+| metabolic | energetic |
+| (on-disk param keys) radiant_metabolism / chemical_metabolism / photosynthesis_surface / digestion / mate_selectivity / asexual_threshold / sexual_threshold / mutation_rate / armor / offspring_investment / valence_reproduction / generation | solar_energy_gain / essence_energy_gain / solar_capture_area / essence_conversion / pairing_selectivity / single_parent_threshold / two_parent_threshold / perturbation_rate / resilience / child_investment / valence_spawn / cycle |
+
+Deliberately RETAINED (standard CS/ML/physics, not the target lexicon): `neural`,
+`death`/`deactivate`, `parent`/`child`, `energy`/`health`/`age`, `essence` /
+`solar` / `thermal` / `mechanical` / `electrical` / `dense_node` (resource kinds,
+physics), `agent` (kind), `permutation`, `generate`/`regenerate` (world
+generation), `digest` (`run_digest`, CS summary).

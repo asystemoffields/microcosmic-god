@@ -20,10 +20,10 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--ticks", type=int, default=None, help="maximum simulation ticks")
     run.add_argument("--wall-seconds", type=float, default=None, help="maximum wall-clock seconds; 0 disables wall limit")
     run.add_argument("--places", type=int, default=None)
-    run.add_argument("--plants", type=int, default=None)
-    run.add_argument("--fungi", type=int, default=None)
+    run.add_argument("--collectors", type=int, default=None)
+    run.add_argument("--converters", type=int, default=None)
     run.add_argument("--agents", type=int, default=None)
-    run.add_argument("--max-population", type=int, default=None)
+    run.add_argument("--max-pool", type=int, default=None)
     run.add_argument("--output-dir", default=None)
     run.add_argument("--log-every", type=int, default=None)
     run.add_argument("--checkpoint-every", type=int, default=None)
@@ -34,7 +34,7 @@ def build_parser() -> argparse.ArgumentParser:
         dest="environment_harshness",
         type=float,
         default=None,
-        help="environment pressure multiplier; 1.0 is baseline, higher values reduce easy survival",
+        help="environment pressure multiplier; 1.0 is baseline, higher values reduce easy persistence",
     )
     run.add_argument(
         "--world-refresh-every",
@@ -73,10 +73,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run.add_argument(
         "--structural-rate",
-        dest="structural_mutation_rate",
+        dest="structural_perturbation_rate",
         type=float,
         default=None,
-        help="probability a modular clone takes a structural mutation (duplicate/add/prune)",
+        help="probability a modular clone takes a structural perturbation (duplicate/add/prune)",
     )
     run.add_argument(
         "--patch-recovery-ticks",
@@ -111,13 +111,13 @@ def build_parser() -> argparse.ArgumentParser:
         dest="drive_injection_scale",
         type=float,
         default=None,
-        help="scale on the harness-side coordinate/clone_mutate output boost for adult, energy-rich individuals (1.0 = legacy, 0 = controller outputs only)",
+        help="scale on the harness-side coordinate/clone_perturb output boost for adult, energy-rich individuals (1.0 = legacy, 0 = controller outputs only)",
     )
     run.add_argument("--backend", choices=["cpu", "torch"], default=None, help="controller compute backend")
     run.add_argument("--device", default=None, help="compute device for --backend torch, such as auto, cpu, cuda, or cuda:0")
     run.add_argument("--garden", action="store_true", help="allow logged interventions")
     run.add_argument("--interventions", default=None, help="path to an interventions JSON file")
-    run.add_argument("--no-stop-on-neural-extinction", action="store_true")
+    run.add_argument("--no-stop-on-neural-washout", action="store_true")
     run.add_argument("--quiet-events", action="store_true", help="only write aggregate events, not births/deaths/tool details")
     run.add_argument("--dry-run", action="store_true", help="print resolved config and exit")
 
@@ -133,10 +133,10 @@ def config_from_args(args: argparse.Namespace) -> RunConfig:
         "max_ticks": args.ticks,
         "max_wall_seconds": args.wall_seconds,
         "places": args.places,
-        "initial_plants": args.plants,
-        "initial_fungi": args.fungi,
+        "initial_collectors": args.collectors,
+        "initial_converters": args.converters,
         "initial_agents": args.agents,
-        "max_population": args.max_population,
+        "max_pool": args.max_pool,
         "output_dir": args.output_dir,
         "log_every": args.log_every,
         "checkpoint_every": args.checkpoint_every,
@@ -147,7 +147,7 @@ def config_from_args(args: argparse.Namespace) -> RunConfig:
         "neural_upkeep_grace_floor": args.neural_upkeep_grace_floor,
         "initial_modular_fraction": args.initial_modular_fraction,
         "initial_modular_max_blocks": args.initial_modular_max_blocks,
-        "structural_mutation_rate": args.structural_mutation_rate,
+        "structural_perturbation_rate": args.structural_perturbation_rate,
         "patch_recovery_ticks": args.patch_recovery_ticks,
         "patch_recovery_floor": args.patch_recovery_floor,
         "patch_recovery_jitter": args.patch_recovery_jitter,
@@ -157,7 +157,7 @@ def config_from_args(args: argparse.Namespace) -> RunConfig:
         "device": args.device,
         "run_mode": "garden" if args.garden else "sealed",
         "interventions_path": args.interventions,
-        "stop_on_neural_extinction": not args.no_stop_on_neural_extinction,
+        "stop_on_neural_washout": not args.no_stop_on_neural_washout,
         "event_detail": not args.quiet_events,
     }
     return RunConfig.from_profile(args.profile, **overrides)
@@ -196,10 +196,10 @@ def print_run_card(config: RunConfig) -> None:
     print(f"  max ticks: {config.max_ticks:,}")
     print(f"  wall limit: {'none' if config.max_wall_seconds == 0 else f'{config.max_wall_seconds:.1f}s'}")
     print(f"  places: {config.places}")
-    print(f"  initial pool: plants={config.initial_plants}, fungi={config.initial_fungi}, neural_agents={config.initial_agents}")
-    print(f"  max pool: {config.max_population}")
-    print(f"  stop on neural extinction: {config.stop_on_neural_extinction}")
-    print(f"  stop on full extinction: {config.stop_on_full_extinction}")
+    print(f"  initial pool: collectors={config.initial_collectors}, converters={config.initial_converters}, neural_agents={config.initial_agents}")
+    print(f"  max pool: {config.max_pool}")
+    print(f"  stop on neural washout: {config.stop_on_neural_washout}")
+    print(f"  stop on full washout: {config.stop_on_full_washout}")
     print(f"  log every: {config.log_every} ticks")
     print(f"  checkpoint every: {config.checkpoint_every} ticks")
     print(f"  checkpoint limit: {config.neural_checkpoint_limit}")
@@ -237,7 +237,7 @@ def main(argv: list[str] | None = None) -> None:
         print(f"  reason: {debrief['reason']}")
         print(f"  tick: {debrief['tick']:,}")
         print(f"  elapsed seconds: {debrief['elapsed_seconds']}")
-        print(f"  pool: {debrief['population']}")
+        print(f"  pool: {debrief['pool']}")
         print(f"  births: {debrief['births_by_mode']}")
         print(f"  deaths: {debrief['deaths_by_cause']}")
         print(f"  tool successes: {debrief['tool_successes']}")

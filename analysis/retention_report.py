@@ -5,7 +5,7 @@ Usage: python analysis/retention_report.py <run_dir_or_parent> ...
 Q1 (held vs delayed erosion): blocks_mean among modulars at t≈11k vs the last
 aggregate (t18k+ for full 12-h runs). "Held" = late value within 15% of the
 t11k value or above it.
-Q2 (dynasty competition): count of structurally active lineages (≥100 steps in
+Q2 (dynasty competition): count of structurally active lines (≥100 steps in
 structure_events.jsonl), to correlate with Q1 across worlds.
 """
 
@@ -46,7 +46,7 @@ def report(run_dir: Path) -> None:
     late = aggs[-1]
     eb, lb = early[1]["blocks_mean"], late[1]["blocks_mean"]
     held = lb >= eb * 0.85
-    by_lineage: Counter[int] = Counter()
+    by_line: Counter[int] = Counter()
     sf = run_dir / "structure_events.jsonl"
     if sf.exists():
         for line in sf.open():
@@ -54,10 +54,10 @@ def report(run_dir: Path) -> None:
                 r = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if r.get("lineage_root_id") is not None:
-                by_lineage[r["lineage_root_id"]] += 1
-    dynasties = sum(1 for _, n in by_lineage.items() if n >= 100)
-    steps = sum(by_lineage.values())
+            if r.get("line_root_id") is not None:
+                by_line[r["line_root_id"]] += 1
+    dynasties = sum(1 for _, n in by_line.items() if n >= 100)
+    steps = sum(by_line.values())
     verdict = "HELD" if held else "ERODED"
     print(
         f"{run_dir.parent.name:<14} t{early[0]:>6} blocks {eb:>5.2f} -> t{late[0]:>6} blocks {lb:>5.2f}  "

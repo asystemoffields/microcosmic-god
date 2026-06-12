@@ -37,20 +37,20 @@ def load_events(path: Path) -> list[dict[str, Any]]:
     return events
 
 
-def organism_id(event: dict[str, Any]) -> int | None:
+def individual_id(event: dict[str, Any]) -> int | None:
     payload = event.get("payload", {})
-    org = payload.get("organism_id")
+    org = payload.get("individual_id")
     if org is None:
         org = payload.get("child_id")
     return org
 
 
-def lineage_id(event: dict[str, Any]) -> int | None:
+def line_id(event: dict[str, Any]) -> int | None:
     payload = event.get("payload", {})
-    if "lineage_root_id" in payload:
-        return payload["lineage_root_id"]
+    if "line_root_id" in payload:
+        return payload["line_root_id"]
     for subj in event.get("subjects", []):
-        if isinstance(subj, str) and subj.startswith("lineage:"):
+        if isinstance(subj, str) and subj.startswith("line:"):
             try:
                 return int(subj.split(":", 1)[1])
             except ValueError:
@@ -78,7 +78,7 @@ def is_anchor(event: dict[str, Any]) -> bool:
 AGENTIC_PROFILE_KEYS = (
     "causal_unlock",
     "structure",
-    "reproduction",
+    "spawning",
     "tool_make",
     "knowledge_transmitted",
     "social_learning",
@@ -91,7 +91,7 @@ AGENTIC_PROFILE_KEYS = (
 def diversity_factor(profile: dict[str, float]) -> float:
     """Discount post-hoc tool_use credit when the individual showed no other agentic signals.
 
-    A pure tool_use spike with zero across causal/structure/reproduction/social
+    A pure tool_use spike with zero across causal/structure/spawning/social
     is the specialist-trap signature: 328 lever-pulls at one place add up to a
     huge tool_use score but reflect rote memory loops, not adaptation.
     Returns ~0.25 for pure trap, 1.0 for balanced, capped at 1.0.
@@ -128,19 +128,19 @@ def collect_subjects(event: dict[str, Any]) -> set[str]:
 def build_arcs(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """One arc per individual. Headline anchor = strongest anchor involving them."""
 
-    by_organism: dict[int, dict[str, Any]] = {}
+    by_individual: dict[int, dict[str, Any]] = {}
 
     for event in events:
         if not is_anchor(event):
             continue
-        org = organism_id(event)
+        org = individual_id(event)
         if org is None:
             continue
         weight = anchor_weight(event)
-        record = by_organism.setdefault(
+        record = by_individual.setdefault(
             org,
             {
-                "organism_id": org,
+                "individual_id": org,
                 "anchors": [],
                 "headline_weight": 0.0,
                 "headline": None,
@@ -152,7 +152,7 @@ def build_arcs(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
             record["headline"] = event
 
     arcs: list[dict[str, Any]] = []
-    for org, record in by_organism.items():
+    for org, record in by_individual.items():
         anchor_ticks = [a["tick"] for a in record["anchors"]]
         tick_lo = min(anchor_ticks) - WALK_BACK
         tick_hi = max(anchor_ticks) + WALK_FORWARD
@@ -162,7 +162,7 @@ def build_arcs(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
             tick = event.get("tick", 0)
             if tick < tick_lo or tick > tick_hi:
                 continue
-            if organism_id(event) == org or f"organism:{org}" in collect_subjects(event):
+            if individual_id(event) == org or f"individual:{org}" in collect_subjects(event):
                 relevant.append(event)
 
         if not relevant:
@@ -171,8 +171,8 @@ def build_arcs(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
         places = sorted({e.get("payload", {}).get("place")
                          for e in relevant
                          if e.get("payload", {}).get("place") is not None})
-        lineage = lineage_id(record["headline"]) or next(
-            (lineage_id(e) for e in relevant if lineage_id(e) is not None), None
+        line = line_id(record["headline"]) or next(
+            (line_id(e) for e in relevant if line_id(e) is not None), None
         )
 
         anchor_weights = sorted((anchor_weight(a) for a in record["anchors"]), reverse=True)
@@ -186,8 +186,8 @@ def build_arcs(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
         arcs.append(
             {
-                "organism_id": org,
-                "lineage_id": lineage,
+                "individual_id": org,
+                "line_id": line,
                 "headline": record["headline"],
                 "anchors": record["anchors"],
                 "events": relevant,
@@ -209,9 +209,9 @@ def _collapse_key(event: dict[str, Any]) -> tuple | None:
     kind = event.get("kind")
     payload = event.get("payload", {})
     if kind == "movement_attempt":
-        return ("move", payload.get("organism_id"), payload.get("dominant_motive"))
+        return ("move", payload.get("individual_id"), payload.get("dominant_motive"))
     if kind == "collaboration":
-        return ("collab", payload.get("organism_id"), payload.get("focus"), payload.get("place"))
+        return ("collab", payload.get("individual_id"), payload.get("focus"), payload.get("place"))
     return None
 
 
@@ -237,7 +237,7 @@ def collapse_steady_state(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "tick_end": last["tick"],
                 "count": len(run),
                 "payload": {
-                    "organism_id": first_payload.get("organism_id"),
+                    "individual_id": first_payload.get("individual_id"),
                     "dominant_motive": first_payload.get("dominant_motive"),
                     "places": sorted({e["payload"].get("destination") for e in run if e["payload"].get("destination") is not None}),
                 },
@@ -250,7 +250,7 @@ def collapse_steady_state(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "tick_end": last["tick"],
                 "count": len(run),
                 "payload": {
-                    "organism_id": first_payload.get("organism_id"),
+                    "individual_id": first_payload.get("individual_id"),
                     "focus": first_payload.get("focus"),
                     "place": first_payload.get("place"),
                     "helpers_max": helpers_max,
@@ -282,11 +282,11 @@ def render_event(event: dict[str, Any]) -> str:
     kind = event.get("kind")
     p = event.get("payload", {})
     if kind == "birth":
-        parents = p.get("parent_ids") or p.get("parent_lineage_ids") or []
+        parents = p.get("parent_ids") or p.get("parent_line_ids") or []
         gen = p.get("generation")
         mode = p.get("mode")
-        lin = p.get("lineage_root_id")
-        return f"  t={tick:>5}  born     gen={gen} lineage={lin} mode={mode} parents={parents}"
+        lin = p.get("line_root_id")
+        return f"  t={tick:>5}  born     gen={gen} line={lin} mode={mode} parents={parents}"
     if kind == "structure_built":
         helpers = len(p.get("helpers", []) or [])
         ext = "extended" if p.get("extended") else "built"
@@ -315,8 +315,8 @@ def render_event(event: dict[str, Any]) -> str:
         return (f"  t={tick:>5}  died     cause={p.get('cause', '?')} kind={p.get('kind', '?')} "
                 f"score={p.get('score', 0):.1f} "
                 f"tool_use={prof.get('tool_use', 0):.1f} unlock={prof.get('causal_unlock', 0):.1f} "
-                f"struct={prof.get('structure', 0):.1f} repro={prof.get('reproduction', 0):.1f} "
-                f"offspring={p.get('offspring_count', 0)}")
+                f"struct={prof.get('structure', 0):.1f} repro={prof.get('spawning', 0):.1f} "
+                f"child={p.get('child_count', 0)}")
     if kind == "checkpoint_saved":
         return f"  t={tick:>5}  ckpt     reason={p.get('reason', '?')}"
     if kind == "movement_run":
@@ -335,8 +335,8 @@ def render_event(event: dict[str, Any]) -> str:
 
 
 def render_arc(arc: dict[str, Any], collapse: bool = True) -> str:
-    org = arc["organism_id"]
-    lineage = arc["lineage_id"]
+    org = arc["individual_id"]
+    line = arc["line_id"]
     span = f"t={arc['tick_lo']}-{arc['tick_hi']}"
     headline = arc["headline"]
     anchor_kind_counts = defaultdict(int)
@@ -345,7 +345,7 @@ def render_arc(arc: dict[str, Any], collapse: bool = True) -> str:
     anchor_summary = ", ".join(f"{k}x{v}" for k, v in sorted(anchor_kind_counts.items()))
 
     lines = [
-        f"Individual {org}  lineage={lineage}  places={arc['places']}  {span}  score={arc['score']:.1f}",
+        f"Individual {org}  line={line}  places={arc['places']}  {span}  score={arc['score']:.1f}",
         f"  headline:  {render_event(headline).strip()}",
         f"  anchors:   {anchor_summary}",
     ]
@@ -378,12 +378,12 @@ def find_specialist_traps(arcs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if tool_use < 50.0:
             continue
         factor = diversity_factor(profile)
-        offspring = payload.get("offspring_count", 0) or 0
-        if factor > 0.4 or offspring > 0 or len(arc["places"]) > 1:
+        child = payload.get("child_count", 0) or 0
+        if factor > 0.4 or child > 0 or len(arc["places"]) > 1:
             continue
         traps.append({
-            "organism_id": arc["organism_id"],
-            "lineage_id": arc["lineage_id"],
+            "individual_id": arc["individual_id"],
+            "line_id": arc["line_id"],
             "place": arc["places"][0] if arc["places"] else None,
             "tool_use": tool_use,
             "diversity_factor": factor,
@@ -433,22 +433,22 @@ def main() -> None:
         print(render_arc(arc))
         print()
 
-    # Lineage pool clusters: summary.json already aggregates these per run end.
-    # Render the top scoring lineages so the run output tells a complete story
+    # Line pool clusters: summary.json already aggregates these per run end.
+    # Render the top scoring lines so the run output tells a complete story
     # without requiring a separate grep through events.jsonl.
-    lineages = (summary.get("lineages") or {}).get("top_living") or []
-    if not lineages:
-        # Fallback: lineage_summary may emit "by_living" or just a flat list.
-        candidate = summary.get("lineages") or {}
-        for key in ("top_living", "by_living", "top"):
+    lines = (summary.get("lines") or {}).get("top_active") or []
+    if not lines:
+        # Fallback: line_summary may emit "by_active" or just a flat list.
+        candidate = summary.get("lines") or {}
+        for key in ("top_active", "by_active", "top"):
             if isinstance(candidate.get(key), list):
-                lineages = candidate[key]
+                lines = candidate[key]
                 break
-        if not lineages and isinstance(candidate, list):
-            lineages = candidate
-    if lineages:
-        print("Top Lineages")
-        for row in lineages[:8]:
+        if not lines and isinstance(candidate, list):
+            lines = candidate
+    if lines:
+        print("Top Lines")
+        for row in lines[:8]:
             profile = row.get("profile", {}) or {}
             tools = row.get("tool_use_counts", {}) or {}
             tool_summary = ", ".join(f"{k}:{v}" for k, v in list(tools.items())[:5])
@@ -456,11 +456,11 @@ def main() -> None:
                 f"{k}={v:.1f}" for k, v in sorted(profile.items(), key=lambda kv: kv[1], reverse=True)[:4]
             )
             print(
-                f"  lineage={row.get('lineage_root_id'):>4}  "
-                f"living={row.get('living', 0):>3} ({row.get('living_neural', 0)} neural)  "
+                f"  line={row.get('line_root_id'):>4}  "
+                f"active={row.get('active', 0):>3} ({row.get('active_neural', 0)} neural)  "
                 f"max_gen={row.get('max_generation', 0):>2}  "
                 f"born={row.get('born', 0):>3}  "
-                f"offspring={row.get('offspring_total', 0):>3}  "
+                f"child={row.get('child_total', 0):>3}  "
                 f"tools={row.get('successful_tools_total', 0):>3}  "
                 f"score={row.get('score', 0):.1f}"
             )
@@ -468,9 +468,9 @@ def main() -> None:
                 print(f"      profile: {profile_summary}")
             if tool_summary:
                 print(f"      tools:   {tool_summary}")
-            top_ids = row.get("top_living_ids", []) or []
+            top_ids = row.get("top_active_ids", []) or []
             if top_ids:
-                print(f"      top organisms: {top_ids}")
+                print(f"      top individuals: {top_ids}")
         print()
 
     # Controller capacity & attention trajectory across the run, sampled from
@@ -485,14 +485,14 @@ def main() -> None:
             item = json.loads(line)
             if item.get("kind") == "aggregate":
                 aggregates.append(item)
-    if aggregates and any("brain_capacity" in a for a in aggregates):
-        print("Brain Capacity Trajectory")
+    if aggregates and any("controller_capacity" in a for a in aggregates):
+        print("Controller Capacity Trajectory")
         stride = max(1, len(aggregates) // 8)
         for item in aggregates[::stride]:
-            cap = item.get("brain_capacity") or {}
+            cap = item.get("controller_capacity") or {}
             attn = item.get("attention_stats") or {}
             print(
-                f"  tick {item['tick']:>6}: brains={cap.get('count', 0):>4}  "
+                f"  tick {item['tick']:>6}: controllers={cap.get('count', 0):>4}  "
                 f"hidden mean={cap.get('mean', 0):>5.1f}  max={cap.get('max', 0):>3}  "
                 f"p90={cap.get('p90', 0):>3}  "
                 f"attn max_fid={attn.get('mean_max_fidelity', 0):>4.2f}  "
@@ -502,10 +502,10 @@ def main() -> None:
 
     if traps:
         print("Specialist Traps")
-        print(f"  {len(traps)} individual(s) accumulated high tool_use with zero diversification, no offspring, single place.")
+        print(f"  {len(traps)} individual(s) accumulated high tool_use with zero diversification, no child, single place.")
         print(f"  These look like big achievers by raw score but actually got stuck in a memory loop.")
         for t in traps:
-            print(f"  - org={t['organism_id']:>4} lineage={t['lineage_id']} place={t['place']} "
+            print(f"  - org={t['individual_id']:>4} line={t['line_id']} place={t['place']} "
                   f"t={t['tick_lo']}-{t['tick_hi']} tool_use={t['tool_use']:.0f} "
                   f"divfactor={t['diversity_factor']:.2f} death_score={t['death_score']:.0f} "
                   f"cause={t['cause']}")
@@ -516,8 +516,8 @@ def main() -> None:
         with out_path.open("w", encoding="utf-8") as f:
             for arc in arcs:
                 f.write(json.dumps({
-                    "organism_id": arc["organism_id"],
-                    "lineage_id": arc["lineage_id"],
+                    "individual_id": arc["individual_id"],
+                    "line_id": arc["line_id"],
                     "tick_lo": arc["tick_lo"],
                     "tick_hi": arc["tick_hi"],
                     "places": arc["places"],

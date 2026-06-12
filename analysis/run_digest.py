@@ -36,7 +36,7 @@ def digest(run_dir: Path) -> None:
     if head:
         tick = head.get("tick", "?")
         reason = head.get("reason", "running")
-        pop = head.get("population", {})
+        pop = head.get("pool", {})
         arch = head.get("architecture") or (head.get("last_aggregates") or [{}])[-1].get("architecture", {})
         print(f"tick {tick}  ({reason})  pool {pop}")
         if arch:
@@ -51,26 +51,26 @@ def digest(run_dir: Path) -> None:
         if head.get("patch_recovery_triggers"):
             print(f"    patch recovery triggers: {head['patch_recovery_triggers']}")
 
-    # Structural genealogy: who took steps, and did stepped lineages persist
+    # Structural genealogy: who took steps, and did stepped lines persist
     # (proxy: a stepped child that later appears as a parent of another step).
     ops = Counter()
     steppers: set[int] = set()
     step_parents: set[int] = set()
-    by_lineage = Counter()
+    by_line = Counter()
     transitions = Counter()
     for record in _iter_jsonl(run_dir / "structure_events.jsonl"):
         ops[record["op"]] += 1
         steppers.add(record["child_id"])
         step_parents.update(record.get("parent_ids", []))
-        if record.get("lineage_root_id") is not None:
-            by_lineage[record["lineage_root_id"]] += 1
+        if record.get("line_root_id") is not None:
+            by_line[record["line_root_id"]] += 1
         transitions[f"{record['blocks_before']}->{record['blocks_after']}"] += 1
     if ops:
         chained = len(steppers & step_parents)
         print(f"    genealogy: {dict(ops)}  | stepped children that later stepped again: {chained}")
         print(f"    block transitions: {dict(transitions.most_common(8))}")
-        top = by_lineage.most_common(3)
-        print(f"    most structurally active lineages: {top}")
+        top = by_line.most_common(3)
+        print(f"    most structurally active lines: {top}")
 
     # Story stream: firsts timeline + notable lives.
     firsts: list[tuple[int, str]] = []
@@ -101,31 +101,31 @@ def digest(run_dir: Path) -> None:
             arch = p.get("architecture") or {}
             arch_str = f" blocks={arch.get('blocks')} cap={arch.get('capacity')}" if arch else ""
             print(
-                f"      #{p.get('organism_id')} died t{record.get('tick')} of {p.get('cause')}"
-                f" age={p.get('age', '?')} offspring={p.get('offspring_count')}"
+                f"      #{p.get('individual_id')} died t{record.get('tick')} of {p.get('cause')}"
+                f" age={p.get('age', '?')} child={p.get('child_count')}"
                 f" tools={p.get('successful_tools')}{arch_str}"
             )
 
 
-def biography(run_dir: Path, organism_id: int) -> None:
+def biography(run_dir: Path, individual_id: int) -> None:
     """Print one individual's arc: every story/structure event that touches it."""
-    print(f"\n=== {run_dir} — individual #{organism_id} ===")
-    needle = f"organism:{organism_id}"
+    print(f"\n=== {run_dir} — individual #{individual_id} ===")
+    needle = f"individual:{individual_id}"
     timeline: list[tuple[int, str]] = []
     for record in _iter_jsonl(run_dir / "story_events.jsonl"):
         payload = record.get("payload", {})
         touched = (
             any(needle == s for s in record.get("subjects") or [])
-            or payload.get("organism_id") == organism_id
-            or payload.get("child_id") == organism_id
-            or organism_id in (payload.get("parent_ids") or [])
+            or payload.get("individual_id") == individual_id
+            or payload.get("child_id") == individual_id
+            or individual_id in (payload.get("parent_ids") or [])
         )
         if not touched:
             continue
         keep = {
             k: payload[k]
             for k in (
-                "mode", "cause", "age", "offspring_count", "successful_tools",
+                "mode", "cause", "age", "child_count", "successful_tools",
                 "child_id", "parent_ids", "generation", "complexity", "place",
                 "affordance", "gain", "architecture",
             )
@@ -133,8 +133,8 @@ def biography(run_dir: Path, organism_id: int) -> None:
         }
         timeline.append((record.get("tick", 0), f"{record.get('kind', '?'):<18} {keep}"))
     for record in _iter_jsonl(run_dir / "structure_events.jsonl"):
-        if record.get("child_id") == organism_id or organism_id in (record.get("parent_ids") or []):
-            role = "child" if record.get("child_id") == organism_id else "parent"
+        if record.get("child_id") == individual_id or individual_id in (record.get("parent_ids") or []):
+            role = "child" if record.get("child_id") == individual_id else "parent"
             timeline.append(
                 (
                     record.get("tick", 0),
@@ -152,10 +152,10 @@ def biography(run_dir: Path, organism_id: int) -> None:
 
 def main() -> None:
     args = sys.argv[1:]
-    organism_id = None
-    if "--organism" in args:
-        index = args.index("--organism")
-        organism_id = int(args[index + 1])
+    individual_id = None
+    if "--individual" in args:
+        index = args.index("--individual")
+        individual_id = int(args[index + 1])
         del args[index : index + 2]
     for arg in args:
         root = Path(arg)
@@ -165,8 +165,8 @@ def main() -> None:
         else:
             runs = [config.parent for config in sorted(root.glob("**/config.json"))]
         for run in runs:
-            if organism_id is not None:
-                biography(run, organism_id)
+            if individual_id is not None:
+                biography(run, individual_id)
             else:
                 digest(run)
 

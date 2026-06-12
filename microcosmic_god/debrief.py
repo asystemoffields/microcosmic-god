@@ -5,18 +5,18 @@ import math
 from typing import Any
 
 from .energy import ENERGY_KINDS
-from .organisms import Individual
+from .individuals import Individual
 from .world import World
 
 
-def population_counts(organisms: dict[int, Individual]) -> dict[str, int]:
+def pool_counts(individuals: dict[int, Individual]) -> dict[str, int]:
     counts: Counter[str] = Counter()
-    for individual in organisms.values():
+    for individual in individuals.values():
         if individual.alive:
             counts[individual.kind] += 1
             if individual.neural:
                 counts["neural"] += 1
-    counts["total"] = sum(1 for individual in organisms.values() if individual.alive)
+    counts["total"] = sum(1 for individual in individuals.values() if individual.alive)
     return dict(counts)
 
 
@@ -43,7 +43,7 @@ def world_physics_summary(world: World) -> dict[str, Any]:
         "current_exposure",
         "oxygen",
         "acidity",
-        "organic_activity",
+        "residue_activity",
         "abrasion",
         "wet_dry_cycle",
         "interiority",
@@ -76,30 +76,30 @@ def _round_profile(profile: Counter[str]) -> dict[str, float]:
     return {key: round(value, 6) for key, value in sorted(profile.items()) if value > 0.0}
 
 
-def success_profile_summary(organisms: dict[int, Individual]) -> dict[str, dict[str, float]]:
+def success_profile_summary(individuals: dict[int, Individual]) -> dict[str, dict[str, float]]:
     all_totals: Counter[str] = Counter()
-    living_totals: Counter[str] = Counter()
+    active_totals: Counter[str] = Counter()
     neural_totals: Counter[str] = Counter()
-    for individual in organisms.values():
+    for individual in individuals.values():
         for key, value in individual.success_profile.items():
             all_totals[key] += value
             if individual.alive:
-                living_totals[key] += value
+                active_totals[key] += value
             if individual.neural:
                 neural_totals[key] += value
     return {
         "all": _round_profile(all_totals),
-        "living": _round_profile(living_totals),
+        "active": _round_profile(active_totals),
         "neural": _round_profile(neural_totals),
     }
 
 
-def organism_success_score(individual: Individual) -> float:
+def individual_success_score(individual: Individual) -> float:
     profile = individual.success_profile
     top_specialty = max(individual.tool_use_counts.values(), default=0)
     distinct_tools = sum(1 for count in individual.tool_use_counts.values() if count > 0)
     return (
-        individual.offspring_count * 4.0
+        individual.child_count * 4.0
         + individual.successful_tools * 1.5
         + math.log1p(top_specialty) * 0.9
         + distinct_tools * 0.8
@@ -115,23 +115,23 @@ def organism_success_score(individual: Individual) -> float:
     )
 
 
-def top_organisms(organisms: dict[int, Individual], limit: int = 10) -> list[dict[str, Any]]:
-    living = [individual for individual in organisms.values() if individual.alive]
-    living.sort(key=lambda item: (organism_success_score(item), item.offspring_count, item.successful_tools, item.energy, item.age), reverse=True)
-    return [individual.to_summary() for individual in living[:limit]]
+def top_individuals(individuals: dict[int, Individual], limit: int = 10) -> list[dict[str, Any]]:
+    active = [individual for individual in individuals.values() if individual.alive]
+    active.sort(key=lambda item: (individual_success_score(item), item.child_count, item.successful_tools, item.energy, item.age), reverse=True)
+    return [individual.to_summary() for individual in active[:limit]]
 
 
 def build_debrief(sim: Any, reason: str, elapsed_seconds: float) -> dict[str, Any]:
-    counts = population_counts(sim.organisms)
+    counts = pool_counts(sim.individuals)
     energy = world_energy_summary(sim.world)
     physics = world_physics_summary(sim.world)
     likely_causes: list[str] = []
     if counts.get("total", 0) == 0:
-        likely_causes.append("full extinction")
+        likely_causes.append("full washout")
     if counts.get("neural", 0) == 0:
-        likely_causes.append("neural lineage extinction")
-    if energy.get("organic_store", 0.0) < len(sim.world.places) * 2.0:
-        likely_causes.append("low accessible organic storage")
+        likely_causes.append("neural line washout")
+    if energy.get("residue_store", 0.0) < len(sim.world.places) * 2.0:
+        likely_causes.append("low accessible residue storage")
     if energy.get("essence", 0.0) < len(sim.world.places) * 4.0:
         likely_causes.append("low accessible essence energy")
     if sim.deaths_by_cause:
@@ -143,7 +143,7 @@ def build_debrief(sim: Any, reason: str, elapsed_seconds: float) -> dict[str, An
         "reason": reason,
         "tick": sim.tick,
         "elapsed_seconds": round(elapsed_seconds, 4),
-        "population": counts,
+        "pool": counts,
         "births_by_mode": dict(sim.births_by_mode),
         "deaths_by_cause": dict(sim.deaths_by_cause),
         "deaths_by_kind_cause": dict(sim.deaths_by_kind_cause),
@@ -154,8 +154,8 @@ def build_debrief(sim: Any, reason: str, elapsed_seconds: float) -> dict[str, An
         "patch_recovery_triggers": int(getattr(sim, "patch_recovery_triggers", 0)),
         "structural_steps": dict(getattr(sim, "structural_steps", {})),
         "movement": sim._movement_summary() if hasattr(sim, "_movement_summary") else {},
-        "success_profile": success_profile_summary(sim.organisms),
-        "lineages": sim._lineage_summary() if hasattr(sim, "_lineage_summary") else {},
+        "success_profile": success_profile_summary(sim.individuals),
+        "lines": sim._line_summary() if hasattr(sim, "_line_summary") else {},
         "marks_created": dict(sim.marks_created),
         "mark_lessons": dict(getattr(sim, "mark_lessons", {})),
         "mark_lesson_packets": dict(getattr(sim, "mark_lesson_packets", {})),
@@ -167,8 +167,8 @@ def build_debrief(sim: Any, reason: str, elapsed_seconds: float) -> dict[str, An
         "artifacts_broken": dict(sim.artifacts_broken),
         "structures_built": dict(getattr(sim, "structures_built", {})),
         "structures_extended": dict(getattr(sim, "structures_extended", {})),
-        "reproduction_attempts": dict(sim.reproduction_attempts),
-        "reproduction_failures": dict(sim.reproduction_failures),
+        "spawn_attempts": dict(sim.spawn_attempts),
+        "spawn_failures": dict(sim.spawn_failures),
         "evolution_policy": sim.optimization.to_summary(),
         "action_counts": dict(sim.action_counts),
         "infeasible_commits": dict(getattr(sim, "infeasible_commits", {})),
@@ -183,7 +183,7 @@ def build_debrief(sim: Any, reason: str, elapsed_seconds: float) -> dict[str, An
         "world_physics": physics,
         "physics_events": dict(sim.physics_events),
         "climate_drift": round(sim.world.climate_drift, 6),
-        "top_living_organisms": top_organisms(sim.organisms),
+        "top_active_individuals": top_individuals(sim.individuals),
         "likely_causes": likely_causes,
         "last_aggregates": sim.aggregate_history[-10:],
         "interventions_applied": sim.interventions_applied,

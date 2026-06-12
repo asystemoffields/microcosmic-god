@@ -12,21 +12,21 @@ class RunConfig:
     max_ticks: int = 8_000
     max_wall_seconds: float = 300.0
     places: int = 36
-    initial_plants: int = 320
-    initial_fungi: int = 90
+    initial_collectors: int = 320
+    initial_converters: int = 90
     initial_agents: int = 80
-    max_population: int = 4_000
+    max_pool: int = 4_000
     season_length: int = 2_000
     log_every: int = 100
     checkpoint_every: int = 1_000
     output_dir: str = "runs"
     run_mode: str = "sealed"
     interventions_path: str | None = None
-    stop_on_neural_extinction: bool = True
-    stop_on_full_extinction: bool = True
+    stop_on_neural_washout: bool = True
+    stop_on_full_washout: bool = True
     event_detail: bool = True
     clone_complexity_soft_limit: float = 4.8
-    asexual_complexity_ceiling: float = 4.8
+    solo_complexity_ceiling: float = 4.8
     neural_checkpoint_limit: int = 64
     compute_backend: str = "cpu"
     device: str = "auto"
@@ -34,30 +34,30 @@ class RunConfig:
     # Multi-world ranking: every N ticks, regenerate the world with a new
     # seed (new physics, new puzzles). Controllers that memorized the specific
     # world are deactivated when it changes; controllers that abstracted the
-    # underlying rule survive. 0 = disabled (legacy single-world behavior).
+    # underlying rule persist. 0 = disabled (legacy single-world behavior).
     world_refresh_every: int = 0
     # Developmental subsidy: for an individual's first N ticks, the neural
     # component of upkeep ramps from `floor` x cost up to full cost. Capacity's
     # benefit arrives only after lifetime learning fills it, but its upkeep is
-    # charged immediately - a fitness valley at every rung of growth that has
+    # charged immediately - a quality valley at every rung of growth that has
     # kept every observed champion inside the initialization size range
-    # (docs/CONTROLLER_EVOLVABILITY.md). The subsidy gives capacity a window
+    # (docs/CONTROLLER_ADAPTABILITY.md). The subsidy gives capacity a window
     # to pay for itself. 0 = disabled (legacy behavior).
     neural_upkeep_grace_ticks: int = 0
     neural_upkeep_grace_floor: float = 0.35
     # Fraction of initial agents seeded with the typed modular controller
     # (microcosmic_god/modular.py) instead of the legacy single-layer one.
-    # Modular lineages can grow/duplicate/prune blocks at reproduction;
-    # capacity is structure-owned and the genome budget follows it.
+    # Modular lines can grow/duplicate/prune blocks at spawning;
+    # capacity is structure-owned and the params budget follows it.
     initial_modular_fraction: float = 0.0
     # Block count for seeded modular controllers: each founder draws uniformly
     # from [1, initial_modular_max_blocks]. >1 lets head-start experiments ask
-    # whether multi-block bodies pay before mutation has to discover them.
+    # whether multi-block bodies pay before perturbation has to discover them.
     initial_modular_max_blocks: int = 1
-    # Probability that a modular clone_mutate child takes a structural mutation
+    # Probability that a modular clone_perturb child takes a structural perturbation
     # (duplicate / neutral add / prune). The Phase 2 default was a hunch;
     # the E2 sweep picks the real value.
-    structural_mutation_rate: float = 0.06
+    structural_perturbation_rate: float = 0.06
     # Patch recovery: a substantial feeding event at a place suppresses that
     # place's staple regeneration (regen x floor) for a recovery window. With
     # jitter 0 the window length is fixed, so remembering where/when you fed
@@ -80,13 +80,13 @@ class RunConfig:
     # the search entirely: the policy must rank a currently-executable action
     # first, which it can only do by reading state — i.e. perception must pay.
     action_search_depth: int = 0
-    # Scale on the harness-side output boost for coordinate/clone_mutate when an
+    # Scale on the harness-side output boost for coordinate/clone_perturb when an
     # individual is adult and energy-rich. This is the second free-state channel
-    # (after the feasibility walk): it conditions reproduction timing on state
+    # (after the feasibility walk): it conditions spawning timing on state
     # the controller never has to perceive — it is what gave the #2867 champion
     # its realized energy-conditional behavior despite a constant ranking
     # (docs/TRANSFER_BARRIER.md). 1.0 = legacy; 0.0 removes the injection so
-    # reproduction timing must come from the controller's own outputs.
+    # spawning timing must come from the controller's own outputs.
     drive_injection_scale: float = 1.0
 
     def to_dict(self) -> dict[str, Any]:
@@ -99,10 +99,10 @@ class RunConfig:
             config.max_ticks = 300
             config.max_wall_seconds = 20.0
             config.places = 12
-            config.initial_plants = 80
-            config.initial_fungi = 20
+            config.initial_collectors = 80
+            config.initial_converters = 20
             config.initial_agents = 18
-            config.max_population = 600
+            config.max_pool = 600
             config.log_every = 25
             config.checkpoint_every = 150
         elif profile == "minute":
@@ -111,10 +111,10 @@ class RunConfig:
             config.max_ticks = 1_000_000
             config.max_wall_seconds = 86_400.0
             config.places = 96
-            config.initial_plants = 2_000
-            config.initial_fungi = 600
+            config.initial_collectors = 2_000
+            config.initial_converters = 600
             config.initial_agents = 400
-            config.max_population = 30_000
+            config.max_pool = 30_000
             config.season_length = 12_000
             config.log_every = 2_500
             config.checkpoint_every = 20_000
@@ -124,10 +124,10 @@ class RunConfig:
             config.max_ticks = 10_000_000
             config.max_wall_seconds = 259_200.0
             config.places = 256
-            config.initial_plants = 4_000
-            config.initial_fungi = 1_000
+            config.initial_collectors = 4_000
+            config.initial_converters = 1_000
             config.initial_agents = 800
-            config.max_population = 80_000
+            config.max_pool = 80_000
             config.season_length = 40_000
             config.log_every = 5_000
             config.checkpoint_every = 50_000

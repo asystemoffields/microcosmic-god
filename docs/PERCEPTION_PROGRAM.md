@@ -6,7 +6,7 @@ answer.* This document is the systematic answer to "what would it require for
 the answer to be yes" — an audit of every place the harness or environment was
 quietly footgunning that goal, what was built to fix it, what is deliberately
 deferred, and the pre-registered predictions for the first runs. The point of
-growing it: once a perception-coupled, portable competence *evolves* here, we
+growing it: once a perception-coupled, portable competence *develops* here, we
 can take it apart and ask what made it portable — which is the question the
 whole program is for.
 
@@ -18,7 +18,7 @@ perceived is a subsidy for blindness. Ledger:
 | # | Channel | Status |
 |---|---------|--------|
 | A1 | **Feasibility walk.** Action resolution walked the full ranked list to the first feasible action; the gates (adult? inventory? params?) computed context for free. | **Closed** — `action_search_depth` (k≥1 bounds the walk; k=1 removes it; commit past the bound no-ops at cost). Default 0 = legacy. |
-| A2 | **Drive injection.** The chooser itself boosts coordinate/clone_mutate outputs exactly when adult ∧ energy>0.62. Trace analysis shows this is what produced #2867's realized energy-conditional behavior (84% coordinate when rich, 11% drain when poor) on top of a constant ranking — the injection, not perception, was the policy's context sensitivity. | **Closed** — `drive_injection_scale` (0 removes it). Default 1.0 = legacy. |
+| A2 | **Drive injection.** The chooser itself boosts coordinate/clone_perturb outputs exactly when adult ∧ energy>0.62. Trace analysis shows this is what produced #2867's realized energy-conditional behavior (84% coordinate when rich, 11% drain when poor) on top of a constant ranking — the injection, not perception, was the policy's context sensitivity. | **Closed** — `drive_injection_scale` (0 removes it). Default 1.0 = legacy. |
 | A3 | **World-side targeting.** Handlers micro-optimize within a macro-action: `_drain` picks the weakest adjacent target, `_eat` the best local food. The controller chooses *that* it acts, the world chooses *how well*. | **Open, second-order.** Becomes the binding subsidy only after A1/A2 pressure produces controllers that read state at all. Next rung, not now. |
 | A4 | **Ungated actions.** k=1 taxes only gate-failures. `eat`, `forage`, `drain`, `signal`, `observe`, `rest`, `absorb_solar` pass the gate unconditionally and are adjudicated by their handlers — so a blind constant program (e.g. "eat forever") stays viable wherever one action is reliably profitable. | **Open — the sufficiency lever is environmental.** k=1 is necessary, not sufficient. What makes no constant action reliably profitable: cue-dependent payoffs (the planned cue-reliability feature; recalibrated patch recovery; a resource variant that harms unless a cue channel distinguishes it). Stage 2 below. |
 
@@ -47,10 +47,10 @@ new-era boundary and keep the old branch for legacy probes.
 
 ## Requirement B½ — the controllers must be able to *grow* what perception needs
 
-Audit of the substrate side (modular.py / brain.py), 2026-06-12:
+Audit of the substrate side (modular.py / controller.py), 2026-06-12:
 
 **Set up well:**
-- **Every tensor on the perception path is evolvable.** `clone_for_offspring`
+- **Every tensor on the perception path is adaptable.** `clone_for_child`
   perturbs the per-group encoders (W and b), each block's `token_mix`,
   `weights_in`, the wiring matrix, and message weights — nothing between
   observation and action is frozen.
@@ -61,21 +61,21 @@ Audit of the substrate side (modular.py / brain.py), 2026-06-12:
 - **Capacity growth is function-preserving and subsidized.** add_block joins
   with a zero output gate (listens before it speaks), duplicate_block halves
   gates exactly; the grace subsidy opens the growth corridor. If perception
-  needs more capacity, the path there has no fitness valley.
+  needs more capacity, the path there has no quality valley.
 - **Lifetime plasticity reaches `weights_in`** (the learn path updates it from
-  the pooled-input trace) and `plasticity_scale` is per-block and evolvable —
-  fast re-mapping machinery can evolve if it ever pays.
+  the pooled-input trace) and `plasticity_scale` is per-block and adaptable —
+  fast re-mapping machinery can develop if it ever pays.
 
 **Two deck-stackings to watch (not blockers — biases):**
 1. **Attractor-tilted dynamics.** Block drive is
    `bias + 0.62·prev + (weights_in @ pooled)/√token_dim`: the recurrent term
    has a fixed 0.62 gain while the input term is √-attenuated (TinyController
    has the same shape with √input_size ≈ ÷8). This is precisely the geometry
-   in which #2867 found attractor encoding cheaper than perception. Mutation
+   in which #2867 found attractor encoding cheaper than perception. Perturbation
    can compensate (weights clip at ±4) but the path of least resistance is
    internal dynamics. **Trigger:** if Stage 1 coupling stays pinned at the
-   #2867 floor despite k=1 pressure and healthy populations, the minimal
-   intervention is an evolvable per-block input gain (scalar, init 1.0 =
+   #2867 floor despite k=1 pressure and healthy pools, the minimal
+   intervention is an adaptable per-block input gain (scalar, init 1.0 =
    legacy, serialization-compatible via tolerant from_dict) — symmetric to
    `out_gate`.
 2. **`token_dim` is fixed at construction** — blocks can multiply but encoder
@@ -112,11 +112,11 @@ Built today, both validated:
 Three arms, seed 7, minute profile: **A** k=0/drive 1.0 (legacy control),
 **B** k=1/drive 1.0, **C** k=1/drive 0.0 (full pressure).
 
-- **P1 (boot):** B and C still boot at minute scale. Plants/fungi take the
-  non-neural heuristic branch, untouched by k, so the ecology stands; the
+- **P1 (boot):** B and C still boot at minute scale. Collectors/converters take the
+  non-neural heuristic branch, untouched by k, so the dynamics stands; the
   neural cohort pays wasted ticks but the developmental subsidy and
   exploration floor should carry founders.
-  *If C goes neural-extinct at minute scale:* PARK, predicted
+  *If C goes neural-emptied at minute scale:* PARK, predicted
   scale-to-signal = anneal (boot at k=3, step to 1) or extend grace — per the
   standing scale-discipline rule, kill nothing below pre-registered scale.
 - **P2 (pressure is real):** infeasible_commits > 0 in B/C and the
@@ -135,7 +135,7 @@ Three arms, seed 7, minute profile: **A** k=0/drive 1.0 (legacy control),
 Matched-tick comparison at t900 (arms ended at different ticks from CPU
 contention; aggregates every 100 ticks):
 
-| Arm | k | drive | neural @t300 | @t600 | @t900 | infeasible commits @t900 | recombine pairings @t900 |
+| Arm | k | drive | neural @t300 | @t600 | @t900 | infeasible commits @t900 | combine pairings @t900 |
 |-----|---|-------|------|------|------|------|------|
 | A | 0 | 1.0 | 53 | 39 | 48 | 0 | 266 |
 | B | 1 | 1.0 | 103 | 868 | **1514** | 22,812 | **6,396** |
@@ -143,22 +143,22 @@ contention; aggregates every 100 ticks):
 | D | 0 | 0.0 | 47 | 26 | **24** | 0 | 60 |
 
 - **P1 split verdict.** k=1 with drive intact (B) boots emphatically — in
-  fact the neural population *explodes*, riding a 24× recombination-pairing
+  fact the neural pool *explodes*, riding a 24× combination-pairing
   boom (coordinate attempts 32.9k vs A's 2.2k). Mechanism unidentified;
   single seed; do not over-read. Full pressure (C) does **not** boot: the
-  neural cohort starves toward extinction with coordinate attempts near zero.
+  neural cohort exhausts toward washout with coordinate attempts near zero.
   Per the scale-discipline rule this is a PARK for drive-0-at-boot, not a
   kill: the predicted path is staged removal (boot at drive 1.0, anneal
   toward 0 as coupling rises) or a developmental subsidy analog for
-  reproduction timing.
+  spawning timing.
 - **Attribution (arm D, k=0/drive 0): the collapse is NOT a k-interaction.**
   D tracks C almost exactly (47→26→24 vs 49→20→18) with zero k-pressure. The
-  injection has been carrying neural reproduction timing in *every* run to
-  date — consistent with #2867 ranking clone_mutate last and reproducing via
+  injection has been carrying neural spawning timing in *every* run to
+  date — consistent with #2867 ranking clone_perturb last and spawning via
   injection + exploration floor, and with both drive-0 arms pairing at ~50-60
   vs A's 266. The injection is a load-bearing subsidy to remove on its own
   schedule, independent of k: anneal it, or pair its removal with a
-  reproduction-timing developmental pathway, and treat "reproduction timing
+  spawning-timing developmental pathway, and treat "spawning timing
   becomes perceptual" as its own measurable rung (the coupling probe applies
   unchanged).
 - **P2 confirmed.** The pressure is real and measurable: 22.8k bounded-search
@@ -170,20 +170,20 @@ Two seeds landed (s341, s44); the third (s45) hit the concurrency cap and was
 re-pushed as `mg-percept-v-s45b` (in flight). **Boot at h1.6 is SPLIT 1/2 —
 seed-contingent, not robust.**
 
-| Seed | end tick | neural trajectory | recombine births | infeasible total | top infeasible |
+| Seed | end tick | neural trajectory | combine births | infeasible total | top infeasible |
 |------|----------|-------------------|------------------|------------------|----------------|
 | 341 | 7100 (2.67 t/s) | 71@t100 → 3@t1300 → 9@t7100; modular cohort gone by t900 | 4 | 5,241 (flat after t3700) | use_tool 2446, pickup 971, craft 682 |
 | 44 | 3700 (1.4 t/s) | 80 → 39@t300 → ~100 plateau → 1087@t2500 → 387@t3700 (declining) | 3,482 | 175,846 | use_tool 104k, craft 41k, coordinate 21k |
 
-- **s44 reproduces the Stage 0 pattern at h1.6**: the same pairing-driven
-  population rise (recombine 3,482), followed here by overshoot — deaths
-  dominated by depletion (3,796) and starvation (1,931) — and a decline still
+- **s44 spawns the Stage 0 pattern at h1.6**: the same pairing-driven
+  pool rise (combine 3,482), followed here by overshoot — deaths
+  dominated by depletion (3,796) and exhaustion (1,931) — and a decline still
   in progress at wall. Structural ops stayed live (add 59 / duplicate 56 /
   prune 31; blocks_mean 2.6).
 - **s341 does not boot**: the pool drops below 10 by t500 and the modular
   cohort is gone by t900; the residual handful of legacy individuals are
-  energy-rich (avg 112) but pair only 4 times in 7,100 ticks. The ecology
-  (plant/fungus) stands throughout — this is a neural-cohort failure, not a
+  energy-rich (avg 112) but pair only 4 times in 7,100 ticks. The dynamics
+  (collector/converter) stands throughout — this is a neural-cohort failure, not a
   world failure.
 - **The infeasible-commit tax concentrates on gates the observation vector
   cannot express.** In both seeds the top payers are use_tool / craft / build /
@@ -212,7 +212,7 @@ seed-contingent, not robust.**
   is a separate, k-independent rung), seeds paired with the legacy 6-h runs.
   Read P3/P5. **Held pending the env-axis review** (Stage 0.5 outcome above).
 - **Stage 1.5** — drive annealing: boot at 1.0, decay toward 0 over cycles,
-  with neural-population viability and coupling as the paired readout.
+  with neural-pool viability and coupling as the paired readout.
 - **Stage 2** — environmental sufficiency: cue-reliability / recalibrated
   patch recovery, so ungated constant programs (A4) stop being viable.
 - **Stage 3** — re-measure the ladder; reverse-engineer the grown perceivers

@@ -10,7 +10,7 @@ Every new mechanic should pass these checks before it enters the simulator:
 - It creates consequences, not objectives.
 - It can apply to many places, individuals, artifacts, and future worlds.
 - It does not directly reward intelligence, tool use, cooperation, communication, curiosity, teaching, family, trade, language, or culture.
-- It is observable enough for debriefs, but observer heuristics do not feed back into fitness.
+- It is observable enough for debriefs, but observer heuristics do not feed back into quality.
 - Its expensive calculations can be batched, cached, approximated, or moved behind a faster backend later.
 
 ## World Law Pattern
@@ -49,7 +49,7 @@ When possible, add fields and material laws that multiple behaviors can use. Avo
 
 Tools should be capability transformers. A composite artifact can matter because it changes what physical regimes are reachable:
 
-- `cut`: opens fibrous/thorn/soft organic barriers.
+- `cut`: opens fibrous/thorn/soft residue barriers.
 - `crack`: opens brittle shells, stones, and mineral seams up to a resistance tier.
 - `lever`: moves heavy barriers or exposes mechanically locked resources.
 - `contain`: carries fluid, buffers wet environments, or enables essence concentration.
@@ -71,7 +71,7 @@ Skill transfer should be local in affordance-space. A binding specialist can bec
 
 Movement is not a free graph transition. It has upkeep cost, load cost, distance/slope/current/pressure cost, and possible health damage. Crossing between physically different environments adds relocation shock from deltas in temperature, fluid level, pressure, humidity, salinity, elevation, oxygen, and hazard pressure. Planning, destination memory, protection, traversal tools, containment, insulation, and learned skill can reduce but not erase that shock.
 
-This lets worlds have teeth. A lineage spawned into a hot dry ridge may survive by mastering that specialization instead of cheaply walking to the sea. A sea lineage may find treasure in trenches or vents, but land transition can be costly enough to deactivate the unprepared. If a population collapses because it keeps attempting bad relocation, that is an informative system-level failure, not necessarily a simulator bug.
+This lets worlds have teeth. A line spawned into a hot dry ridge may persist by mastering that specialization instead of cheaply walking to the sea. A sea line may find treasure in trenches or vents, but land transition can be costly enough to deactivate the unprepared. If a pool collapses because it keeps attempting bad relocation, that is an informative system-level failure, not necessarily a simulator bug.
 
 Movement telemetry records attempts, successes, failures, energy/health cost, barriers, support, relocation shock, dominant movement motive, and top routes. These remain observer data only.
 
@@ -101,13 +101,13 @@ Place-level structures are artifacts left in the world. They are built from mate
 
 This is the groundwork for dams, bridges, dens, rafts, traps, kilns, hydro-like structures, aquaculture filters, or future machinery without hardcoding any of those as recipes.
 
-Structures also decay through general wear channels. The same material-environment law should explain corrosion near salty water, organic rot in warm wet environments, abrasion in high-current places, thermal cracking, soluble materials leaching away, and durable materials lasting longer.
+Structures also decay through general wear channels. The same material-environment law should explain corrosion near salty water, residue rot in warm wet environments, abrasion in high-current places, thermal cracking, soluble materials leaching away, and durable materials lasting longer.
 
 ## Neural Growth And Plasticity
 
-Agents need enough learning capacity to connect environmental causes with later consequences. Keep this governed by evolvable costs:
+Agents need enough learning capacity to connect environmental causes with later consequences. Keep this governed by adaptable costs:
 
-- Neural budget and memory budget can grow through mutation and recombination.
+- Neural budget and memory budget can grow through perturbation and combination.
 - Larger controllers cost more upkeep, so size only persists if the environment pays for it.
 - Plasticity, learning rate, prediction weight, and valence wiring are inherited attributes.
 - Lifetime learning updates action preferences, prediction weights, and internal representations through eligibility traces.
@@ -125,23 +125,23 @@ Smartness should never be paid directly as a global scalar. It should matter bec
 
 This is still an explicit selection pressure for cognition, but the pressure is mediated by physical and social interactions rather than by a hidden "intelligence reward."
 
-The payoff curve should be steep. Simple individuals can survive on surface energy, but learned sequencing, tool construction, structures, and field manipulation should open much larger reservoirs: locked chemistry, mechanical gradients, electrical gradients, and high-density energy. The human-vs-squirrel analogy belongs here: the world should not reward the abstract property "smart"; it should reward the actual behaviors that let a smart agent make fire, build channels, store energy, exploit gradients, and coordinate across time.
+The payoff curve should be steep. Simple individuals can persist on surface energy, but learned sequencing, tool construction, structures, and field manipulation should open much larger reservoirs: locked chemistry, mechanical gradients, electrical gradients, and high-density energy. The human-vs-squirrel analogy belongs here: the world should not reward the abstract property "smart"; it should reward the actual behaviors that let a smart agent make fire, build channels, store energy, exploit gradients, and coordinate across time.
 
 ## Evolution Operators
 
-Reproduction is now routed through an `EvolutionEngine`, which owns variation and selection operators separately from world physics. The current in-world actions are `clone_mutate` and `coordinate`; successful coordination can produce a `recombine` successor plan.
+Spawning is now routed through an `EvolutionEngine`, which owns variation and selection operators separately from world physics. The current in-world actions are `clone_perturb` and `coordinate`; successful coordination can produce a `combine` successor plan.
 
-- `clone_mutate` preserves useful local solutions and explores nearby variants.
-- `recombine` mixes genomes and controller templates, and currently requires behavioral coordination so coordination can itself matter.
-- The old asexual/sexual framing is legacy vocabulary only; it should not shape future design choices.
-- Future intelligence-farming modes may add non-organic operators such as tournament selection, novelty archives, cross-world trials, curriculum transfer, or task-adoption trials.
-- Any non-organic operator must be separated from sealed environment runs or logged as garden/search machinery.
+- `clone_perturb` preserves useful local solutions and explores nearby variants.
+- `combine` mixes param_vectors and controller templates, and currently requires behavioral coordination so coordination can itself matter.
+- The old solo/paired framing is legacy vocabulary only; it should not shape future design choices.
+- Future intelligence-farming modes may add non-residue operators such as tournament selection, novelty archives, cross-world trials, curriculum transfer, or task-adoption trials.
+- Any non-residue operator must be separated from sealed environment runs or logged as garden/search machinery.
 
 The aim is not to mimic animal drives unless those drives are useful. The aim is to create robust selection toward agents that learn, adapt, communicate, manipulate environments, and transfer.
 
 The farm-mode north star is: these were effective operators and learners, make more like that. That means future selection should be able to sample from checkpoint archives, rank demonstrated learning/transfer behavior, and instantiate new variants without pretending the process is ordinary environment dynamics.
 
-Observer success profiles are allowed for checkpointing and debriefs because they do not change agent reward or world physics. They should stay descriptive: energy capture, prediction fit, tool making/use, structures, causal unlocks, social learning, and reproduction. If any profile metric starts steering sealed-run survival directly, it has crossed the line into a hidden objective and should be removed or moved to logged garden/search machinery.
+Observer success profiles are allowed for checkpointing and debriefs because they do not change agent reward or world physics. They should stay descriptive: energy capture, prediction fit, tool making/use, structures, causal unlocks, social learning, and spawning. If any profile metric starts steering sealed-run persistence directly, it has crossed the line into a hidden objective and should be removed or moved to logged garden/search machinery.
 
 ## Scaling Strategy
 
@@ -159,24 +159,24 @@ Workstation or cloud CPU runs:
 
 - Many sealed seeds in parallel.
 - Larger sparse worlds.
-- Heavier lineage and checkpoint sampling.
+- Heavier line and checkpoint sampling.
 - Longer environmental timescales.
 
 GPU runs on A100/H100-class hardware:
 
 - Batch neural inference across individuals and worlds.
-- Run many independent worlds at once for evolutionary diversity.
+- Run many independent worlds at once for search diversity.
 - Keep world-law resolution data-oriented so hot loops can move to NumPy, JAX, Rust, CUDA, or another accelerator-backed core.
 - Use checkpoint policies to save rare controllers and stories without retaining every inactive agent.
 - Treat the GPU as epoch throughput, not as permission to make each individual bloated.
 
-The expected path for a five-hour A100-class run is not one giant hand-built world. It is a large set of sealed worlds, batched controller evaluation, compact observer heuristics, and selective archival of rare lineages, tools, environments, and communication patterns.
+The expected path for a five-hour A100-class run is not one giant hand-built world. It is a large set of sealed worlds, batched controller evaluation, compact observer heuristics, and selective archival of rare lines, tools, environments, and communication patterns.
 
 ## Non-Negotiables
 
 - Sealed runs stay sealed.
 - Garden interventions are logged and separated from natural dynamics.
-- Species are inferred after runs.
+- Type are inferred after runs.
 - Inactive controllers disappear unless checkpoint policy saved them.
 - Analysis tools can identify interesting individuals, but the simulator must not optimize for the analysis score.
 - If a behavior looks impressive, first ask whether it was caused by a general rule or by a shortcut we accidentally installed.

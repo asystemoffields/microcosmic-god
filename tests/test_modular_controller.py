@@ -3,9 +3,9 @@ from random import Random
 
 import numpy as np
 
-from microcosmic_god.brain import TinyController
+from microcosmic_god.controller import TinyController
 from microcosmic_god.modular import ModularController, from_tiny, observation_groups
-from microcosmic_god.organisms import ACTIONS, OBSERVATION_SIZE
+from microcosmic_god.individuals import ACTIONS, OBSERVATION_SIZE
 
 
 def _obs(rng: Random) -> list[float]:
@@ -157,14 +157,14 @@ class PredictionLearningTest(unittest.TestCase):
         self.assertNotAlmostEqual(moved_free, base_norm, places=6)
         self.assertLess(abs(moved_supp - base_norm), abs(moved_free - base_norm) * 0.2)
 
-    def test_clone_for_offspring_perturbs_and_sometimes_grows(self):
+    def test_clone_for_child_perturbs_and_sometimes_grows(self):
         parent = ModularController.random(Random(101), OBSERVATION_SIZE, len(ACTIONS), n_blocks=2)
         capacities = set()
         for i in range(60):
-            child = parent.clone_for_offspring(Random(i), mutation_scale=0.03, structural_rate=0.5)
+            child = parent.clone_for_child(Random(i), perturbation_scale=0.03, structural_rate=0.5)
             capacities.add(child.capacity)
             self.assertEqual(len(child.forward(_obs(Random(7)))), len(ACTIONS))
-        self.assertGreater(len(capacities), 1, "structural mutation never fired at rate 0.5 over 60 draws")
+        self.assertGreater(len(capacities), 1, "structural perturbation never fired at rate 0.5 over 60 draws")
 
 
 if __name__ == "__main__":
@@ -172,7 +172,7 @@ if __name__ == "__main__":
 
 
 class LearningFrozenTest(unittest.TestCase):
-    def test_frozen_flag_blocks_updates_and_survives_roundtrip(self):
+    def test_frozen_flag_blocks_updates_and_persists_roundtrip(self):
         from random import Random as _Random
         import numpy as _np
         rng = _Random(3)

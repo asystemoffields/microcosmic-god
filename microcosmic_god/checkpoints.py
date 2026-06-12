@@ -5,7 +5,7 @@ import math
 from pathlib import Path
 from typing import Any
 
-from .organisms import Individual
+from .individuals import Individual
 
 
 class CheckpointManager:
@@ -25,11 +25,11 @@ class CheckpointManager:
         return {
             "first_tool": max(1, min(limit, math.ceil(limit * 0.18))),
             "interval_champion": max(1, min(limit, math.ceil(limit * 0.12))),
-            "reproductive_champion": max(1, min(limit, math.ceil(limit * 0.25))),
+            "spawn_champion": max(1, min(limit, math.ceil(limit * 0.25))),
             "tool_champion": max(1, min(limit, math.ceil(limit * 0.18))),
             "causal_champion": max(1, min(limit, math.ceil(limit * 0.12))),
             "learner_champion": max(1, min(limit, math.ceil(limit * 0.12))),
-            "lineage_founder": max(1, min(limit, math.ceil(limit * 0.18))),
+            "line_founder": max(1, min(limit, math.ceil(limit * 0.18))),
             "notable_death": max(1, min(limit, math.ceil(limit * 0.16))),
             "general": limit,
         }
@@ -37,7 +37,7 @@ class CheckpointManager:
     def _bucket_has_room(self, bucket: str) -> bool:
         return self.saved_buckets.get(bucket, 0) < self.bucket_limits.get(bucket, self.limit)
 
-    def save_brain(
+    def save_controller(
         self,
         tick: int,
         individual: Individual,
@@ -51,17 +51,17 @@ class CheckpointManager:
         self.saved += 1
         self.saved_reasons[reason] = self.saved_reasons.get(reason, 0) + 1
         self.saved_buckets[bucket] = self.saved_buckets.get(bucket, 0) + 1
-        filename = f"brain_t{tick:08d}_o{individual.id}_{reason.replace(' ', '_')}.json"
+        filename = f"controller_t{tick:08d}_o{individual.id}_{reason.replace(' ', '_')}.json"
         path = self.checkpoint_dir / filename
         payload = {
             "tick": tick,
             "reason": reason,
             "bucket": bucket,
             "score": None if score is None else round(score, 6),
-            "organism": individual.to_summary(),
-            "genome": individual.params.to_dict(),
-            "brain": individual.controller.to_dict(include_state=True),
-            "brain_template": individual.controller_template.to_dict(include_state=False) if individual.controller_template else None,
+            "individual": individual.to_summary(),
+            "params": individual.params.to_dict(),
+            "controller": individual.controller.to_dict(include_state=True),
+            "controller_template": individual.controller_template.to_dict(include_state=False) if individual.controller_template else None,
             "inventory": dict(individual.inventory),
             "artifacts": [artifact.to_dict() for artifact in individual.artifacts],
             "tool_skill": {k: round(v, 6) for k, v in individual.tool_skill.items()},
@@ -77,7 +77,7 @@ class CheckpointManager:
     def save_first_tool(self, tick: int, individual: Individual, affordance: str, context: dict[str, Any]) -> bool:
         if affordance in self._saved_tool_affordances:
             return False
-        saved = self.save_brain(tick, individual, f"first_{affordance}_tool_success", context, bucket="first_tool")
+        saved = self.save_controller(tick, individual, f"first_{affordance}_tool_success", context, bucket="first_tool")
         if saved:
             self._saved_tool_affordances.add(affordance)
         return saved

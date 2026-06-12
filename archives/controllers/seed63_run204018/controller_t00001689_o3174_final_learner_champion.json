@@ -1,6 +1,236 @@
 {
   "artifacts": [],
-  "brain": {
+  "bucket": "learner_champion",
+  "cognition": {
+    "event_memory": {
+      "damage": 9e-06,
+      "energy_gain": 0.057975,
+      "energy_loss": 0.000104,
+      "health_gain": 0.0,
+      "social": 0.000767,
+      "spawning": 0.0,
+      "surprise": 0.054552,
+      "tool": 0.000636
+    },
+    "last_action": "eat",
+    "last_valence": 0.002109,
+    "lesson_memory": [
+      {
+        "affordance": "bind",
+        "gain": 0.000502,
+        "kind": "read_tool_use",
+        "problem": {
+          "difficulty": 0.443758,
+          "kind": "causal_challenge",
+          "payoff_energy": "chemical",
+          "remaining": 55.37571,
+          "required_affordance": "filter",
+          "sequence": [
+            "contain",
+            "filter"
+          ]
+        },
+        "score": 0.4725,
+        "success": true
+      },
+      {
+        "affordance": "lever",
+        "gain": 2.2e-05,
+        "kind": "tool_use",
+        "method_quality": 0.0,
+        "place": 28,
+        "problem": {
+          "difficulty": 0.443758,
+          "kind": "causal_challenge",
+          "payoff_energy": "chemical",
+          "place": 28,
+          "remaining": 55.37571,
+          "required_affordance": "filter",
+          "sequence": [
+            "contain",
+            "filter"
+          ]
+        },
+        "score": 0.50125,
+        "skill": 1.0,
+        "success": true
+      },
+      {
+        "affordance": "lever",
+        "gain": 0.0,
+        "kind": "tool_use",
+        "method_quality": 0.0,
+        "place": 28,
+        "problem": {
+          "difficulty": 0.443758,
+          "kind": "causal_challenge",
+          "payoff_energy": "chemical",
+          "place": 28,
+          "remaining": 55.37571,
+          "required_affordance": "filter",
+          "sequence": [
+            "contain",
+            "filter"
+          ]
+        },
+        "score": 0.50125,
+        "skill": 1.0,
+        "success": false
+      },
+      {
+        "affordance": "lever",
+        "gain": 2.2e-05,
+        "kind": "tool_use",
+        "method_quality": 0.0,
+        "place": 28,
+        "problem": {
+          "difficulty": 0.443758,
+          "kind": "causal_challenge",
+          "payoff_energy": "chemical",
+          "place": 28,
+          "remaining": 55.37571,
+          "required_affordance": "contain",
+          "sequence": [
+            "contain",
+            "filter"
+          ]
+        },
+        "score": 0.50125,
+        "skill": 1.0,
+        "success": true
+      },
+      {
+        "affordance": "lever",
+        "gain": 0.0,
+        "kind": "tool_use",
+        "method_quality": 0.0,
+        "place": 7,
+        "problem": {
+          "kind": "obstacle",
+          "obstacle": "salinity",
+          "place": 7,
+          "required_affordance": "lever",
+          "required_capability": "filter",
+          "severity": 1.108121
+        },
+        "score": 0.50125,
+        "skill": 1.0,
+        "success": false
+      }
+    ],
+    "place_memory": [
+      {
+        "place_id": 28,
+        "value": 0.642947
+      },
+      {
+        "place_id": 7,
+        "value": 0.593342
+      }
+    ],
+    "prediction_errors": {
+      "damage": 0.086698,
+      "energy": 0.120105,
+      "hazard": 0.064486,
+      "social": -0.225717,
+      "spawning": 0.246295,
+      "tool": -0.094817
+    },
+    "recent_trace": {
+      "action": 0.142857,
+      "damage": 0.0,
+      "energy_delta": 0.004893,
+      "health_delta": 0.0,
+      "prediction_error": 0.120105,
+      "social": 0.0,
+      "spawning": 0.0,
+      "tool": 0.0
+    },
+    "signal_values": [
+      0.222298,
+      0.108399,
+      0.028657,
+      0.043831,
+      0.16619,
+      0.100536,
+      0.144112,
+      0.140374
+    ],
+    "success_profile": {
+      "energy_gain": 393.636325,
+      "prediction_fit": 38.022754,
+      "social_learning": 49.3,
+      "spawning": 3.0,
+      "tool_use": 2.000005,
+      "written_learning": 1.081204
+    },
+    "tool_trace": {
+      "last_artifact_method": 0.0,
+      "last_craft_target": "",
+      "last_tool_affordance": "lever"
+    }
+  },
+  "context": {
+    "criterion": "learner_champion",
+    "label": "final",
+    "pool": {
+      "agent": 1640,
+      "collector": 853,
+      "converter": 120,
+      "neural": 1634,
+      "total": 2613
+    },
+    "world_energy": {
+      "adaptive_storage": 1586.943,
+      "chemical": 248.6819,
+      "electrical": 67.6837,
+      "high_density": 3.7703,
+      "locked_chemical": 184.5907,
+      "mechanical": 486.1534,
+      "radiant": 1049.7982,
+      "thermal": 5073.7106
+    },
+    "world_physics": {
+      "avg_abrasion": 0.09466,
+      "avg_acidity": 0.1361,
+      "avg_adaptive_activity": 0.29718,
+      "avg_boundary_permeability": 0.22233,
+      "avg_current_exposure": 0.06785,
+      "avg_edge_current": 0.20166,
+      "avg_edge_slope": 0.28877,
+      "avg_elevation": 0.4213,
+      "avg_fluid_level": 0.09345,
+      "avg_humidity": 0.15534,
+      "avg_interiority": 0.2801,
+      "avg_oxygen": 0.46566,
+      "avg_pressure": 0.05567,
+      "avg_salinity": 0.23858,
+      "avg_shelter": 0.33013,
+      "avg_structure_scale": 10.7,
+      "avg_temperature": 0.859,
+      "avg_wet_dry_cycle": 0.08004,
+      "max_abrasion": 0.14122,
+      "max_acidity": 0.284,
+      "max_adaptive_activity": 0.9277,
+      "max_boundary_permeability": 0.65472,
+      "max_current_exposure": 0.15693,
+      "max_edge_current": 0.65157,
+      "max_edge_slope": 0.97845,
+      "max_elevation": 0.98025,
+      "max_fluid_level": 0.2684,
+      "max_humidity": 0.50614,
+      "max_interiority": 0.46584,
+      "max_oxygen": 0.59049,
+      "max_pressure": 0.20143,
+      "max_salinity": 1.10942,
+      "max_shelter": 0.49897,
+      "max_structure_scale": 156,
+      "max_temperature": 1.37637,
+      "max_wet_dry_cycle": 0.15088,
+      "structure_count": 140.0
+    }
+  },
+  "controller": {
     "auxiliary_prediction_weights": {
       "damage": [
         0.3543267,
@@ -18,14 +248,6 @@
         -0.5586234,
         0.3588792
       ],
-      "reproduction": [
-        0.3546055,
-        -0.0134794,
-        0.0475466,
-        0.2421078,
-        -1.1070091,
-        -0.0878546
-      ],
       "social": [
         -0.2112419,
         -0.3488545,
@@ -33,6 +255,14 @@
         -0.0506709,
         -0.0579687,
         0.200158
+      ],
+      "spawning": [
+        0.3546055,
+        -0.0134794,
+        0.0475466,
+        0.2421078,
+        -1.1070091,
+        -0.0878546
       ],
       "tool": [
         0.3267991,
@@ -255,8 +485,8 @@
       "damage": 0.086698,
       "energy": 0.1201051,
       "hazard": 0.0644858,
-      "reproduction": 0.2462954,
       "social": -0.2257174,
+      "spawning": 0.2462954,
       "tool": -0.0948166
     },
     "output_size": 15,
@@ -795,7 +1025,7 @@
       0.026772
     ]
   },
-  "brain_template": {
+  "controller_template": {
     "auxiliary_prediction_weights": {
       "damage": [
         0.3536082,
@@ -813,14 +1043,6 @@
         -0.5613508,
         0.3574478
       ],
-      "reproduction": [
-        0.3506977,
-        -0.0102494,
-        0.0588905,
-        0.2440036,
-        -1.1155347,
-        -0.0933047
-      ],
       "social": [
         -0.2081162,
         -0.350672,
@@ -828,6 +1050,14 @@
         -0.0527397,
         -0.0521122,
         0.2049478
+      ],
+      "spawning": [
+        0.3506977,
+        -0.0102494,
+        0.0588905,
+        0.2440036,
+        -1.1155347,
+        -0.0933047
       ],
       "tool": [
         0.3282139,
@@ -1401,282 +1631,13 @@
       0.0239283
     ]
   },
-  "bucket": "learner_champion",
-  "cognition": {
-    "event_memory": {
-      "damage": 9e-06,
-      "energy_gain": 0.057975,
-      "energy_loss": 0.000104,
-      "health_gain": 0.0,
-      "reproduction": 0.0,
-      "social": 0.000767,
-      "surprise": 0.054552,
-      "tool": 0.000636
-    },
-    "last_action": "eat",
-    "last_valence": 0.002109,
-    "lesson_memory": [
-      {
-        "affordance": "bind",
-        "gain": 0.000502,
-        "kind": "read_tool_use",
-        "problem": {
-          "difficulty": 0.443758,
-          "kind": "causal_challenge",
-          "payoff_energy": "chemical",
-          "remaining": 55.37571,
-          "required_affordance": "filter",
-          "sequence": [
-            "contain",
-            "filter"
-          ]
-        },
-        "score": 0.4725,
-        "success": true
-      },
-      {
-        "affordance": "lever",
-        "gain": 2.2e-05,
-        "kind": "tool_use",
-        "method_quality": 0.0,
-        "place": 28,
-        "problem": {
-          "difficulty": 0.443758,
-          "kind": "causal_challenge",
-          "payoff_energy": "chemical",
-          "place": 28,
-          "remaining": 55.37571,
-          "required_affordance": "filter",
-          "sequence": [
-            "contain",
-            "filter"
-          ]
-        },
-        "score": 0.50125,
-        "skill": 1.0,
-        "success": true
-      },
-      {
-        "affordance": "lever",
-        "gain": 0.0,
-        "kind": "tool_use",
-        "method_quality": 0.0,
-        "place": 28,
-        "problem": {
-          "difficulty": 0.443758,
-          "kind": "causal_challenge",
-          "payoff_energy": "chemical",
-          "place": 28,
-          "remaining": 55.37571,
-          "required_affordance": "filter",
-          "sequence": [
-            "contain",
-            "filter"
-          ]
-        },
-        "score": 0.50125,
-        "skill": 1.0,
-        "success": false
-      },
-      {
-        "affordance": "lever",
-        "gain": 2.2e-05,
-        "kind": "tool_use",
-        "method_quality": 0.0,
-        "place": 28,
-        "problem": {
-          "difficulty": 0.443758,
-          "kind": "causal_challenge",
-          "payoff_energy": "chemical",
-          "place": 28,
-          "remaining": 55.37571,
-          "required_affordance": "contain",
-          "sequence": [
-            "contain",
-            "filter"
-          ]
-        },
-        "score": 0.50125,
-        "skill": 1.0,
-        "success": true
-      },
-      {
-        "affordance": "lever",
-        "gain": 0.0,
-        "kind": "tool_use",
-        "method_quality": 0.0,
-        "place": 7,
-        "problem": {
-          "kind": "obstacle",
-          "obstacle": "salinity",
-          "place": 7,
-          "required_affordance": "lever",
-          "required_capability": "filter",
-          "severity": 1.108121
-        },
-        "score": 0.50125,
-        "skill": 1.0,
-        "success": false
-      }
-    ],
-    "place_memory": [
-      {
-        "place_id": 28,
-        "value": 0.642947
-      },
-      {
-        "place_id": 7,
-        "value": 0.593342
-      }
-    ],
-    "prediction_errors": {
-      "damage": 0.086698,
-      "energy": 0.120105,
-      "hazard": 0.064486,
-      "reproduction": 0.246295,
-      "social": -0.225717,
-      "tool": -0.094817
-    },
-    "recent_trace": {
-      "action": 0.142857,
-      "damage": 0.0,
-      "energy_delta": 0.004893,
-      "health_delta": 0.0,
-      "prediction_error": 0.120105,
-      "reproduction": 0.0,
-      "social": 0.0,
-      "tool": 0.0
-    },
-    "signal_values": [
-      0.222298,
-      0.108399,
-      0.028657,
-      0.043831,
-      0.16619,
-      0.100536,
-      0.144112,
-      0.140374
-    ],
-    "success_profile": {
-      "energy_gain": 393.636325,
-      "prediction_fit": 38.022754,
-      "reproduction": 3.0,
-      "social_learning": 49.3,
-      "tool_use": 2.000005,
-      "written_learning": 1.081204
-    },
-    "tool_trace": {
-      "last_artifact_method": 0.0,
-      "last_craft_target": "",
-      "last_tool_affordance": "lever"
-    }
-  },
-  "context": {
-    "criterion": "learner_champion",
-    "label": "final",
-    "population": {
-      "agent": 1640,
-      "fungus": 120,
-      "neural": 1634,
-      "plant": 853,
-      "total": 2613
-    },
-    "world_energy": {
-      "biological_storage": 1586.943,
-      "chemical": 248.6819,
-      "electrical": 67.6837,
-      "high_density": 3.7703,
-      "locked_chemical": 184.5907,
-      "mechanical": 486.1534,
-      "radiant": 1049.7982,
-      "thermal": 5073.7106
-    },
-    "world_physics": {
-      "avg_abrasion": 0.09466,
-      "avg_acidity": 0.1361,
-      "avg_biological_activity": 0.29718,
-      "avg_boundary_permeability": 0.22233,
-      "avg_current_exposure": 0.06785,
-      "avg_edge_current": 0.20166,
-      "avg_edge_slope": 0.28877,
-      "avg_elevation": 0.4213,
-      "avg_fluid_level": 0.09345,
-      "avg_humidity": 0.15534,
-      "avg_interiority": 0.2801,
-      "avg_oxygen": 0.46566,
-      "avg_pressure": 0.05567,
-      "avg_salinity": 0.23858,
-      "avg_shelter": 0.33013,
-      "avg_structure_scale": 10.7,
-      "avg_temperature": 0.859,
-      "avg_wet_dry_cycle": 0.08004,
-      "max_abrasion": 0.14122,
-      "max_acidity": 0.284,
-      "max_biological_activity": 0.9277,
-      "max_boundary_permeability": 0.65472,
-      "max_current_exposure": 0.15693,
-      "max_edge_current": 0.65157,
-      "max_edge_slope": 0.97845,
-      "max_elevation": 0.98025,
-      "max_fluid_level": 0.2684,
-      "max_humidity": 0.50614,
-      "max_interiority": 0.46584,
-      "max_oxygen": 0.59049,
-      "max_pressure": 0.20143,
-      "max_salinity": 1.10942,
-      "max_shelter": 0.49897,
-      "max_structure_scale": 156,
-      "max_temperature": 1.37637,
-      "max_wet_dry_cycle": 0.15088,
-      "structure_count": 140.0
-    }
-  },
-  "genome": {
-    "aquatic_affinity": 0.364774236497845,
-    "armor": 0.3575067605666296,
-    "asexual_threshold": 0.5153129359639581,
-    "buoyancy": 0.04945815704869869,
-    "chemical_metabolism": 0.5867431767100044,
-    "desiccation_tolerance": 0.40715012855217114,
-    "developmental_complexity": 0.6565095308747261,
-    "digestion": 0.7770498332829061,
-    "electrical_use": 0.06790511534275795,
-    "learning_rate": 0.08912712638828861,
-    "manipulator": 0.33497389637868874,
-    "mate_selectivity": 0.7515263372938785,
-    "mechanical_use": 0.35047106883098555,
-    "memory_budget": 1.2748947773395676,
-    "mobility": 0.5134324512445254,
-    "mutation_rate": 0.01671166067442134,
-    "neural_budget": 6.328955865251377,
-    "offspring_investment": 0.4071363322544038,
-    "photosynthesis_surface": 0.07137912134872229,
-    "plasticity_rate": 0.31296064552953684,
-    "prediction_weight": 0.11794147660802323,
-    "pressure_tolerance": 0.030010479470818252,
-    "radiant_metabolism": 0.20050955481648813,
-    "salinity_tolerance": 0.23481143906435242,
-    "sensor_range": 0.5101029580314997,
-    "sexual_threshold": 0.6550110155555166,
-    "signal_strength": 0.1974412799753545,
-    "storage_capacity": 0.447284097322393,
-    "thermal_tolerance": 0.5962837940988884,
-    "valence_damage": 0.6094276821826154,
-    "valence_energy": 0.4310923294749994,
-    "valence_health": 0.43079176078669257,
-    "valence_reproduction": 0.3380228367745549,
-    "valence_social": 0.2832667113232811
-  },
-  "inventory": {
-    "bone": 1,
-    "fiber": 1
-  },
-  "organism": {
+  "individual": {
     "age": 1141,
     "artifacts": [],
+    "child_count": 3,
     "complexity": 2.0534,
+    "cycle": 5,
     "energy": 82.7206,
-    "generation": 5,
     "health": 0.406,
     "id": 3174,
     "kind": "agent",
@@ -1706,19 +1667,58 @@
     "last_valence": 0.0021,
     "location": 7,
     "neural": true,
-    "offspring_count": 3,
     "parents": [
       2317
     ],
     "success_profile": {
       "energy_gain": 393.6363,
       "prediction_fit": 38.0228,
-      "reproduction": 3.0,
       "social_learning": 49.3,
+      "spawning": 3.0,
       "tool_use": 2.0,
       "written_learning": 1.0812
     },
     "successful_tools": 2
+  },
+  "inventory": {
+    "bone": 1,
+    "fiber": 1
+  },
+  "params": {
+    "aquatic_affinity": 0.364774236497845,
+    "buoyancy": 0.04945815704869869,
+    "child_investment": 0.4071363322544038,
+    "desiccation_tolerance": 0.40715012855217114,
+    "developmental_complexity": 0.6565095308747261,
+    "electrical_use": 0.06790511534275795,
+    "essence_conversion": 0.7770498332829061,
+    "essence_energy_gain": 0.5867431767100044,
+    "learning_rate": 0.08912712638828861,
+    "manipulator": 0.33497389637868874,
+    "mechanical_use": 0.35047106883098555,
+    "memory_budget": 1.2748947773395676,
+    "mobility": 0.5134324512445254,
+    "neural_budget": 6.328955865251377,
+    "pairing_selectivity": 0.7515263372938785,
+    "perturbation_rate": 0.01671166067442134,
+    "plasticity_rate": 0.31296064552953684,
+    "prediction_weight": 0.11794147660802323,
+    "pressure_tolerance": 0.030010479470818252,
+    "resilience": 0.3575067605666296,
+    "salinity_tolerance": 0.23481143906435242,
+    "sensor_range": 0.5101029580314997,
+    "signal_strength": 0.1974412799753545,
+    "single_parent_threshold": 0.5153129359639581,
+    "solar_capture_area": 0.07137912134872229,
+    "solar_energy_gain": 0.20050955481648813,
+    "storage_capacity": 0.447284097322393,
+    "thermal_tolerance": 0.5962837940988884,
+    "two_parent_threshold": 0.6550110155555166,
+    "valence_damage": 0.6094276821826154,
+    "valence_energy": 0.4310923294749994,
+    "valence_health": 0.43079176078669257,
+    "valence_social": 0.2832667113232811,
+    "valence_spawn": 0.3380228367745549
   },
   "reason": "final_learner_champion",
   "score": 49.93176,

@@ -1,5 +1,14 @@
 {
-  "brain": {
+  "context": {
+    "pool": {
+      "agent": 16,
+      "collector": 1859,
+      "converter": 272,
+      "neural": 16,
+      "total": 2147
+    }
+  },
+  "controller": {
     "bias_h": [
       -0.0417386,
       8.81e-05,
@@ -428,7 +437,7 @@
       -0.664254
     ]
   },
-  "brain_template": {
+  "controller_template": {
     "bias_h": [
       -0.0417386,
       8.81e-05,
@@ -832,64 +841,55 @@
       -0.6642546
     ]
   },
-  "context": {
-    "population": {
-      "agent": 16,
-      "fungus": 272,
-      "neural": 16,
-      "plant": 1859,
-      "total": 2147
-    }
-  },
-  "genome": {
-    "armor": 0.24348319299289148,
-    "asexual_threshold": 0.4709050444060574,
-    "chemical_metabolism": 0.781991822687272,
-    "developmental_complexity": 0.6990558453637877,
-    "digestion": 0.8151762454006374,
-    "electrical_use": 0.031154092032105063,
-    "learning_rate": 0.14542939742719307,
-    "manipulator": 0.2957251793138592,
-    "mate_selectivity": 0.6913424514613836,
-    "mechanical_use": 0.2358033487495953,
-    "memory_budget": 5.3696868038928125,
-    "mobility": 0.37424281007356575,
-    "mutation_rate": 0.047249290238223836,
-    "neural_budget": 7.592149585866523,
-    "offspring_investment": 0.49375533520804643,
-    "photosynthesis_surface": 0.01776976846625633,
-    "plasticity_rate": 0.06757594587421839,
-    "prediction_weight": 0.09446877640624336,
-    "radiant_metabolism": 0.22397786078611479,
-    "sensor_range": 0.35079486406409005,
-    "sexual_threshold": 0.5009684157135884,
-    "signal_strength": 0.14042502783584185,
-    "storage_capacity": 0.7514292143744087,
-    "thermal_tolerance": 0.6109278383774961,
-    "valence_damage": 0.8268918561900456,
-    "valence_energy": 0.641285008247795,
-    "valence_health": 0.15172208790094407,
-    "valence_reproduction": 0.4100314132078113,
-    "valence_social": 0.17124946707222297
+  "individual": {
+    "age": 1000,
+    "child_count": 3,
+    "complexity": 2.5186,
+    "cycle": 0,
+    "energy": 32.7908,
+    "health": 1.0,
+    "id": 470,
+    "kind": "agent",
+    "location": 9,
+    "neural": true,
+    "parents": [],
+    "successful_tools": 404
   },
   "inventory": {
     "bone": 2,
     "resin": 1,
     "shell": 1
   },
-  "organism": {
-    "age": 1000,
-    "complexity": 2.5186,
-    "energy": 32.7908,
-    "generation": 0,
-    "health": 1.0,
-    "id": 470,
-    "kind": "agent",
-    "location": 9,
-    "neural": true,
-    "offspring_count": 3,
-    "parents": [],
-    "successful_tools": 404
+  "params": {
+    "child_investment": 0.49375533520804643,
+    "developmental_complexity": 0.6990558453637877,
+    "electrical_use": 0.031154092032105063,
+    "essence_conversion": 0.8151762454006374,
+    "essence_energy_gain": 0.781991822687272,
+    "learning_rate": 0.14542939742719307,
+    "manipulator": 0.2957251793138592,
+    "mechanical_use": 0.2358033487495953,
+    "memory_budget": 5.3696868038928125,
+    "mobility": 0.37424281007356575,
+    "neural_budget": 7.592149585866523,
+    "pairing_selectivity": 0.6913424514613836,
+    "perturbation_rate": 0.047249290238223836,
+    "plasticity_rate": 0.06757594587421839,
+    "prediction_weight": 0.09446877640624336,
+    "resilience": 0.24348319299289148,
+    "sensor_range": 0.35079486406409005,
+    "signal_strength": 0.14042502783584185,
+    "single_parent_threshold": 0.4709050444060574,
+    "solar_capture_area": 0.01776976846625633,
+    "solar_energy_gain": 0.22397786078611479,
+    "storage_capacity": 0.7514292143744087,
+    "thermal_tolerance": 0.6109278383774961,
+    "two_parent_threshold": 0.5009684157135884,
+    "valence_damage": 0.8268918561900456,
+    "valence_energy": 0.641285008247795,
+    "valence_health": 0.15172208790094407,
+    "valence_social": 0.17124946707222297,
+    "valence_spawn": 0.4100314132078113
   },
   "reason": "interval_champion",
   "signal_values": [

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from .contracts import BrainLearningCase, BrainRuntime
+from .contracts import ControllerLearningCase, ControllerRuntime
 from .cpu import CpuBrainRuntime
 
 
-def make_brain_runtime(backend: str, device: str = "auto") -> BrainRuntime:
+def make_controller_runtime(backend: str, device: str = "auto") -> ControllerRuntime:
     if backend == "cpu":
         return CpuBrainRuntime()
     if backend == "torch":
@@ -14,4 +14,4 @@ def make_brain_runtime(backend: str, device: str = "auto") -> BrainRuntime:
     raise ValueError(f"unknown compute backend: {backend}")
 
 
-__all__ = ["BrainLearningCase", "BrainRuntime", "CpuBrainRuntime", "make_brain_runtime"]
+__all__ = ["ControllerLearningCase", "ControllerRuntime", "CpuBrainRuntime", "make_controller_runtime"]

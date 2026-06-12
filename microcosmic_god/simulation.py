@@ -6,11 +6,11 @@ from collections import Counter, defaultdict
 from random import Random
 from typing import Any
 
-from .backends import BrainLearningCase, make_brain_runtime
-from .brain import TinyController
+from .backends import ControllerLearningCase, make_controller_runtime
+from .controller import TinyController
 from .checkpoints import CheckpointManager
 from .config import RunConfig
-from .debrief import build_debrief, population_counts, success_profile_summary, world_energy_summary, world_physics_summary
+from .debrief import build_debrief, pool_counts, success_profile_summary, world_energy_summary, world_physics_summary
 from .energy import (
     AFFORDANCES,
     Artifact,
@@ -25,17 +25,17 @@ from .energy import (
     extend_structure,
     structure_capability,
 )
-from .optimization import Optimizer, OffspringPlan
+from .optimization import Optimizer, ChildPlan
 from .params import MEMORY_BUDGET_MAX, NEURAL_BUDGET_MAX, ParamVector
 from .interventions import Intervention, load_interventions
 from .observer import EventObserver
-from .organisms import (
+from .individuals import (
     ACTIONS,
     ACTION_INDEX,
     OBSERVATION_SIZE,
     Individual,
-    individual_from_genome,
-    make_modular_brain_for_genome,
+    individual_from_params,
+    make_modular_controller_for_params,
 )
 from .runlog import RunLogger
 from .world import Place, World
@@ -68,15 +68,15 @@ class Simulation:
         self.logger = RunLogger(config)
         self.observer = EventObserver(self.logger)
         self.checkpoints = CheckpointManager(self.logger.checkpoint_dir, config.neural_checkpoint_limit)
-        self.brain_runtime = make_brain_runtime(config.compute_backend, config.device)
+        self.controller_runtime = make_controller_runtime(config.compute_backend, config.device)
         self.optimization = Optimizer(self.rng, config)
         self.interventions = load_interventions(config.interventions_path) if config.run_mode == "garden" else {}
-        self.organisms: dict[int, Individual] = {}
+        self.individuals: dict[int, Individual] = {}
         self.next_id = 1
         self.tick = 0
-        self.living_total = 0
-        self.living_by_kind: Counter[str] = Counter()
-        self.living_neural = 0
+        self.active_total = 0
+        self.active_by_kind: Counter[str] = Counter()
+        self.active_neural = 0
         self.births_by_mode: Counter[str] = Counter()
         self.deaths_by_cause: Counter[str] = Counter()
         self.deaths_by_kind_cause: Counter[str] = Counter()
@@ -102,15 +102,15 @@ class Simulation:
         self.structures_built: Counter[str] = Counter()
         self.structures_extended: Counter[str] = Counter()
         self.physics_events: Counter[str] = Counter()
-        self.reproduction_attempts: Counter[str] = Counter()
-        self.reproduction_failures: Counter[str] = Counter()
+        self.spawn_attempts: Counter[str] = Counter()
+        self.spawn_failures: Counter[str] = Counter()
         self.action_counts: Counter[str] = Counter()
         self.action_energy_delta: Counter[str] = Counter()
         self.infeasible_commits: Counter[str] = Counter()
         self.aggregate_history: list[dict[str, Any]] = []
         self.interventions_applied: list[dict[str, Any]] = []
         self.demonstrations: dict[int, list[tuple[int, str, bool]]] = defaultdict(list)
-        self._seed_initial_population()
+        self._seed_initial_pool()
 
     def _environment_harshness(self) -> float:
         return max(0.2, float(getattr(self.config, "environment_harshness", 1.0)))
@@ -121,10 +121,10 @@ class Simulation:
 
         The point of multi-world is to invalidate controllers' memorized solutions
         (place 7 needs kindle first, etc.) so that only controllers with
-        abstracted causal rules survive. We do NOT want to also reset resource
+        abstracted causal rules persist. We do NOT want to also reset resource
         depletion, because that's a free buff to the pool — it lets
-        energy-depleted lineages get re-supplied every refresh cycle, which masks the
-        cognitive ranking pressure with a basic survival-pressure release.
+        energy-depleted lines get re-supplied every refresh cycle, which masks the
+        cognitive ranking pressure with a basic persistence-pressure release.
 
         So the refresh swaps:
           - place.physics (temperature, fluid_level, abrasion, pressure, ...)
@@ -132,7 +132,7 @@ class Simulation:
           - place.causal_challenge (the prep-step rules that controllers memorize)
           - place.archetype, sun_exposure, water_flow, geothermal, mineral_richness, volatility
         and KEEPS:
-          - place.resources (current essence / organic_store / thermal / etc.)
+          - place.resources (current essence / residue_store / thermal / etc.)
           - place.sealed_essence (the unlocked-energy reserve)
           - place.materials (currently accumulated materials)
           - place.structures, signals, marks (built artifacts persist across refreshes)
@@ -162,7 +162,7 @@ class Simulation:
         # Edges/topology stay attached to the new world (which was just
         # generated, so its edges already match its place ids). We swap the
         # whole world object.
-        for individual in self.organisms.values():
+        for individual in self.individuals.values():
             if not individual.alive:
                 continue
             if individual.location >= n_places:
@@ -177,22 +177,22 @@ class Simulation:
             {"new_world_seed_basis": self.tick, "resources_preserved": True},
         )
 
-    def _seed_initial_population(self) -> None:
-        for _ in range(self.config.initial_plants):
-            self.add_individual("plant", ParamVector.plant(self.rng), self.rng.randrange(len(self.world.places)), self.rng.uniform(10.0, 35.0))
-        for _ in range(self.config.initial_fungi):
-            self.add_individual("fungus", ParamVector.fungus(self.rng), self.rng.randrange(len(self.world.places)), self.rng.uniform(8.0, 28.0))
+    def _seed_initial_pool(self) -> None:
+        for _ in range(self.config.initial_collectors):
+            self.add_individual("collector", ParamVector.collector(self.rng), self.rng.randrange(len(self.world.places)), self.rng.uniform(10.0, 35.0))
+        for _ in range(self.config.initial_converters):
+            self.add_individual("converter", ParamVector.converter(self.rng), self.rng.randrange(len(self.world.places)), self.rng.uniform(8.0, 28.0))
         for _ in range(self.config.initial_agents):
             params = ParamVector.neural(self.rng)
             template = None
             if self.rng.random() < self.config.initial_modular_fraction:
                 n_blocks = self.rng.randint(1, max(1, self.config.initial_modular_max_blocks))
-                _, template = make_modular_brain_for_genome(self.rng, params, n_blocks=n_blocks)
+                _, template = make_modular_controller_for_params(self.rng, params, n_blocks=n_blocks)
             self.add_individual(
                 "agent", params, self.rng.randrange(len(self.world.places)), self.rng.uniform(22.0, 55.0),
                 controller_template=template,
             )
-        self.logger.event(0, "seeded", {"population": population_counts(self.organisms)})
+        self.logger.event(0, "seeded", {"pool": pool_counts(self.individuals)})
 
     def add_individual(
         self,
@@ -204,13 +204,13 @@ class Simulation:
         parent_ids: tuple[int, ...] = (),
         controller_template: TinyController | None = None,
     ) -> Individual | None:
-        if self.living_total >= self.config.max_population:
+        if self.active_total >= self.config.max_pool:
             return None
         if kind != "agent":
             params.neural_budget = 0.0
             params.memory_budget = 0.0
             controller_template = None
-        individual = individual_from_genome(
+        individual = individual_from_params(
             self.rng,
             id_=self.next_id,
             kind=kind,
@@ -221,24 +221,24 @@ class Simulation:
             parent_ids=parent_ids,
             controller_template=controller_template,
         )
-        parent_lineages = tuple(
-            self.organisms[parent_id].lineage_root_id or parent_id
+        parent_lines = tuple(
+            self.individuals[parent_id].line_root_id or parent_id
             for parent_id in parent_ids
-            if parent_id in self.organisms
+            if parent_id in self.individuals
         )
         if parent_ids:
-            individual.parent_lineage_ids = parent_lineages or parent_ids
-            individual.lineage_root_id = individual.parent_lineage_ids[0]
+            individual.parent_line_ids = parent_lines or parent_ids
+            individual.line_root_id = individual.parent_line_ids[0]
         else:
-            individual.lineage_root_id = individual.id
+            individual.line_root_id = individual.id
         individual.neural_upkeep_grace_ticks = self.config.neural_upkeep_grace_ticks
         individual.neural_upkeep_grace_floor = self.config.neural_upkeep_grace_floor
-        self.organisms[individual.id] = individual
+        self.individuals[individual.id] = individual
         self.next_id += 1
-        self.living_total += 1
-        self.living_by_kind[individual.kind] += 1
+        self.active_total += 1
+        self.active_by_kind[individual.kind] += 1
         if individual.neural:
-            self.living_neural += 1
+            self.active_neural += 1
         return individual
 
     def run(self) -> dict[str, Any]:
@@ -255,11 +255,11 @@ class Simulation:
                     reason = "max_ticks"
                     break
                 counts = self._fast_counts()
-                if self.config.stop_on_full_extinction and counts.get("total", 0) == 0:
-                    reason = "full_extinction"
+                if self.config.stop_on_full_washout and counts.get("total", 0) == 0:
+                    reason = "full_washout"
                     break
-                if self.config.stop_on_neural_extinction and self.tick > 10 and counts.get("neural", 0) == 0:
-                    reason = "neural_extinction"
+                if self.config.stop_on_neural_washout and self.tick > 10 and counts.get("neural", 0) == 0:
+                    reason = "neural_washout"
                     break
                 self.step()
         except KeyboardInterrupt:
@@ -279,7 +279,7 @@ class Simulation:
         # Multi-world ranking: regenerate the world periodically so the
         # pool faces shifting physics. Controllers that memorized one
         # specific world are removed when it changes; controllers that abstracted the
-        # underlying causal rules survive. Selects FOR generalization.
+        # underlying causal rules persist. Selects FOR generalization.
         refresh_every = int(getattr(self.config, "world_refresh_every", 0) or 0)
         if refresh_every > 0 and self.tick > 1 and self.tick % refresh_every == 0:
             self._refresh_world()
@@ -298,13 +298,13 @@ class Simulation:
         intent_slots: list[tuple[int, str | None]] = []
         neural_choice_rows: list[tuple[Individual, list[float]]] = []
         neural_actions: dict[int, str] = {}
-        feedback: dict[int, dict[str, float]] = defaultdict(lambda: {"reproduction": 0.0, "social": 0.0, "tool": 0.0})
+        feedback: dict[int, dict[str, float]] = defaultdict(lambda: {"spawning": 0.0, "social": 0.0, "tool": 0.0})
 
-        for individual in list(self.organisms.values()):
+        for individual in list(self.individuals.values()):
             if not individual.alive:
                 continue
             self._apply_upkeep(individual)
-            self._habitat_stress(individual)
+            self._terrain_stress(individual)
             if not individual.alive:
                 continue
             observed_tokens = self._observed_tokens(individual)
@@ -318,42 +318,42 @@ class Simulation:
                 intent_slots.append((individual.id, action))
 
         if neural_choice_rows:
-            neural_brains: list[TinyController] = []
+            neural_controllers: list[TinyController] = []
             neural_observations: list[list[float]] = []
             for individual, observation in neural_choice_rows:
                 assert individual.controller is not None
-                neural_brains.append(individual.controller)
+                neural_controllers.append(individual.controller)
                 neural_observations.append(observation)
-            outputs = self.brain_runtime.forward_many(neural_brains, neural_observations)
+            outputs = self.controller_runtime.forward_many(neural_controllers, neural_observations)
             for (individual, _observation), action_outputs in zip(neural_choice_rows, outputs):
                 neural_actions[individual.id] = self._choose_action_from_outputs(individual, action_outputs)
 
-        for organism_id, action in intent_slots:
-            resolved_action = action if action is not None else neural_actions.get(organism_id, "rest")
-            intents[organism_id] = resolved_action
-            observation, before_energy, before_health, observed_tokens = context_bases[organism_id]
-            contexts[organism_id] = (observation, ACTION_INDEX[resolved_action], before_energy, before_health, observed_tokens)
+        for individual_id, action in intent_slots:
+            resolved_action = action if action is not None else neural_actions.get(individual_id, "rest")
+            intents[individual_id] = resolved_action
+            observation, before_energy, before_health, observed_tokens = context_bases[individual_id]
+            contexts[individual_id] = (observation, ACTION_INDEX[resolved_action], before_energy, before_health, observed_tokens)
 
-        active_recombine_places: set[int] = set()
-        for organism_id, action in list(intents.items()):
-            individual = self.organisms.get(organism_id)
+        active_combine_places: set[int] = set()
+        for individual_id, action in list(intents.items()):
+            individual = self.individuals.get(individual_id)
             if individual is None or not individual.alive:
                 continue
             if action == "coordinate":
-                self._coordinate_recombine(individual, feedback[organism_id])
-                active_recombine_places.add(individual.location)
+                self._coordinate_combine(individual, feedback[individual_id])
+                active_combine_places.add(individual.location)
                 continue
-            self._resolve_action(individual, action, feedback[organism_id])
+            self._resolve_action(individual, action, feedback[individual_id])
 
-        for individual in self.organisms.values():
-            if individual.alive and individual.recombine_intent_until >= self.tick:
-                active_recombine_places.add(individual.location)
-        self._resolve_recombine(active_recombine_places, feedback)
+        for individual in self.individuals.values():
+            if individual.alive and individual.combine_intent_until >= self.tick:
+                active_combine_places.add(individual.location)
+        self._resolve_combine(active_combine_places, feedback)
 
         learning_rows: list[tuple[Individual, int, float, float, float, float, dict[str, float], list[int]]] = []
-        learning_cases: list[BrainLearningCase] = []
-        for organism_id, context in contexts.items():
-            individual = self.organisms.get(organism_id)
+        learning_cases: list[ControllerLearningCase] = []
+        for individual_id, context in contexts.items():
+            individual = self.individuals.get(individual_id)
             if individual is None:
                 continue
             _observation, action_index, before_energy, before_health, observed_tokens = context
@@ -365,25 +365,25 @@ class Simulation:
                 continue
             health_delta = individual.health - before_health
             damage = max(0.0, -health_delta)
-            extra = feedback[organism_id]
+            extra = feedback[individual_id]
             movement_hazard = damage * 4.0 if action_name == "move" else 0.0
             valence = (
                 individual.params.valence_energy * (energy_delta / 10.0)
                 + individual.params.valence_health * (health_delta * 4.0)
                 - individual.params.valence_damage * (damage * 4.0)
-                + individual.params.valence_reproduction * extra.get("reproduction", 0.0)
+                + individual.params.valence_spawn * extra.get("spawning", 0.0)
                 + individual.params.valence_social * extra.get("social", 0.0)
             )
             outcome_targets = {
                 "damage": damage * 4.0,
-                "reproduction": extra.get("reproduction", 0.0),
+                "spawning": extra.get("spawning", 0.0),
                 "social": extra.get("social", 0.0),
                 "tool": extra.get("tool", 0.0),
                 "hazard": movement_hazard,
             }
             learning_rows.append((individual, action_index, energy_delta, health_delta, damage, valence, extra, observed_tokens))
             learning_cases.append(
-                BrainLearningCase(
+                ControllerLearningCase(
                     controller=individual.controller,
                     action_index=action_index,
                     valence=valence,
@@ -395,7 +395,7 @@ class Simulation:
                 )
             )
 
-        prediction_errors = self.brain_runtime.learn_many(learning_cases)
+        prediction_errors = self.controller_runtime.learn_many(learning_cases)
         for row, prediction_error in zip(learning_rows, prediction_errors):
             individual, action_index, energy_delta, health_delta, damage, valence, extra, observed_tokens = row
             individual.last_valence = valence
@@ -405,7 +405,7 @@ class Simulation:
                 health_delta=health_delta,
                 damage=damage,
                 prediction_error=prediction_error,
-                reproduction_feedback=extra.get("reproduction", 0.0),
+                spawn_feedback=extra.get("spawning", 0.0),
                 social_feedback=extra.get("social", 0.0),
                 tool_feedback=extra.get("tool", 0.0),
                 prediction_errors=individual.controller.last_prediction_errors,
@@ -414,7 +414,7 @@ class Simulation:
                 individual.learn_signal_value(token, valence + prediction_error * 0.05)
             self._remember_place(individual)
 
-        for individual in list(self.organisms.values()):
+        for individual in list(self.individuals.values()):
             if individual.alive:
                 individual.repair_or_decay()
 
@@ -425,7 +425,7 @@ class Simulation:
 
     def _rosters(self) -> dict[int, list[int]]:
         rosters: dict[int, list[int]] = {place.id: [] for place in self.world.places}
-        for individual in self.organisms.values():
+        for individual in self.individuals.values():
             if individual.alive:
                 rosters[individual.location].append(individual.id)
         return rosters
@@ -433,11 +433,11 @@ class Simulation:
     def _subjects(self, individual: Individual | None = None, place_id: int | None = None, extra: list[str] | None = None) -> list[str]:
         subjects: list[str] = []
         if individual is not None:
-            subjects.append(f"organism:{individual.id}")
+            subjects.append(f"individual:{individual.id}")
             subjects.append(f"place:{individual.location}")
-            lineage_root_id = getattr(individual, "lineage_root_id", 0)
-            if lineage_root_id:
-                subjects.append(f"lineage:{lineage_root_id}")
+            line_root_id = getattr(individual, "line_root_id", 0)
+            if line_root_id:
+                subjects.append(f"line:{line_root_id}")
         if place_id is not None:
             subject = f"place:{place_id}"
             if subject not in subjects:
@@ -446,13 +446,13 @@ class Simulation:
             subjects.extend(extra)
         return subjects
 
-    def _living_ids_at(self, place_id: int) -> list[int]:
-        return [individual.id for individual in self.organisms.values() if individual.alive and individual.location == place_id]
+    def _active_ids_at(self, place_id: int) -> list[int]:
+        return [individual.id for individual in self.individuals.values() if individual.alive and individual.location == place_id]
 
     def _fast_counts(self) -> dict[str, int]:
-        counts = {kind: count for kind, count in self.living_by_kind.items() if count > 0}
-        counts["neural"] = self.living_neural
-        counts["total"] = self.living_total
+        counts = {kind: count for kind, count in self.active_by_kind.items() if count > 0}
+        counts["neural"] = self.active_neural
+        counts["total"] = self.active_total
         return counts
 
     def _interaction_control(self, individual: Individual) -> float:
@@ -512,15 +512,15 @@ class Simulation:
     def _active_helper_candidates(self, individual: Individual, focus: str) -> list[tuple[Individual, float]]:
         place = self.world.places[individual.location]
         helpers: list[tuple[Individual, float]] = []
-        for helper_id in self._living_ids_at(place.id):
+        for helper_id in self._active_ids_at(place.id):
             if helper_id == individual.id:
                 continue
-            helper = self.organisms.get(helper_id)
+            helper = self.individuals.get(helper_id)
             if helper is None or not helper.alive or helper.kind != "agent":
                 continue
             signal = self._signal_intensity_from(place, helper.id)
             active = (
-                helper.recombine_intent_until >= self.tick
+                helper.combine_intent_until >= self.tick
                 or helper.last_action in {"coordinate", "signal", "observe"}
                 or signal > 0.025
             )
@@ -533,7 +533,7 @@ class Simulation:
                 helper.tool_skill.get("protect", 0.0) * 0.30 if focus in {"traverse", "build"} else 0.0,
             )
             body = helper.params.manipulator * 0.22 + helper.params.mobility * 0.12 + helper.params.sensor_range * 0.16
-            alignment = 0.32 + signal * 0.34 + (0.18 if helper.recombine_intent_until >= self.tick else 0.0)
+            alignment = 0.32 + signal * 0.34 + (0.18 if helper.combine_intent_until >= self.tick else 0.0)
             alignment += 0.12 if helper.last_action in {"coordinate", "signal", "observe"} else 0.0
             contribution = max(0.0, min(1.0, (body + focus_skill * 0.32 + helper.params.signal_strength * 0.10 + energy_readiness * 0.14) * alignment))
             if contribution > 0.035:
@@ -584,7 +584,7 @@ class Simulation:
         self.collaboration_events[context] += 1
         individual.record_success("collaboration", support * (0.25 + min(1.0, score) * 0.40))
         for helper_id in helper_ids:
-            helper = self.organisms.get(helper_id)
+            helper = self.individuals.get(helper_id)
             if helper is None or not helper.alive:
                 continue
             helper.energy -= 0.004 + support * 0.004
@@ -595,14 +595,14 @@ class Simulation:
             self.tick,
             "collaboration",
             {
-                "organism_id": individual.id,
+                "individual_id": individual.id,
                 "place": individual.location,
                 "focus": focus,
                 "context": context,
                 "support": support,
                 "helpers": helper_ids[:8],
             },
-            subjects=self._subjects(individual, extra=[f"affordance:{focus}", f"collaboration:{context}", *[f"organism:{helper_id}" for helper_id in helper_ids[:4]]]),
+            subjects=self._subjects(individual, extra=[f"affordance:{focus}", f"collaboration:{context}", *[f"individual:{helper_id}" for helper_id in helper_ids[:4]]]),
             score=support + min(1.0, score) * 0.45 + min(0.35, len(helper_ids) * 0.04),
             rarity_key=f"collaboration:{context}:{focus}",
         )
@@ -610,8 +610,8 @@ class Simulation:
     def _place_exposure_pressure(self, place: Place) -> dict[str, Any]:
         physics = place.physics
         temperature = physics.get("temperature", 0.5)
-        humidity = physics.get("humidity", place.habitat.get("humidity", 0.5))
-        fluid = physics.get("fluid_level", place.habitat.get("aquatic", 0.0))
+        humidity = physics.get("humidity", place.terrain.get("humidity", 0.5))
+        fluid = physics.get("fluid_level", place.terrain.get("aquatic", 0.0))
         current = physics.get("current_exposure", 0.0)
         elevation = physics.get("elevation", 0.5)
         abrasion = physics.get("abrasion", 0.0)
@@ -685,8 +685,8 @@ class Simulation:
         destination_energy = min(1.0, destination.total_accessible_energy() / 420.0)
         origin_memory = individual.place_memory.get(origin.id, origin_energy)
         destination_memory = individual.place_memory.get(destination.id, destination_energy)
-        origin_crowd = len(self._living_ids_at(origin.id)) / max(1.0, origin.capacity)
-        destination_crowd = len(self._living_ids_at(destination.id)) / max(1.0, destination.capacity)
+        origin_crowd = len(self._active_ids_at(origin.id)) / max(1.0, origin.capacity)
+        destination_crowd = len(self._active_ids_at(destination.id)) / max(1.0, destination.capacity)
         origin_hazard = self._place_hazard_pressure(origin)
         destination_hazard = self._place_hazard_pressure(destination)
         locked_pull = max(0.0, destination.sealed_essence - origin.sealed_essence) / 520.0
@@ -794,7 +794,7 @@ class Simulation:
                 self.tick,
                 "movement_attempt",
                 {
-                    "organism_id": individual.id,
+                    "individual_id": individual.id,
                     "origin": origin.id,
                     "destination": destination.id,
                     "success": success,
@@ -891,7 +891,7 @@ class Simulation:
             (place.resources.get("mechanical", 0.0) / 180.0 + place.physics.get("current_exposure", 0.0) * 0.18, "mechanical_gradient", "encase", "mechanical"),
             (place.resources.get("electrical", 0.0) / 140.0 + place.resources.get("dense_node", 0.0) / 80.0, "electrical_source", "ferry", "electrical"),
             (place.resources.get("solar", 0.0) / 220.0 + place.resources.get("thermal", 0.0) / 240.0, "heat_source", "kindle", "thermal"),
-            (place.resources.get("essence", 0.0) / 220.0 + place.resources.get("organic_store", 0.0) / 220.0, "surface_food", "winnow", "essence"),
+            (place.resources.get("essence", 0.0) / 220.0 + place.resources.get("residue_store", 0.0) / 220.0, "surface_food", "winnow", "essence"),
         ]
         value, resource, required_affordance, energy = max(resource_options, key=lambda item: item[0])
         if target_affordance:
@@ -1088,7 +1088,7 @@ class Simulation:
         return affordance, score, directed
 
     def _apply_physics_transport(self) -> None:
-        for individual in list(self.organisms.values()):
+        for individual in list(self.individuals.values()):
             if not individual.alive:
                 continue
             place = self.world.places[individual.location]
@@ -1156,7 +1156,7 @@ class Simulation:
             individual.health += individual.energy * 0.030
             individual.energy = 0.0
         if individual.health <= 0.0:
-            self._deactivate(individual, "starvation")
+            self._deactivate(individual, "exhaustion")
 
     def _age_portable_inscriptions(self, individual: Individual) -> None:
         for artifact in individual.artifacts:
@@ -1172,13 +1172,13 @@ class Simulation:
                     kept.append(inscription)
             artifact.inscriptions = kept[-8:]
 
-    def _habitat_stress(self, individual: Individual) -> None:
+    def _terrain_stress(self, individual: Individual) -> None:
         place = self.world.places[individual.location]
-        aquatic = place.habitat.get("aquatic", 0.0)
-        depth = place.habitat.get("depth", 0.0)
+        aquatic = place.terrain.get("aquatic", 0.0)
+        depth = place.terrain.get("depth", 0.0)
         physics = place.physics
-        salinity = physics.get("salinity", place.habitat.get("salinity", 0.0))
-        humidity = physics.get("humidity", place.habitat.get("humidity", 0.5))
+        salinity = physics.get("salinity", place.terrain.get("salinity", 0.0))
+        humidity = physics.get("humidity", place.terrain.get("humidity", 0.5))
         temperature = physics.get("temperature", 0.5)
         pressure = physics.get("pressure", depth)
         current = physics.get("current_exposure", 0.0)
@@ -1278,13 +1278,13 @@ class Simulation:
             elif current_stress > max(drowning, desiccation, salinity_stress, pressure_stress, heat_stress, exposure_stress):
                 self._deactivate(individual, "current_exposure")
             else:
-                self._deactivate(individual, "habitat_mismatch")
+                self._deactivate(individual, "terrain_mismatch")
 
     def _observe(self, individual: Individual, rosters: dict[int, list[int]]) -> list[float]:
         place = self.world.places[individual.location]
-        resources = [place.resources[kind] / 120.0 for kind in ("solar", "essence", "organic_store", "thermal", "mechanical", "electrical", "dense_node")]
+        resources = [place.resources[kind] / 120.0 for kind in ("solar", "essence", "residue_store", "thermal", "mechanical", "electrical", "dense_node")]
         local_ids = rosters.get(place.id, [])
-        local_neural = sum(1 for oid in local_ids if self.organisms[oid].neural)
+        local_neural = sum(1 for oid in local_ids if self.individuals[oid].neural)
         best_skill = self._skill_breadth(individual)
         season = math.sin(2.0 * math.pi * self.world.tick / max(2, self.world.season_length))
         features = [
@@ -1316,14 +1316,14 @@ class Simulation:
             place.physics.get("shelter", 0.0),
             place.physics.get("oxygen", 0.35),
             place.physics.get("acidity", 0.10),
-            place.physics.get("organic_activity", 0.0),
+            place.physics.get("residue_activity", 0.0),
             place.physics.get("abrasion", 0.0),
             place.physics.get("wet_dry_cycle", 0.0),
             place.physics.get("elevation", 0.5),
-            place.habitat.get("aquatic", 0.0),
-            place.habitat.get("depth", 0.0),
-            place.habitat.get("salinity", 0.0),
-            place.habitat.get("humidity", 0.5),
+            place.terrain.get("aquatic", 0.0),
+            place.terrain.get("depth", 0.0),
+            place.terrain.get("salinity", 0.0),
+            place.terrain.get("humidity", 0.5),
             *individual.recent_trace(),
             *individual.prediction_error_profile,
             *individual.event_memory,
@@ -1346,16 +1346,16 @@ class Simulation:
 
     def _choose_action(self, individual: Individual, observation: list[float]) -> str:
         if individual.controller is None:
-            non_neural_birth_rate = 0.025 if individual.kind == "plant" else 0.035
-            if individual.energy > self.optimization.clone_mutate_reserve_threshold(individual) and self.rng.random() < non_neural_birth_rate:
-                return "clone_mutate"
-            if individual.kind == "plant":
+            non_neural_birth_rate = 0.025 if individual.kind == "collector" else 0.035
+            if individual.energy > self.optimization.clone_perturb_reserve_threshold(individual) and self.rng.random() < non_neural_birth_rate:
+                return "clone_perturb"
+            if individual.kind == "collector":
                 return "absorb_solar"
-            if individual.kind == "fungus":
+            if individual.kind == "converter":
                 return "eat" if self.rng.random() < 0.72 else "forage"
             return "rest"
 
-        outputs = self.brain_runtime.forward_many([individual.controller], [observation])[0]
+        outputs = self.controller_runtime.forward_many([individual.controller], [observation])[0]
         return self._choose_action_from_outputs(individual, outputs)
 
     def _choose_action_from_outputs(self, individual: Individual, outputs: list[float]) -> str:
@@ -1365,9 +1365,9 @@ class Simulation:
         energy_ratio = individual.energy / max(1.0, individual.storage_limit())
         drive_scale = float(getattr(self.config, "drive_injection_scale", 1.0))
         if drive_scale > 0.0 and individual.adult() and energy_ratio > 0.62:
-            reproductive_drive = individual.params.valence_reproduction * (energy_ratio - 0.62) * drive_scale
-            outputs[ACTION_INDEX["coordinate"]] += reproductive_drive * (0.9 + individual.params.pairing_selectivity)
-            outputs[ACTION_INDEX["clone_mutate"]] += reproductive_drive * (0.7 + (1.0 - individual.params.pairing_selectivity) * 0.4)
+            spawn_drive = individual.params.valence_spawn * (energy_ratio - 0.62) * drive_scale
+            outputs[ACTION_INDEX["coordinate"]] += spawn_drive * (0.9 + individual.params.pairing_selectivity)
+            outputs[ACTION_INDEX["clone_perturb"]] += spawn_drive * (0.7 + (1.0 - individual.params.pairing_selectivity) * 0.4)
         ranked = sorted(range(len(outputs)), key=lambda i: outputs[i], reverse=True)
         depth = int(getattr(self.config, "action_search_depth", 0))
         search = ranked if depth <= 0 else ranked[:depth]
@@ -1387,7 +1387,7 @@ class Simulation:
         return committed
 
     def _action_feasible(self, individual: Individual, action: str) -> bool:
-        if action in {"coordinate", "clone_mutate"} and not individual.adult():
+        if action in {"coordinate", "clone_perturb"} and not individual.adult():
             return False
         if action == "pickup" and individual.inventory_count() >= individual.inventory_limit():
             return False
@@ -1446,8 +1446,8 @@ class Simulation:
             self._signal(individual, feedback)
         elif action == "mark":
             self._mark(individual, feedback)
-        elif action == "clone_mutate":
-            self._clone_mutate(individual, feedback)
+        elif action == "clone_perturb":
+            self._clone_perturb(individual, feedback)
         elif action == "observe":
             self._observe_others(individual, feedback)
 
@@ -1470,7 +1470,7 @@ class Simulation:
             for neighbor in place.neighbors:
                 memory = individual.place_memory.get(neighbor, 0.0)
                 neighbor_place = self.world.places[neighbor]
-                crowd = len(self._living_ids_at(neighbor)) / max(1.0, neighbor_place.capacity)
+                crowd = len(self._active_ids_at(neighbor)) / max(1.0, neighbor_place.capacity)
                 scored.append((memory - crowd * (0.20 + planning * 0.80) + self.rng.random() * 0.08, neighbor))
             destination_id = max(scored)[1]
         else:
@@ -1606,11 +1606,11 @@ class Simulation:
         for helper_id in list(collaboration.get("helpers", [])):
             if moved >= 3:
                 break
-            helper = self.organisms.get(helper_id)
+            helper = self.individuals.get(helper_id)
             if helper is None or not helper.alive or helper.location != from_place:
                 continue
             travel_chance = min(0.62, 0.14 + support * 0.48 + helper.params.mobility * 0.12)
-            if helper.recombine_intent_until < self.tick and self.rng.random() > travel_chance:
+            if helper.combine_intent_until < self.tick and self.rng.random() > travel_chance:
                 continue
             helper.location = to_place
             helper.energy -= 0.020 + difficulty * 0.030
@@ -1633,7 +1633,7 @@ class Simulation:
         while sum(components.values()) < target_count:
             changed = False
             for helper_id in helper_ids:
-                helper = self.organisms.get(helper_id)
+                helper = self.individuals.get(helper_id)
                 if helper is None or not helper.alive or helper.location != individual.location:
                     continue
                 choices = [name for name, qty in helper.inventory.items() if qty > 0]
@@ -1665,11 +1665,11 @@ class Simulation:
         appetite = 2.0 + individual.params.essence_conversion * 7.0 + individual.params.essence_energy_gain * 3.0
         essence = min(place.resources["essence"], appetite * 0.55)
         place.resources["essence"] -= essence
-        organic = min(place.resources["organic_store"], appetite - essence)
-        place.resources["organic_store"] -= organic
-        gain = essence * individual.params.essence_energy_gain + organic * (0.45 + individual.params.essence_conversion * 0.80)
+        residue = min(place.resources["residue_store"], appetite - essence)
+        place.resources["residue_store"] -= residue
+        gain = essence * individual.params.essence_energy_gain + residue * (0.45 + individual.params.essence_conversion * 0.80)
         individual.energy += gain
-        if essence + organic > 0.5 and self.world.note_patch_depletion(place.id, self.rng):
+        if essence + residue > 0.5 and self.world.note_patch_depletion(place.id, self.rng):
             self.patch_recovery_triggers += 1
 
     def _absorb_solar(self, individual: Individual) -> None:
@@ -1678,7 +1678,7 @@ class Simulation:
         thermal_stress = max(0.0, place.resources["thermal"] / 120.0 - individual.params.thermal_tolerance)
         individual.energy += gain
         individual.health -= thermal_stress * 0.003
-        place.resources["organic_store"] += gain * 0.18
+        place.resources["residue_store"] += gain * 0.18
         if individual.health <= 0.0:
             self._deactivate(individual, "thermal_stress")
 
@@ -1687,7 +1687,7 @@ class Simulation:
         planning = self._interaction_control(individual)
         individual.energy -= (0.025 + individual.params.sensor_range * 0.020) * (1.0 - planning * 0.10)
         if self.rng.random() < 0.18 + individual.params.sensor_range * 0.45 + planning * 0.09:
-            found = self.rng.choice(("essence", "organic_store", "mechanical"))
+            found = self.rng.choice(("essence", "residue_store", "mechanical"))
             amount = self.rng.uniform(0.2, 1.6) * (0.5 + individual.params.sensor_range) * (1.0 + planning * 0.25)
             place.resources[found] = min(180.0, place.resources[found] + amount)
         if self.rng.random() < 0.08 + individual.params.sensor_range * 0.12 + planning * 0.04:
@@ -1719,7 +1719,7 @@ class Simulation:
         cold_exposure = float(exposure["components"].get("cold", 0.0)) if isinstance(exposure.get("components"), dict) else 0.0
         scores = {
             "cleave": place.sealed_essence / 180.0 + place.mineral_richness * 0.25,
-            "shear": place.obstacles.get("thorn", 0.0) * 0.62 + place.resources["organic_store"] / 220.0,
+            "shear": place.obstacles.get("thorn", 0.0) * 0.62 + place.resources["residue_store"] / 220.0,
             "lash": individual.tool_skill.get("craft", 0.0) * 0.35 + individual.inventory_count() / max(1.0, individual.inventory_limit()) * 0.16,
             "encase": place.obstacles.get("water", 0.0) * 0.30 + place.physics.get("current_exposure", 0.0) * 0.34 + place.resources["mechanical"] / 240.0,
             "kindle": place.resources["solar"] / 220.0 + place.resources["thermal"] / 260.0 + place.obstacles.get("heat", 0.0) * 0.12 + cold_exposure * 0.42,
@@ -1733,7 +1733,7 @@ class Simulation:
                 + place.physics.get("abrasion", 0.0) * 0.22
                 + place.physics.get("temperature", 0.5) * 0.08
                 + exposure_severity * 0.26
-                + len(self._living_ids_at(place.id)) / max(1.0, place.capacity) * 0.14
+                + len(self._active_ids_at(place.id)) / max(1.0, place.capacity) * 0.14
             ),
             "record": (
                 min(1.0, len(individual.lesson_memory) / 4.0) * 0.42
@@ -1872,7 +1872,7 @@ class Simulation:
             self.tick,
             "crafted_tool",
             {
-                "organism_id": individual.id,
+                "individual_id": individual.id,
                 "place": individual.location,
                 "artifact": artifact.name,
                 "target": target,
@@ -2002,7 +2002,7 @@ class Simulation:
             self.tick,
             "structure_built",
             {
-                "organism_id": individual.id,
+                "individual_id": individual.id,
                 "place": place.id,
                 "structure": built_name,
                 "scale": structure_summary["scale"],
@@ -2019,7 +2019,7 @@ class Simulation:
             self.logger.event(
                 self.tick,
                 "structure_built",
-                {"organism_id": individual.id, "structure": built_name, "place": place.id, "scale": structure_summary["scale"]},
+                {"individual_id": individual.id, "structure": built_name, "place": place.id, "scale": structure_summary["scale"]},
             )
         self.checkpoints.save_first_tool(self.tick, individual, "build", {"place": place.to_summary(), "structure": structure_summary})
 
@@ -2070,7 +2070,7 @@ class Simulation:
                 self.tick,
                 "tool_success",
                 {
-                    "organism_id": individual.id,
+                    "individual_id": individual.id,
                     "place": place.id,
                     "affordance": affordance,
                     "gain": gain,
@@ -2093,7 +2093,7 @@ class Simulation:
                     self.tick,
                     "tool_success",
                     {
-                        "organism_id": individual.id,
+                        "individual_id": individual.id,
                         "affordance": affordance,
                         "gain": round(gain, 5),
                         "place": place.id,
@@ -2156,8 +2156,8 @@ class Simulation:
             place.sealed_essence -= amount
             return amount * (0.25 + individual.params.essence_energy_gain * 0.65 + individual.params.essence_conversion * 0.30)
         if affordance == "shear":
-            amount = min(place.resources["organic_store"], 1.5 + competence * 8.0)
-            place.resources["organic_store"] -= amount
+            amount = min(place.resources["residue_store"], 1.5 + competence * 8.0)
+            place.resources["residue_store"] -= amount
             return amount * (0.35 + individual.params.essence_conversion * 0.85)
         if affordance == "lash":
             self._increase_skill(individual, "lash", 0.004, transfer=0.55)
@@ -2190,10 +2190,10 @@ class Simulation:
         if affordance == "winnow":
             flow_bonus = place.physics.get("current_exposure", 0.0) * 3.0 + place.physics.get("fluid_level", 0.0) * 1.5
             essence = min(place.resources["essence"], 0.5 + competence * 3.0 + flow_bonus)
-            organic = min(place.resources["organic_store"], 0.3 + competence * 1.8 + flow_bonus * 0.40)
+            residue = min(place.resources["residue_store"], 0.3 + competence * 1.8 + flow_bonus * 0.40)
             place.resources["essence"] -= essence * 0.55
-            place.resources["organic_store"] -= organic * 0.45
-            return essence * (0.12 + individual.params.essence_energy_gain * 0.45) + organic * (0.15 + individual.params.essence_conversion * 0.38)
+            place.resources["residue_store"] -= residue * 0.45
+            return essence * (0.12 + individual.params.essence_energy_gain * 0.45) + residue * (0.15 + individual.params.essence_conversion * 0.38)
         return 0.0
 
     def _advance_causal_challenge(
@@ -2267,7 +2267,7 @@ class Simulation:
             self.tick,
             "causal_unlock",
             {
-                "organism_id": individual.id,
+                "individual_id": individual.id,
                 "place": place.id,
                 "sequence": list(challenge.sequence),
                 "energy": challenge.payoff_energy,
@@ -2283,7 +2283,7 @@ class Simulation:
                 self.tick,
                 "causal_unlock",
                 {
-                    "organism_id": individual.id,
+                    "individual_id": individual.id,
                     "place": place.id,
                     "sequence": list(challenge.sequence),
                     "energy": challenge.payoff_energy,
@@ -2328,7 +2328,7 @@ class Simulation:
         # some load to the actor (feedback_load); if the actor is overloaded it
         # is removed, and if the recipient's condition is exhausted the actor
         # absorbs the remaining energy.
-        local = [self.organisms[oid] for oid in self._living_ids_at(individual.location) if oid != individual.id]
+        local = [self.individuals[oid] for oid in self._active_ids_at(individual.location) if oid != individual.id]
         if not local:
             individual.energy -= 0.04
             return
@@ -2382,20 +2382,20 @@ class Simulation:
         self.world.emit_signal(individual.location, individual.id, token, intensity)
         feedback["social"] += intensity * 0.1
 
-    def _coordinate_recombine(self, individual: Individual, feedback: dict[str, float]) -> None:
-        self.reproduction_attempts["coordinate"] += 1
+    def _coordinate_combine(self, individual: Individual, feedback: dict[str, float]) -> None:
+        self.spawn_attempts["coordinate"] += 1
         if not individual.adult():
-            self.reproduction_failures["coordinate_not_adult"] += 1
+            self.spawn_failures["coordinate_not_adult"] += 1
             individual.energy -= 0.015
             return
-        if individual.energy < self._recombine_reserve_threshold(individual) * 0.82:
-            self.reproduction_failures["coordinate_low_energy"] += 1
+        if individual.energy < self._combine_reserve_threshold(individual) * 0.82:
+            self.spawn_failures["coordinate_low_energy"] += 1
             individual.energy -= 0.020
             return
         window = 6 + int(individual.params.signal_strength * 8.0 + individual.params.pairing_selectivity * 5.0)
         token = individual.choose_signal_token()
         intensity = 0.10 + individual.params.signal_strength * 0.45 + individual.params.pairing_selectivity * 0.10
-        individual.recombine_intent_until = max(individual.recombine_intent_until, self.tick + window)
+        individual.combine_intent_until = max(individual.combine_intent_until, self.tick + window)
         individual.coordination_token = token
         individual.energy -= 0.035 + intensity * 0.040
         self.world.emit_signal(individual.location, individual.id, token, intensity)
@@ -2437,7 +2437,7 @@ class Simulation:
                 self.tick,
                 "mark_lesson_written",
                 {
-                    "organism_id": individual.id,
+                    "individual_id": individual.id,
                     "place": individual.location,
                     "token": token,
                     "affordance": affordance,
@@ -2500,7 +2500,7 @@ class Simulation:
             self.tick,
             "portable_mark_written",
             {
-                "organism_id": individual.id,
+                "individual_id": individual.id,
                 "place": individual.location,
                 "artifact": artifact.name,
                 "token": token % 8,
@@ -2662,27 +2662,27 @@ class Simulation:
             encoded["method_quality"] = round(float(lesson.get("method_quality", 0.0) or 0.0), 6)
         return encoded
 
-    def _clone_mutate(self, individual: Individual, feedback: dict[str, float]) -> None:
-        self.reproduction_attempts["clone_mutate"] += 1
-        if not individual.adult() or self.living_total >= self.config.max_population:
-            self.reproduction_failures["clone_mutate_not_adult_or_cap"] += 1
+    def _clone_perturb(self, individual: Individual, feedback: dict[str, float]) -> None:
+        self.spawn_attempts["clone_perturb"] += 1
+        if not individual.adult() or self.active_total >= self.config.max_pool:
+            self.spawn_failures["clone_perturb_not_adult_or_cap"] += 1
             individual.energy -= 0.02
             return
         place = self.world.places[individual.location]
-        if len(self._living_ids_at(individual.location)) >= place.capacity:
-            self.reproduction_failures["clone_mutate_local_capacity"] += 1
+        if len(self._active_ids_at(individual.location)) >= place.capacity:
+            self.spawn_failures["clone_perturb_local_capacity"] += 1
             individual.energy -= 0.015
             return
-        decision = self.optimization.plan_clone_mutate(individual)
+        decision = self.optimization.plan_clone_perturb(individual)
         if decision.failure or decision.plan is None:
-            self.reproduction_failures[decision.failure or "clone_mutate_no_plan"] += 1
+            self.spawn_failures[decision.failure or "clone_perturb_no_plan"] += 1
             individual.energy -= decision.energy_penalty
             return
-        child = self._instantiate_offspring(decision.plan)
+        child = self._instantiate_child(decision.plan)
         if child:
             self._apply_parent_costs_and_counts(decision.plan)
             self.births_by_mode[decision.plan.operator] += 1
-            feedback["reproduction"] += 1.0
+            feedback["spawning"] += 1.0
             self.observer.observe(
                 self.tick,
                 "birth",
@@ -2692,18 +2692,18 @@ class Simulation:
                     "parent_ids": list(decision.plan.parent_ids),
                     "kind": child.kind,
                     "place": child.location,
-                    "generation": child.cycle,
-                    "lineage_root_id": child.lineage_root_id,
-                    "parent_lineage_ids": list(child.parent_lineage_ids),
-                    "inherited_brain_template": child.inherited_brain_template,
+                    "cycle": child.cycle,
+                    "line_root_id": child.line_root_id,
+                    "parent_line_ids": list(child.parent_line_ids),
+                    "inherited_controller_template": child.inherited_controller_template,
                     "complexity": child.params.complexity(),
                 },
                 subjects=self._subjects(
                     child,
                     extra=[
-                        f"organism:{individual.id}",
-                        f"lineage:{individual.lineage_root_id or individual.id}",
-                        "mode:clone_mutate",
+                        f"individual:{individual.id}",
+                        f"line:{individual.line_root_id or individual.id}",
+                        "mode:clone_perturb",
                     ],
                 ),
                 score=0.35 + child.cycle * 0.08 + child.params.complexity() * 0.08,
@@ -2718,106 +2718,106 @@ class Simulation:
                         "child_id": child.id,
                         "parent_ids": list(decision.plan.parent_ids),
                         "kind": child.kind,
-                        "lineage_root_id": child.lineage_root_id,
-                        "parent_lineage_ids": list(child.parent_lineage_ids),
-                        "inherited_brain_template": child.inherited_brain_template,
+                        "line_root_id": child.line_root_id,
+                        "parent_line_ids": list(child.parent_line_ids),
+                        "inherited_controller_template": child.inherited_controller_template,
                     },
                 )
         else:
-            self.reproduction_failures["clone_mutate_add_failed"] += 1
+            self.spawn_failures["clone_perturb_add_failed"] += 1
 
-    def _resolve_recombine(self, place_ids: set[int], feedback: dict[int, dict[str, float]]) -> None:
+    def _resolve_combine(self, place_ids: set[int], feedback: dict[int, dict[str, float]]) -> None:
         for place_id in place_ids:
             candidates = [
                 individual
-                for individual in self.organisms.values()
+                for individual in self.individuals.values()
                 if individual.alive
                 and individual.location == place_id
                 and individual.adult()
-                and individual.recombine_intent_until >= self.tick
+                and individual.combine_intent_until >= self.tick
             ]
             if len(candidates) < 2:
                 if candidates:
-                    self.reproduction_failures["recombine_no_partner"] += len(candidates)
+                    self.spawn_failures["combine_no_partner"] += len(candidates)
                 continue
             self.rng.shuffle(candidates)
             paired: set[int] = set()
             choices: dict[int, int] = {}
             for individual in candidates:
-                self.reproduction_attempts["recombine_pairing"] += 1
-                if individual.energy < self._recombine_reserve_threshold(individual):
-                    self.reproduction_failures["recombine_low_energy"] += 1
+                self.spawn_attempts["combine_pairing"] += 1
+                if individual.energy < self._combine_reserve_threshold(individual):
+                    self.spawn_failures["combine_low_energy"] += 1
                     continue
                 viable = [
                     other
                     for other in candidates
                     if other.id != individual.id
                     and other.id not in paired
-                    and individual.energy >= self.optimization.recombine_reserve_threshold(individual)
-                    and other.energy >= self.optimization.recombine_reserve_threshold(other)
-                    and self.optimization.compatible_for_recombine(individual, other)
+                    and individual.energy >= self.optimization.combine_reserve_threshold(individual)
+                    and other.energy >= self.optimization.combine_reserve_threshold(other)
+                    and self.optimization.compatible_for_combine(individual, other)
                 ]
                 if not viable:
-                    self.reproduction_failures["recombine_no_compatible_partner"] += 1
+                    self.spawn_failures["combine_no_compatible_partner"] += 1
                     continue
                 choices[individual.id] = max(viable, key=lambda other: self._partner_score(individual, other)).id
             for individual in candidates:
                 if individual.id in paired or individual.id not in choices:
                     continue
                 partner_id = choices[individual.id]
-                partner = self.organisms.get(partner_id)
+                partner = self.individuals.get(partner_id)
                 if partner is None or not partner.alive or partner.id in paired:
                     continue
                 if choices.get(partner.id) != individual.id and self.rng.random() > 0.35:
-                    self.reproduction_failures["recombine_unreciprocated_choice"] += 1
+                    self.spawn_failures["combine_unreciprocated_choice"] += 1
                     continue
-                child = self._recombine(individual, partner)
+                child = self._combine(individual, partner)
                 if child:
                     paired.add(individual.id)
                     paired.add(partner.id)
-                    individual.recombine_intent_until = -1
-                    partner.recombine_intent_until = -1
-                    feedback[individual.id]["reproduction"] += 1.0
-                    feedback[partner.id]["reproduction"] += 1.0
+                    individual.combine_intent_until = -1
+                    partner.combine_intent_until = -1
+                    feedback[individual.id]["spawning"] += 1.0
+                    feedback[partner.id]["spawning"] += 1.0
                     if self.config.event_detail:
                         self.logger.event(
                             self.tick,
                             "birth",
                             {
-                                "mode": "recombine",
+                                "mode": "combine",
                                 "child_id": child.id,
                                 "parent_ids": [individual.id, partner.id],
                                 "kind": child.kind,
-                                "lineage_root_id": child.lineage_root_id,
-                                "parent_lineage_ids": list(child.parent_lineage_ids),
-                                "inherited_brain_template": child.inherited_brain_template,
+                                "line_root_id": child.line_root_id,
+                                "parent_line_ids": list(child.parent_line_ids),
+                                "inherited_controller_template": child.inherited_controller_template,
                             },
                         )
 
     def _partner_score(self, chooser: Individual, candidate: Individual) -> float:
-        visible_fitness = (
+        visible_quality = (
             candidate.health * 0.35
             + min(1.0, candidate.energy / max(1.0, candidate.storage_limit())) * 0.25
             + candidate.params.mobility * 0.10
             + candidate.params.manipulator * 0.10
             + self._skill_breadth(candidate) * 0.10
-            + min(1.0, candidate.offspring_count / 5.0) * 0.10
+            + min(1.0, candidate.child_count / 5.0) * 0.10
         )
         selectivity = chooser.params.pairing_selectivity
-        return visible_fitness * (0.3 + selectivity) - chooser.params.distance(candidate.params) * 0.25 + self.rng.random() * 0.05
+        return visible_quality * (0.3 + selectivity) - chooser.params.distance(candidate.params) * 0.25 + self.rng.random() * 0.05
 
-    def _recombine_reserve_threshold(self, individual: Individual) -> float:
-        return self.optimization.recombine_reserve_threshold(individual)
+    def _combine_reserve_threshold(self, individual: Individual) -> float:
+        return self.optimization.combine_reserve_threshold(individual)
 
-    def _recombine(self, a: Individual, b: Individual) -> Individual | None:
-        if self.living_total >= self.config.max_population:
-            self.reproduction_failures["recombine_population_cap"] += 1
+    def _combine(self, a: Individual, b: Individual) -> Individual | None:
+        if self.active_total >= self.config.max_pool:
+            self.spawn_failures["combine_pool_cap"] += 1
             return None
-        decision = self.optimization.plan_recombine(a, b)
+        decision = self.optimization.plan_combine(a, b)
         if decision.failure or decision.plan is None:
-            self.reproduction_failures[decision.failure or "recombine_no_plan"] += 1
+            self.spawn_failures[decision.failure or "combine_no_plan"] += 1
             return None
-        child = self._instantiate_offspring(decision.plan)
+        child = self._instantiate_child(decision.plan)
         if child:
             self._apply_parent_costs_and_counts(decision.plan)
             self.births_by_mode[decision.plan.operator] += 1
@@ -2830,19 +2830,19 @@ class Simulation:
                     "parent_ids": [a.id, b.id],
                     "kind": child.kind,
                     "place": child.location,
-                    "generation": child.cycle,
-                    "lineage_root_id": child.lineage_root_id,
-                    "parent_lineage_ids": list(child.parent_lineage_ids),
-                    "inherited_brain_template": child.inherited_brain_template,
+                    "cycle": child.cycle,
+                    "line_root_id": child.line_root_id,
+                    "parent_line_ids": list(child.parent_line_ids),
+                    "inherited_controller_template": child.inherited_controller_template,
                     "complexity": child.params.complexity(),
                 },
                 subjects=self._subjects(
                     child,
                     extra=[
-                        f"organism:{a.id}",
-                        f"organism:{b.id}",
-                        f"lineage:{a.lineage_root_id or a.id}",
-                        f"lineage:{b.lineage_root_id or b.id}",
+                        f"individual:{a.id}",
+                        f"individual:{b.id}",
+                        f"line:{a.line_root_id or a.id}",
+                        f"line:{b.line_root_id or b.id}",
                         "mode:combine",
                     ],
                 ),
@@ -2850,13 +2850,13 @@ class Simulation:
                 rarity_key=f"birth:{decision.plan.operator}:{child.kind}",
             )
         else:
-            self.reproduction_failures["recombine_add_failed"] += 1
+            self.spawn_failures["combine_add_failed"] += 1
         return child
 
-    def _instantiate_offspring(self, plan: OffspringPlan) -> Individual | None:
+    def _instantiate_child(self, plan: ChildPlan) -> Individual | None:
         child = self.add_individual(
             plan.child_kind,
-            plan.child_genome,
+            plan.child_params,
             plan.location,
             plan.child_energy,
             plan.cycle,
@@ -2873,21 +2873,21 @@ class Simulation:
                         "tick": self.tick,
                         "child_id": child.id,
                         "parent_ids": list(plan.parent_ids),
-                        "lineage_root_id": child.lineage_root_id,
+                        "line_root_id": child.line_root_id,
                         "mode": plan.operator,
                         **note,
                     }
                 )
         return child
 
-    def _apply_parent_costs_and_counts(self, plan: OffspringPlan) -> None:
+    def _apply_parent_costs_and_counts(self, plan: ChildPlan) -> None:
         for parent_id, cost in plan.parent_costs.items():
-            parent = self.organisms.get(parent_id)
+            parent = self.individuals.get(parent_id)
             if parent is None:
                 continue
             parent.energy -= cost
-            parent.offspring_count += 1
-            parent.record_success("reproduction", 1.0)
+            parent.child_count += 1
+            parent.record_success("spawning", 1.0)
 
     def _readable_mark_candidates(self, individual: Individual, place: Place) -> list[dict[str, Any]]:
         candidates: list[dict[str, Any]] = []
@@ -2907,8 +2907,8 @@ class Simulation:
                         "value_transmitted": mark.value_transmitted,
                     }
                 )
-        for holder_id in self._living_ids_at(place.id):
-            holder = self.organisms.get(holder_id)
+        for holder_id in self._active_ids_at(place.id):
+            holder = self.individuals.get(holder_id)
             if holder is None:
                 continue
             for artifact in holder.artifacts:
@@ -3039,7 +3039,7 @@ class Simulation:
             self.tick,
             "portable_mark_read" if portable else "mark_lesson_read",
             {
-                "organism_id": individual.id,
+                "individual_id": individual.id,
                 "source_id": int(candidate["source_id"]),
                 "holder_id": candidate["holder_id"],
                 "place": place.id,
@@ -3055,7 +3055,7 @@ class Simulation:
                 "self_read": int(candidate["source_id"]) == individual.id,
                 "artifact": candidate.get("artifact").name if portable else None,
             },
-            subjects=self._subjects(individual, place.id, [f"organism:{candidate['source_id']}", f"affordance:{affordance}", f"mark_token:{token}"]),
+            subjects=self._subjects(individual, place.id, [f"individual:{candidate['source_id']}", f"affordance:{affordance}", f"mark_token:{token}"]),
             score=fidelity + writing_quality * 0.45 + gain * 18.0 + min(0.5, reads * 0.04),
             rarity_key=f"mark_lesson_read:{affordance}",
         )
@@ -3064,7 +3064,7 @@ class Simulation:
     def _apply_mark_author_feedback(self, source_id: int, reader_id: int, place_id: int, token: int, affordance: str, gain: float, fidelity: float, writing_quality: float, reads: int) -> None:
         if source_id == reader_id:
             return
-        author = self.organisms.get(source_id)
+        author = self.individuals.get(source_id)
         if author is None or not author.alive:
             return
         # Feedback is local: the writer only learns when still present where the mark is used.
@@ -3081,7 +3081,7 @@ class Simulation:
             self.tick,
             "mark_author_feedback",
             {
-                "organism_id": author.id,
+                "individual_id": author.id,
                 "place": place_id,
                 "token": token,
                 "affordance": affordance,
@@ -3136,19 +3136,19 @@ class Simulation:
         if not individual.alive:
             return
         individual.alive = False
-        self.living_total = max(0, self.living_total - 1)
-        self.living_by_kind[individual.kind] = max(0, self.living_by_kind[individual.kind] - 1)
+        self.active_total = max(0, self.active_total - 1)
+        self.active_by_kind[individual.kind] = max(0, self.active_by_kind[individual.kind] - 1)
         if individual.neural:
-            self.living_neural = max(0, self.living_neural - 1)
+            self.active_neural = max(0, self.active_neural - 1)
         self.deaths_by_cause[cause] += 1
         self.deaths_by_kind_cause[f"{individual.kind}:{cause}"] += 1
         place = self.world.places[individual.location]
-        place.resources["organic_store"] = min(180.0, place.resources["organic_store"] + max(0.0, individual.energy) * 0.35 + 2.0)
-        if cause in {"depletion", "starvation"}:
+        place.resources["residue_store"] = min(180.0, place.resources["residue_store"] + max(0.0, individual.energy) * 0.35 + 2.0)
+        if cause in {"depletion", "exhaustion"}:
             place.materials["bone"] = min(99, place.materials.get("bone", 0) + 1)
         checkpoint_score = self._checkpoint_score(individual) if individual.controller is not None else 0.0
         notable = (
-            individual.offspring_count >= 3
+            individual.child_count >= 3
             or individual.successful_tools >= 2
             or individual.success_profile.get("causal_unlock", 0.0) > 0.0
             or individual.success_profile.get("prediction_fit", 0.0) >= 2.0
@@ -3158,7 +3158,7 @@ class Simulation:
         if individual.controller is not None and (
             notable
         ):
-            self.checkpoints.save_brain(
+            self.checkpoints.save_controller(
                 self.tick,
                 individual,
                 f"death_{cause}",
@@ -3171,13 +3171,13 @@ class Simulation:
                 self.tick,
                 "notable_death",
                 {
-                    "organism_id": individual.id,
+                    "individual_id": individual.id,
                     "kind": individual.kind,
                     "cause": cause,
                     "place": place.id,
                     "age": individual.age,
-                    "lineage_root_id": individual.lineage_root_id,
-                    "offspring_count": individual.offspring_count,
+                    "line_root_id": individual.line_root_id,
+                    "child_count": individual.child_count,
                     "successful_tools": individual.successful_tools,
                     "score": checkpoint_score,
                     "success_profile": dict(individual.success_profile),
@@ -3195,7 +3195,7 @@ class Simulation:
                 rarity_key=f"death:{cause}",
             )
         if self.config.event_detail:
-            self.logger.event(self.tick, "death", {"organism_id": individual.id, "cause": cause, "kind": individual.kind})
+            self.logger.event(self.tick, "death", {"individual_id": individual.id, "cause": cause, "kind": individual.kind})
         individual.controller = None
         individual.controller_template = None
         individual.inventory.clear()
@@ -3224,19 +3224,19 @@ class Simulation:
             for place in places:
                 for key in place.resources:
                     place.resources[key] *= max(0.0, 1.0 - resource_loss)
-            for individual in self.organisms.values():
+            for individual in self.individuals.values():
                 if individual.alive and individual.location in affected_ids:
                     individual.health -= damage
                     if individual.health <= 0.0:
                         self._deactivate(individual, "intervention_disaster")
         elif intervention.kind == "climate_shift":
             self.world.climate_drift = max(-0.5, min(0.5, self.world.climate_drift + float(payload.get("amount", 0.0))))
-        elif intervention.kind == "add_organisms":
-            kind = str(payload.get("kind", "plant"))
+        elif intervention.kind == "add_individuals":
+            kind = str(payload.get("kind", "collector"))
             count = int(payload.get("count", 1))
             place = int(payload.get("place", self.rng.randrange(len(self.world.places))))
             for _ in range(count):
-                params = ParamVector.neural(self.rng) if kind == "agent" else ParamVector.fungus(self.rng) if kind == "fungus" else ParamVector.plant(self.rng)
+                params = ParamVector.neural(self.rng) if kind == "agent" else ParamVector.converter(self.rng) if kind == "converter" else ParamVector.collector(self.rng)
                 self.add_individual(kind, params, place, float(payload.get("energy", 25.0)))
         record = {"tick": self.tick, "kind": intervention.kind, "payload": payload, "reason": intervention.reason}
         self.interventions_applied.append(record)
@@ -3256,10 +3256,10 @@ class Simulation:
             + math.log1p(profile.get("social_learning", 0.0)) * 1.0
             + math.log1p(profile.get("written_learning", 0.0)) * 1.1
             + math.log1p(profile.get("knowledge_transmitted", 0.0)) * 1.0
-            + math.log1p(profile.get("reproduction", 0.0)) * 1.6
+            + math.log1p(profile.get("spawning", 0.0)) * 1.6
         )
         return (
-            individual.offspring_count * 6.0
+            individual.child_count * 6.0
             + individual.successful_tools * 2.0
             + individual.cycle * 0.75
             + individual.age / 450.0
@@ -3272,15 +3272,15 @@ class Simulation:
         return {
             "label": label,
             "criterion": criterion,
-            "population": population_counts(self.organisms),
+            "pool": pool_counts(self.individuals),
             "world_energy": world_energy_summary(self.world),
             "world_physics": world_physics_summary(self.world),
-            "lineages": self._lineage_summary(limit=5),
+            "lines": self._line_summary(limit=5),
         }
 
     def _save_checkpoint_candidate(self, individual: Individual, label: str, criterion: str, bucket: str) -> None:
         score = self._checkpoint_score(individual)
-        saved = self.checkpoints.save_brain(
+        saved = self.checkpoints.save_controller(
             self.tick,
             individual,
             f"{label}_{criterion}",
@@ -3293,7 +3293,7 @@ class Simulation:
                 self.tick,
                 "checkpoint_saved",
                 {
-                    "organism_id": individual.id,
+                    "individual_id": individual.id,
                     "place": individual.location,
                     "criterion": criterion,
                     "bucket": bucket,
@@ -3311,7 +3311,7 @@ class Simulation:
         return max(available, key=key)
 
     def _checkpoint_champions(self, label: str) -> None:
-        candidates = [individual for individual in self.organisms.values() if individual.alive and individual.controller is not None]
+        candidates = [individual for individual in self.individuals.values() if individual.alive and individual.controller is not None]
         if not candidates:
             return
         saved_ids: set[int] = set()
@@ -3320,12 +3320,12 @@ class Simulation:
         self._save_checkpoint_candidate(overall, label, "overall_champion", "interval_champion")
         saved_ids.add(overall.id)
 
-        reproductive = self._best_checkpoint_candidate(candidates, saved_ids, lambda individual: (individual.offspring_count, individual.cycle, individual.energy, individual.age))
-        if reproductive is not None and reproductive.offspring_count > 0:
-            self._save_checkpoint_candidate(reproductive, label, "reproductive_champion", "reproductive_champion")
-            saved_ids.add(reproductive.id)
+        spawn = self._best_checkpoint_candidate(candidates, saved_ids, lambda individual: (individual.child_count, individual.cycle, individual.energy, individual.age))
+        if spawn is not None and spawn.child_count > 0:
+            self._save_checkpoint_candidate(spawn, label, "spawn_champion", "spawn_champion")
+            saved_ids.add(spawn.id)
 
-        tool_user = self._best_checkpoint_candidate(candidates, saved_ids, lambda individual: (individual.successful_tools, individual.offspring_count, individual.energy, individual.age))
+        tool_user = self._best_checkpoint_candidate(candidates, saved_ids, lambda individual: (individual.successful_tools, individual.child_count, individual.energy, individual.age))
         if tool_user is not None and tool_user.successful_tools > 0:
             self._save_checkpoint_candidate(tool_user, label, "tool_champion", "tool_champion")
             saved_ids.add(tool_user.id)
@@ -3358,11 +3358,11 @@ class Simulation:
             self._save_checkpoint_candidate(learner, label, "learner_champion", "learner_champion")
             saved_ids.add(learner.id)
 
-        lineage = self._best_checkpoint_candidate(candidates, saved_ids, lambda individual: (individual.cycle, individual.offspring_count, individual.energy, individual.age))
-        if lineage is not None and (lineage.cycle > 0 or lineage.offspring_count > 0):
-            self._save_checkpoint_candidate(lineage, label, "lineage_founder", "lineage_founder")
+        line = self._best_checkpoint_candidate(candidates, saved_ids, lambda individual: (individual.cycle, individual.child_count, individual.energy, individual.age))
+        if line is not None and (line.cycle > 0 or line.child_count > 0):
+            self._save_checkpoint_candidate(line, label, "line_founder", "line_founder")
 
-    def _lineage_summary(self, limit: int = 8) -> dict[str, Any]:
+    def _line_summary(self, limit: int = 8) -> dict[str, Any]:
         profile_keys = (
             "energy_gain",
             "prediction_fit",
@@ -3375,23 +3375,23 @@ class Simulation:
             "social_learning",
             "written_learning",
             "knowledge_transmitted",
-            "reproduction",
+            "spawning",
         )
         rows: dict[int, dict[str, Any]] = {}
         members: dict[int, list[Individual]] = defaultdict(list)
-        for individual in self.organisms.values():
+        for individual in self.individuals.values():
             if individual.kind != "agent":
                 continue
-            root = individual.lineage_root_id or individual.id
+            root = individual.line_root_id or individual.id
             if root not in rows:
                 rows[root] = {
-                    "lineage_root_id": root,
+                    "line_root_id": root,
                     "born": 0,
-                    "living": 0,
-                    "living_neural": 0,
+                    "active": 0,
+                    "active_neural": 0,
                     "dead": 0,
                     "max_generation": 0,
-                    "offspring_total": 0,
+                    "child_total": 0,
                     "successful_tools_total": 0,
                     "tool_users": 0,
                     "inherited_template_count": 0,
@@ -3403,17 +3403,17 @@ class Simulation:
             row = rows[root]
             row["born"] += 1
             row["max_generation"] = max(row["max_generation"], individual.cycle)
-            row["offspring_total"] += individual.offspring_count
+            row["child_total"] += individual.child_count
             row["successful_tools_total"] += individual.successful_tools
             row["tool_users"] += int(individual.successful_tools > 0 or any(count > 0 for count in individual.tool_use_counts.values()))
-            row["inherited_template_count"] += int(individual.inherited_brain_template)
+            row["inherited_template_count"] += int(individual.inherited_controller_template)
             for key in profile_keys:
                 row["profile"][key] += individual.success_profile.get(key, 0.0)
             for key, value in individual.tool_use_counts.items():
                 row["tool_use_counts"][key] += value
             if individual.alive:
-                row["living"] += 1
-                row["living_neural"] += int(individual.neural)
+                row["active"] += 1
+                row["active_neural"] += int(individual.neural)
                 row["energy_total"] += individual.energy
                 row["health_total"] += individual.health
             else:
@@ -3422,26 +3422,26 @@ class Simulation:
 
         def member_score(individual: Individual) -> float:
             return (
-                individual.offspring_count * 4.0
+                individual.child_count * 4.0
                 + individual.successful_tools * 1.8
                 + individual.success_profile.get("prediction_fit", 0.0) * 1.1
                 + individual.success_profile.get("collaboration", 0.0) * 0.8
                 + individual.success_profile.get("tool_use", 0.0) * 1.0
                 + individual.success_profile.get("structure", 0.0) * 1.0
-                + individual.success_profile.get("reproduction", 0.0) * 1.2
+                + individual.success_profile.get("spawning", 0.0) * 1.2
                 + individual.energy / max(1.0, individual.storage_limit())
             )
 
         summaries: list[dict[str, Any]] = []
         for root, row in rows.items():
-            living_members = [individual for individual in members[root] if individual.alive]
-            top_members = sorted(living_members, key=member_score, reverse=True)[:5]
-            living = int(row["living"])
+            active_members = [individual for individual in members[root] if individual.alive]
+            top_members = sorted(active_members, key=member_score, reverse=True)[:5]
+            active = int(row["active"])
             profile = row["profile"]
-            lineage_score = (
-                living * 6.0
+            line_score = (
+                active * 6.0
                 + int(row["max_generation"]) * 1.8
-                + int(row["offspring_total"]) * 1.2
+                + int(row["child_total"]) * 1.2
                 + int(row["successful_tools_total"]) * 1.6
                 + float(profile.get("prediction_fit", 0.0)) * 0.9
                 + float(profile.get("collaboration", 0.0)) * 0.7
@@ -3450,59 +3450,59 @@ class Simulation:
             )
             summaries.append(
                 {
-                    "lineage_root_id": root,
+                    "line_root_id": root,
                     "born": int(row["born"]),
-                    "living": living,
-                    "living_neural": int(row["living_neural"]),
+                    "active": active,
+                    "active_neural": int(row["active_neural"]),
                     "dead": int(row["dead"]),
                     "max_generation": int(row["max_generation"]),
-                    "offspring_total": int(row["offspring_total"]),
+                    "child_total": int(row["child_total"]),
                     "successful_tools_total": int(row["successful_tools_total"]),
                     "tool_users": int(row["tool_users"]),
                     "inherited_template_count": int(row["inherited_template_count"]),
-                    "avg_living_energy": round(float(row["energy_total"]) / max(1, living), 5),
-                    "avg_living_health": round(float(row["health_total"]) / max(1, living), 5),
-                    "score": round(lineage_score, 5),
-                    "top_living_ids": [individual.id for individual in top_members],
+                    "avg_active_energy": round(float(row["energy_total"]) / max(1, active), 5),
+                    "avg_active_health": round(float(row["health_total"]) / max(1, active), 5),
+                    "score": round(line_score, 5),
+                    "top_active_ids": [individual.id for individual in top_members],
                     "profile": {key: round(value, 5) for key, value in sorted(profile.items()) if value > 0.0},
                     "tool_use_counts": dict(row["tool_use_counts"].most_common(8)),
                 }
             )
-        top_living = sorted(
-            (row for row in summaries if row["living"] > 0),
-            key=lambda row: (row["living"], row["max_generation"], row["offspring_total"], row["successful_tools_total"], row["score"]),
+        top_active = sorted(
+            (row for row in summaries if row["active"] > 0),
+            key=lambda row: (row["active"], row["max_generation"], row["child_total"], row["successful_tools_total"], row["score"]),
             reverse=True,
         )[:limit]
         top_all_time = sorted(summaries, key=lambda row: row["score"], reverse=True)[:limit]
         return {
-            "agent_lineages_total": len(summaries),
-            "living_agent_lineages": sum(1 for row in summaries if row["living"] > 0),
-            "top_living": top_living,
+            "agent_lines_total": len(summaries),
+            "active_agent_lines": sum(1 for row in summaries if row["active"] > 0),
+            "top_active": top_active,
             "top_all_time": top_all_time,
         }
 
     def _log_aggregate(self) -> None:
-        living = [individual for individual in self.organisms.values() if individual.alive]
-        neural = [individual for individual in living if individual.neural]
-        avg_energy = sum(individual.energy for individual in living) / max(1, len(living))
-        avg_complexity = sum(individual.params.complexity() for individual in living) / max(1, len(living))
+        active = [individual for individual in self.individuals.values() if individual.alive]
+        neural = [individual for individual in active if individual.neural]
+        avg_energy = sum(individual.energy for individual in active) / max(1, len(active))
+        avg_complexity = sum(individual.params.complexity() for individual in active) / max(1, len(active))
         # Controller capacity & attention stats — these only make sense for neural agents
         # with controllers. With controller growth active and neuroplastic attention active,
         # tracking how these distributions optimize over the run is what tells you
         # whether the substrate is selecting for richer cognition.
-        brain_sizes = [individual.controller.hidden_size for individual in neural if individual.controller is not None]
-        if brain_sizes:
-            brain_capacity = {
-                "count": len(brain_sizes),
-                "mean": round(sum(brain_sizes) / len(brain_sizes), 3),
-                "max": max(brain_sizes),
-                "min": min(brain_sizes),
-                "p90": sorted(brain_sizes)[int(len(brain_sizes) * 0.9)] if len(brain_sizes) >= 10 else max(brain_sizes),
+        controller_sizes = [individual.controller.hidden_size for individual in neural if individual.controller is not None]
+        if controller_sizes:
+            controller_capacity = {
+                "count": len(controller_sizes),
+                "mean": round(sum(controller_sizes) / len(controller_sizes), 3),
+                "max": max(controller_sizes),
+                "min": min(controller_sizes),
+                "p90": sorted(controller_sizes)[int(len(controller_sizes) * 0.9)] if len(controller_sizes) >= 10 else max(controller_sizes),
             }
         else:
-            brain_capacity = {"count": 0, "mean": 0.0, "max": 0, "min": 0, "p90": 0}
+            controller_capacity = {"count": 0, "mean": 0.0, "max": 0, "min": 0, "p90": 0}
         # Architecture census: the signal a structural-evolution run is FOR.
-        # Tracks how many lineages run modular controllers, how many blocks
+        # Tracks how many lines run modular controllers, how many blocks
         # they carry, and how much capacity sits behind nonzero gates.
         modular = [
             individual.controller
@@ -3518,7 +3518,7 @@ class Simulation:
             ]
             architecture_stats = {
                 "modular": len(modular),
-                "legacy": len(brain_sizes) - len(modular),
+                "legacy": len(controller_sizes) - len(modular),
                 "blocks_mean": round(sum(block_counts) / len(block_counts), 3),
                 "blocks_max": max(block_counts),
                 "active_blocks_mean": round(sum(active_blocks) / len(active_blocks), 3),
@@ -3532,36 +3532,36 @@ class Simulation:
                 "plasticity_scale_mean": round(sum(plasticity) / len(plasticity), 4),
             }
         else:
-            architecture_stats = {"modular": 0, "legacy": len(brain_sizes)}
+            architecture_stats = {"modular": 0, "legacy": len(controller_sizes)}
         attention_stats: dict[str, float | int] = {"count": 0}
-        attended_brains = [
+        attended_controllers = [
             individual.controller
             for individual in neural
             if individual.controller is not None and individual.controller._has_attention() and individual.controller.last_attention.size
         ]
-        if attended_brains:
+        if attended_controllers:
             # Concentration measure: max(fidelity) - mean(fidelity). High when controller
             # is focusing on a few features, low when spread uniformly. Good signal
             # for "how trained" the attention head is on this individual.
             concentrations: list[float] = []
             mean_max_fidelity = 0.0
-            for controller in attended_brains:
+            for controller in attended_controllers:
                 fidelity = controller.last_attention
                 concentrations.append(float(fidelity.max() - fidelity.mean()))
                 mean_max_fidelity += float(fidelity.max())
             attention_stats = {
-                "count": len(attended_brains),
-                "mean_max_fidelity": round(mean_max_fidelity / len(attended_brains), 4),
+                "count": len(attended_controllers),
+                "mean_max_fidelity": round(mean_max_fidelity / len(attended_controllers), 4),
                 "mean_concentration": round(sum(concentrations) / len(concentrations), 4),
                 "max_concentration": round(max(concentrations), 4),
             }
         aggregate = {
             "tick": self.tick,
-            "population": population_counts(self.organisms),
+            "pool": pool_counts(self.individuals),
             "avg_energy": round(avg_energy, 5),
             "avg_complexity": round(avg_complexity, 5),
             "neural_avg_energy": round(sum(o.energy for o in neural) / max(1, len(neural)), 5),
-            "brain_capacity": brain_capacity,
+            "controller_capacity": controller_capacity,
             "architecture": architecture_stats,
             "attention_stats": attention_stats,
             "births": dict(self.births_by_mode),
@@ -3574,8 +3574,8 @@ class Simulation:
             "patch_recovery_triggers": self.patch_recovery_triggers,
             "structural_steps": dict(self.structural_steps),
             "movement": self._movement_summary(),
-            "success_profile": success_profile_summary(self.organisms),
-            "lineages": self._lineage_summary(),
+            "success_profile": success_profile_summary(self.individuals),
+            "lines": self._line_summary(),
             "marks_created": dict(self.marks_created),
             "mark_lessons": dict(self.mark_lessons),
             "mark_lesson_packets": dict(self.mark_lesson_packets),
@@ -3588,8 +3588,8 @@ class Simulation:
             "structures_built": dict(self.structures_built),
             "structures_extended": dict(self.structures_extended),
             "physics_events": dict(self.physics_events),
-            "reproduction_attempts": dict(self.reproduction_attempts),
-            "reproduction_failures": dict(self.reproduction_failures),
+            "spawn_attempts": dict(self.spawn_attempts),
+            "spawn_failures": dict(self.spawn_failures),
             "action_counts": dict(self.action_counts),
             "infeasible_commits": dict(self.infeasible_commits),
             "action_energy_delta": {key: round(value, 5) for key, value in self.action_energy_delta.items()},
@@ -3614,10 +3614,10 @@ class Simulation:
                 "tick": self.tick,
                 "elapsed_seconds": round(elapsed, 1),
                 "ticks_per_second": round(self.tick / elapsed, 2) if elapsed > 0 else 0.0,
-                "population": aggregate["population"],
+                "pool": aggregate["pool"],
                 "neural_avg_energy": aggregate["neural_avg_energy"],
                 "architecture": aggregate["architecture"],
-                "brain_capacity": aggregate["brain_capacity"],
+                "controller_capacity": aggregate["controller_capacity"],
                 "births": aggregate["births"],
                 "deaths": aggregate["deaths"],
                 "structural_steps": dict(self.structural_steps),

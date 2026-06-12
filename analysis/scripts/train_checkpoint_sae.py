@@ -17,7 +17,7 @@ def checkpoint_paths(inputs: list[str]) -> list[Path]:
         if path.is_file() and path.suffix == ".json":
             paths.append(path)
         elif path.is_dir():
-            paths.extend(sorted(path.rglob("brain_*.json")))
+            paths.extend(sorted(path.rglob("controller_*.json")))
     return sorted(set(paths))
 
 
@@ -28,14 +28,14 @@ def load_checkpoint(path: Path) -> dict[str, Any]:
 def segment_sizes(checkpoints: list[dict[str, Any]]) -> dict[str, int]:
     sizes = {segment: 0 for segment in SEGMENTS}
     for checkpoint in checkpoints:
-        controller = checkpoint["brain"]
+        controller = checkpoint["controller"]
         for segment in SEGMENTS:
             sizes[segment] = max(sizes[segment], len(controller.get(segment, [])))
     return sizes
 
 
 def vectorize(checkpoint: dict[str, Any], sizes: dict[str, int]) -> np.ndarray:
-    controller = checkpoint["brain"]
+    controller = checkpoint["controller"]
     parts: list[np.ndarray] = []
     for segment in SEGMENTS:
         values = np.asarray(controller.get(segment, []), dtype=np.float32)

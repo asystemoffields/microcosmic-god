@@ -1,9 +1,9 @@
 """Analyze the growth-economics A/B: does the developmental subsidy let the
 pool explore neural capacity that legacy pricing strangles?
 
-Reads brain_capacity aggregates {min, mean, p90, max} from each run's
+Reads controller_capacity aggregates {min, mean, p90, max} from each run's
 events.jsonl and reports per-arm trajectories plus the Phase 1 gate verdict
-(docs/CONTROLLER_EVOLVABILITY.md): the subsidy arm must EXPLORE budget > 20
+(docs/CONTROLLER_ADAPTABILITY.md): the subsidy arm must EXPLORE budget > 20
 within a standard run. Exploration, not retention, is the gate - we are
 testing that the valley is crossable.
 
@@ -28,8 +28,8 @@ def trajectory(run_dir: Path) -> list[tuple[int, dict[str, float]]]:
                 e = json.loads(line)
             except json.JSONDecodeError:
                 continue  # tail line of a still-running run
-            if e.get("kind") == "aggregate" and "brain_capacity" in e:
-                points.append((int(e["tick"]), e["brain_capacity"]))
+            if e.get("kind") == "aggregate" and "controller_capacity" in e:
+                points.append((int(e["tick"]), e["controller_capacity"]))
     return sorted(points)
 
 

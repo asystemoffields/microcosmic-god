@@ -42,7 +42,7 @@ def main() -> None:
     spans = segment_spans(sizes)
 
     print(f"checkpoint: {args.checkpoint}")
-    print(f"organism: {checkpoint['organism']}")
+    print(f"individual: {checkpoint['individual']}")
     print("top SAE units")
     for unit in top_units:
         activation = float(h[unit])

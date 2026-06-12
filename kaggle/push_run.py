@@ -10,7 +10,7 @@ Examples:
   python kaggle/push_run.py --name mg-smoke1 --wall-seconds 600 --seed 7 --wait
 
   # 12-hour structural-evolution run (the big one)
-  python kaggle/push_run.py --name mg-evolve-s1 --wall-seconds 42000 \
+  python kaggle/push_run.py --name mg-develop-s1 --wall-seconds 42000 \
       --ticks 2000000 --seed 11 --modular-fraction 0.5
 
 Notes:
@@ -39,7 +39,7 @@ KAGGLE = "/data/kagglecli-venv/bin/kaggle"
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--name", required=True, help="kernel slug, e.g. mg-evolve-s1")
+    parser.add_argument("--name", required=True, help="kernel slug, e.g. mg-develop-s1")
     parser.add_argument("--branch", default="fable-working")
     parser.add_argument("--profile", default="minute")
     parser.add_argument("--seed", type=int, default=1)

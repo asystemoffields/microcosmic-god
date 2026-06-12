@@ -1,6 +1,6 @@
 # Why it didn't transfer to Catch — diagnosis & program (2026-06-12)
 
-The original cross-task test (Catch) showed no advantage for evolved
+The original cross-task test (Catch) showed no advantage for developed
 controllers over random. We jumped straight to it; the adapter problem
 dominated and the result was uninformative (see git log / TRANSFER_RUNWAY).
 Yesterday's probe-worlds + gauntlet evidence lets us replace "it didn't
@@ -20,7 +20,7 @@ transfer" with specific, mostly-testable causes.
    the substrate had no mechanism for it — its learning ops are tuned for slow
    within-world value drift, not interface remapping.
 3. **Selection strips the very machinery transfer needs.** At h1.6 the
-   populations evolve plasticity scales DOWN (→0.90–0.96) and capacity erodes
+   pools develop plasticity scales DOWN (→0.90–0.96) and capacity erodes
    (docs/LONG6H). Nothing at home rewards re-mapping or spare capacity, so
    neither is maintained. Transfer is out-of-distribution by construction: a
    *demand type* the home world never makes.
@@ -54,7 +54,7 @@ new machinery must close.
    existing ontology. The encoders already do per-type encoding — push it so a
    new task is a typing judgment, not a learned remap. R2 vs R1 says how real
    the typing is today; R3 says how much it buys.
-2. **Schema drift as home pressure.** Per-lineage channel remaps within groups,
+2. **Schema drift as home pressure.** Per-line channel remaps within groups,
    applied at instantiation, so selection pays for mapping robustness — the
    perceptual cousin of the contract-drift world feature. This is the lever
    that would make controllers *non*-indexical in the first place. Default-off
@@ -62,7 +62,7 @@ new machinery must close.
    variable.
 3. **Fast-weights mapping layer.** High-rate, low-capacity plasticity on the
    encoders only; core stays slow. A dedicated re-mapping mechanism instead of
-   overloading survival-tuned learning. Tests against R1/R3 directly.
+   overloading persistence-tuned learning. Tests against R1/R3 directly.
 
 ## 2026-06-12 — R1 measured, and the diagnosis went deeper than the ladder
 
@@ -74,8 +74,8 @@ mechanism:
 
 - On its own live observation stream (1600 forward calls in a probe world),
   #2867 emits **2 distinct action rankings**, differing by one adjacent swap.
-  Zero-observation input reproduces the behavioral head exactly:
-  `drain > coordinate > build > move ≈ use_tool > clone_mutate`.
+  Zero-observation input spawns the behavioral head exactly:
+  `drain > coordinate > build > move ≈ use_tool > clone_perturb`.
 - Per-action output std over time is 0.002-0.004; the fixed gaps between
   actions are 0.05-0.5. The observation pathway is functionally disconnected
   — a two-orders-of-magnitude-too-small perturbation on a constant program.
@@ -114,10 +114,10 @@ the entire competence.
 **Second free-state channel (found while building the lever):** the realized
 energy-conditional behavior (84% coordinate when rich, 11% drain when poor)
 is not the feasibility walk alone — the chooser itself injects a boost into
-coordinate/clone_mutate outputs exactly when an individual is adult and
+coordinate/clone_perturb outputs exactly when an individual is adult and
 energy-rich (`drive_injection_scale`, now config-gated). The champion's
 context sensitivity was harness-supplied twice over: the walk filtered by
-feasibility, and the injection timed reproduction. Both are now removable
+feasibility, and the injection timed spawning. Both are now removable
 knobs; the full subsidy ledger and growth program live in
 docs/PERCEPTION_PROGRAM.md.
 
@@ -136,7 +136,7 @@ docs/PERCEPTION_PROGRAM.md.
    already-planned cue-reliability world feature. (a) is a one-knob change to
    `_choose_action_from_outputs` and converts the gates from oracle to cost.
    *(Built 2026-06-12: `action_search_depth` (k=1 = full pressure) plus
-   `drive_injection_scale` (0 = no harness-timed reproduction), with an
+   `drive_injection_scale` (0 = no harness-timed spawning), with an
    `infeasible_commits` counter in every aggregate and
    `analysis/coupling_probe.py` as the dependent variable. Necessity vs
    sufficiency, pre-registered predictions, and staging:
@@ -155,6 +155,6 @@ docs/PERCEPTION_PROGRAM.md.
 "What makes a learned competence portable across interfaces rather than tied
 to the one it grew up on" is the micro-scale form of a central question in
 transfer/continual learning. The ladder turns it into a measurement, and the
-substrate lets us *evolve* the answer rather than hand-design it. Keep scope
+substrate lets us *develop* the answer rather than hand-design it. Keep scope
 honest: claims are about this sandbox; the value is the method (typed
 contracts + drift pressure + a distance ladder), not a leaderboard number.

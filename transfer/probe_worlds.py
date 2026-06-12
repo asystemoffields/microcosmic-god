@@ -2,7 +2,7 @@
 
 The question (from docs/TRANSFER_RUNWAY.md, "Probe Worlds Before Video Games"):
 
-    Does a controller evolved in Microcosmic God carry transferable competence into
+    Does a controller developed in Microcosmic God carry transferable competence into
     HELD-OUT world variants it never saw - changed physics, resources, and
     environment - measured against controls of the same architecture?
 
@@ -10,11 +10,11 @@ This is the step the project skipped when it jumped straight to Catch. Catch
 forced an observation/action adapter problem that dominated the result. Probe
 worlds avoid that entirely: the controller's native 72-input / 15-action schema is
 preserved, and ONLY the world changes. So any advantage is attributable to the
-evolved core, not to adapter training.
+developed core, not to adapter training.
 
 Design (isolation):
   - One saved champion controller is the object of study.
-  - Controls share its architecture and its GENOME (learning rate, plasticity,
+  - Controls share its architecture and its PARAMS (learning rate, plasticity,
     valences, mobility, episodic capacity). Only the controller WEIGHTS differ:
         trained   - the saved champion weights
         random    - TinyController.random, same shape
@@ -24,9 +24,9 @@ Design (isolation):
                     control that the Catch test established passes)
   - A cohort of K identical-controller agents is dropped into each held-out world.
     Cohort averaging cuts per-agent variance.
-  - Agent reproduction is FROZEN (successors blocked) so we measure the founders'
-    own lifetime competence, not a multi-cycle evolutionary race that would
-    wash out the init signal. The non-policy producer/consumer network keeps reproducing.
+  - Agent spawning is FROZEN (successors blocked) so we measure the founders'
+    own lifetime competence, not a multi-cycle optimization race that would
+    wash out the init signal. The non-policy producer/consumer network keeps spawning.
   - Lifetime learning stays ON for every condition - the learning machinery is
     part of what may transfer, and random gets exactly the same machinery.
   - The same set of world seeds is used for every condition => paired comparison.
@@ -50,11 +50,11 @@ from typing import Any
 
 import numpy as np
 
-from microcosmic_god.brain import PREDICTION_HEADS, TinyController
+from microcosmic_god.controller import PREDICTION_HEADS, TinyController
 from microcosmic_god.config import RunConfig
 from microcosmic_god.modular import ModularController
 from microcosmic_god.params import ParamVector
-from microcosmic_god.organisms import OBSERVATION_SIZE
+from microcosmic_god.individuals import OBSERVATION_SIZE
 from microcosmic_god.simulation import Simulation
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -65,17 +65,17 @@ SCRATCH_DIR = REPO_ROOT / "transfer" / "_probe_scratch"  # overridable via --scr
 # Frozen simulation: founders only, resource–consumer network still active.
 # --------------------------------------------------------------------------- #
 class FrozenAgentSim(Simulation):
-    """Simulation in which neural agents cannot reproduce.
+    """Simulation in which neural agents cannot spawn.
 
-    All creation events flow through `_instantiate_offspring` -> `add_individual`. We refuse
+    All creation events flow through `_instantiate_child` -> `add_individual`. We refuse
     to instantiate any `agent`-kind successors, so the neural cohort stays fixed
-    to the injected founders while non-policy producers and consumers keep reproducing as a resource supply.
+    to the injected founders while non-policy producers and consumers keep spawning as a resource supply.
     """
 
-    def _instantiate_offspring(self, plan: Any):  # type: ignore[override]
+    def _instantiate_child(self, plan: Any):  # type: ignore[override]
         if getattr(plan, "child_kind", None) == "agent":
             return None
-        return super()._instantiate_offspring(plan)
+        return super()._instantiate_child(plan)
 
 
 # --------------------------------------------------------------------------- #
@@ -85,7 +85,7 @@ def _reset_transient_and_memory(controller: TinyController) -> TinyController:
     """Clear hidden state, traces, and episodic contents (keep capacity).
 
     A fair "drop into a new world" test measures the learned WEIGHTS, not stale
-    activations or memories carried over from the world the controller evolved in.
+    activations or memories carried over from the world the controller developed in.
     """
     hs = controller.hidden_size
     controller.hidden = np.zeros(hs, dtype=controller.weights_in.dtype)
@@ -300,17 +300,17 @@ def _outswapped_template_modular(controller_dict: dict[str, Any], seed: int) -> 
 
 
 @dataclass
-class BrainInstance:
+class ControllerInstance:
     condition: str
     label: str
     template: Any  # TinyController or ModularController
 
 
-def build_brain_instances(
+def build_controller_instances(
     checkpoint: dict[str, Any], n_random: int, n_permuted: int, n_frozen: int = 0, n_remapped: int = 0,
     n_blind: int = 0, n_outswapped: int = 0
-) -> list[BrainInstance]:
-    controller_dict = checkpoint["brain"]
+) -> list[ControllerInstance]:
+    controller_dict = checkpoint["controller"]
     modular = _is_modular(controller_dict)
     trained = _trained_template_modular if modular else _trained_template
     random_b = _random_template_modular if modular else _random_template
@@ -319,24 +319,24 @@ def build_brain_instances(
     blind_b = _blind_template_modular if modular else _blind_template
     outswapped_b = _outswapped_template_modular if modular else _outswapped_template
 
-    instances = [BrainInstance("trained", "trained", trained(controller_dict))]
+    instances = [ControllerInstance("trained", "trained", trained(controller_dict))]
     for i in range(n_random):
-        instances.append(BrainInstance("random", f"random_{i}", random_b(controller_dict, seed=1000 + i)))
+        instances.append(ControllerInstance("random", f"random_{i}", random_b(controller_dict, seed=1000 + i)))
     for i in range(n_permuted):
-        instances.append(BrainInstance("permuted", f"permuted_{i}", permuted_b(controller_dict, seed=2000 + i)))
+        instances.append(ControllerInstance("permuted", f"permuted_{i}", permuted_b(controller_dict, seed=2000 + i)))
     for i in range(n_remapped):
-        instances.append(BrainInstance("remapped", f"remapped_{i}", remapped_b(controller_dict, seed=3000 + i)))
+        instances.append(ControllerInstance("remapped", f"remapped_{i}", remapped_b(controller_dict, seed=3000 + i)))
     for i in range(n_blind):
-        instances.append(BrainInstance("blind", f"blind_{i}", blind_b(controller_dict, seed=4000 + i)))
+        instances.append(ControllerInstance("blind", f"blind_{i}", blind_b(controller_dict, seed=4000 + i)))
     for i in range(n_outswapped):
-        instances.append(BrainInstance("outswapped", f"outswapped_{i}", outswapped_b(controller_dict, seed=5000 + i)))
+        instances.append(ControllerInstance("outswapped", f"outswapped_{i}", outswapped_b(controller_dict, seed=5000 + i)))
     # Frozen arm: the trained weights with lifetime learning disabled — the
     # "is its merit what it knows at init, or what it keeps re-learning?"
-    # control. The flag survives the per-individual serialization round-trip.
+    # control. The flag persists the per-individual serialization round-trip.
     for i in range(n_frozen):
         template = trained(controller_dict)
         template.learning_frozen = True
-        instances.append(BrainInstance("frozen", f"frozen_{i}", template))
+        instances.append(ControllerInstance("frozen", f"frozen_{i}", template))
     return instances
 
 
@@ -376,7 +376,7 @@ def _mean(values: list[float]) -> float:
 
 def evaluate_run(
     template: Any,
-    genome_dict: dict[str, Any],
+    params_dict: dict[str, Any],
     world_seed: int,
     cohort_size: int,
     ticks: int,
@@ -389,10 +389,10 @@ def evaluate_run(
         "smoke",
         seed=world_seed,
         places=places,
-        initial_plants=max(80, places * 6),
-        initial_fungi=max(20, places * 2),
+        initial_collectors=max(80, places * 6),
+        initial_converters=max(20, places * 2),
         initial_agents=0,           # we inject the cohort ourselves
-        max_population=4000,
+        max_pool=4000,
         max_ticks=ticks,
         max_wall_seconds=0.0,       # tick-bounded, not wall-bounded
         environment_harshness=harshness,
@@ -401,8 +401,8 @@ def evaluate_run(
         checkpoint_every=10**9,
         neural_checkpoint_limit=0,  # no checkpoint files
         event_detail=False,
-        stop_on_neural_extinction=False,
-        stop_on_full_extinction=False,
+        stop_on_neural_washout=False,
+        stop_on_full_washout=False,
         output_dir=str(SCRATCH_DIR),
     )
     sim = FrozenAgentSim(config)
@@ -412,7 +412,7 @@ def evaluate_run(
     founder_ids: list[int] = []
     place_rng = Random(world_seed ^ 0x5EED)
     for _ in range(cohort_size):
-        params = ParamVector.from_dict(genome_dict)
+        params = ParamVector.from_dict(params_dict)
         location = place_rng.randrange(len(sim.world.places))
         individual = sim.add_individual(
             "agent", params, location, start_energy, controller_template=template
@@ -433,7 +433,7 @@ def evaluate_run(
     for _ in range(ticks):
         sim.step()
         for fid in founder_ids:
-            org = sim.organisms.get(fid)
+            org = sim.individuals.get(fid)
             if org is None or not org.alive:
                 continue
             energy_sum[fid] += org.energy
@@ -446,20 +446,20 @@ def evaluate_run(
             visited[fid].add(org.location)
 
     # Aggregate.
-    alive = [1.0 if (sim.organisms.get(fid) and sim.organisms[fid].alive) else 0.0 for fid in founder_ids]
-    lifespans = [float(sim.organisms[fid].age) for fid in founder_ids if fid in sim.organisms]
+    alive = [1.0 if (sim.individuals.get(fid) and sim.individuals[fid].alive) else 0.0 for fid in founder_ids]
+    lifespans = [float(sim.individuals[fid].age) for fid in founder_ids if fid in sim.individuals]
     mean_energy = _mean(
         [energy_sum[fid] / energy_ticks[fid] for fid in founder_ids if energy_ticks[fid] > 0]
     )
     peak_energy = _mean([energy_peak[fid] for fid in founder_ids])
 
     def profile(fid: int, key: str) -> float:
-        org = sim.organisms.get(fid)
+        org = sim.individuals.get(fid)
         if org is None:
             return 0.0
         return float(org.success_profile.get(key, 0.0))
 
-    tool_successes = _mean([float(sim.organisms[fid].successful_tools) for fid in founder_ids if fid in sim.organisms])
+    tool_successes = _mean([float(sim.individuals[fid].successful_tools) for fid in founder_ids if fid in sim.individuals])
     causal_steps = _mean([profile(fid, "causal_step") for fid in founder_ids])
     causal_unlocks = _mean([profile(fid, "causal_unlock") for fid in founder_ids])
     structures = _mean([profile(fid, "structure") for fid in founder_ids])
@@ -542,7 +542,7 @@ METRIC_FIELDS = (
 def main() -> None:
     global SCRATCH_DIR
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--checkpoint", default=str(REPO_ROOT / "transfer" / "sample_brains" / "learner_champion_hidden14.json"))
+    parser.add_argument("--checkpoint", default=str(REPO_ROOT / "transfer" / "sample_controllers" / "learner_champion_hidden14.json"))
     parser.add_argument("--worlds", type=int, default=10, help="number of held-out world seeds")
     parser.add_argument("--world-seed-base", type=int, default=70_000)
     parser.add_argument("--cohort", type=int, default=20)
@@ -569,14 +569,14 @@ def main() -> None:
     SCRATCH_DIR = Path(args.scratch)
 
     checkpoint = json.loads(Path(args.checkpoint).read_text())
-    controller_dict = checkpoint["brain"]
-    genome_dict = checkpoint["genome"]
+    controller_dict = checkpoint["controller"]
+    params_dict = checkpoint["params"]
     if int(controller_dict["input_size"]) != OBSERVATION_SIZE:
         raise SystemExit(
             f"controller input_size {controller_dict['input_size']} != current OBSERVATION_SIZE {OBSERVATION_SIZE}"
         )
 
-    instances = build_brain_instances(
+    instances = build_controller_instances(
         checkpoint, args.n_random, args.n_permuted, args.n_frozen, args.n_remapped,
         args.n_blind, args.n_outswapped,
     )
@@ -584,7 +584,7 @@ def main() -> None:
 
     # Incremental per-run results, so a crash mid-sweep never loses finished
     # evaluations. Each (label, seed) run is independent and fully seeded, so
-    # skipping completed pairs on resume reproduces the uninterrupted sweep.
+    # skipping completed pairs on resume spawns the uninterrupted sweep.
     runs_path = Path(args.out).with_suffix(".runs.jsonl")
     completed: dict[tuple[str, int], RunMetrics] = {}
     if runs_path.exists():
@@ -620,7 +620,7 @@ def main() -> None:
                 m = completed[key]
             else:
                 m = evaluate_run(
-                    inst.template, genome_dict, seed,
+                    inst.template, params_dict, seed,
                     cohort_size=args.cohort, ticks=args.ticks, places=args.places,
                     harshness=args.harshness, start_energy=args.start_energy,
                     world_refresh_every=args.world_refresh_every,
@@ -690,7 +690,7 @@ def main() -> None:
 
     payload = {
         "checkpoint": args.checkpoint,
-        "brain_shape": {k: controller_dict.get(k) for k in ("input_size", "hidden_size", "output_size", "architecture")},
+        "controller_shape": {k: controller_dict.get(k) for k in ("input_size", "hidden_size", "output_size", "architecture")},
         "blocks": [int(b["hidden_size"]) for b in controller_dict["blocks"]] if _is_modular(controller_dict) else None,
         "episodic_capacity": controller_dict.get("episodic_capacity"),
         "config": {

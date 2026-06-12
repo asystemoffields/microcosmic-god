@@ -15,8 +15,8 @@ def _smoke_config(**overrides):
         checkpoint_every=10**9,
         neural_checkpoint_limit=0,
         event_detail=False,
-        stop_on_neural_extinction=False,
-        stop_on_full_extinction=False,
+        stop_on_neural_washout=False,
+        stop_on_full_washout=False,
         output_dir="/tmp/mcg_modular_wirein",
         initial_modular_fraction=overrides.pop("initial_modular_fraction", 1.0),
         **overrides,
@@ -26,14 +26,14 @@ def _smoke_config(**overrides):
 class ModularWireinTest(unittest.TestCase):
     def test_all_modular_run_steps_and_agents_act(self):
         sim = Simulation(_smoke_config())
-        agents = [o for o in sim.organisms.values() if o.kind == "agent"]
+        agents = [o for o in sim.individuals.values() if o.kind == "agent"]
         self.assertTrue(agents)
         self.assertTrue(all(isinstance(a.controller, ModularController) for a in agents))
         for _ in range(120):
             sim.step()
-        survivors = [o for o in sim.organisms.values() if o.kind == "agent" and o.alive]
-        acted = [a for a in survivors if a.last_action != "rest"]
-        self.assertTrue(survivors, "modular cohort went extinct in 120 smoke ticks")
+        persisters = [o for o in sim.individuals.values() if o.kind == "agent" and o.alive]
+        acted = [a for a in persisters if a.last_action != "rest"]
+        self.assertTrue(persisters, "modular cohort went emptied in 120 smoke ticks")
         self.assertTrue(acted, "no modular agent ever chose an action")
 
     def test_modular_children_inherit_modular_and_budget_tracks_capacity(self):
@@ -42,18 +42,18 @@ class ModularWireinTest(unittest.TestCase):
             sim.step()
         children = [
             o
-            for o in sim.organisms.values()
+            for o in sim.individuals.values()
             if o.kind == "agent" and o.parent_ids and o.controller is not None
         ]
         if not children:
-            self.skipTest("no reproduction in 400 smoke ticks (world too harsh this seed)")
+            self.skipTest("no spawning in 400 smoke ticks (world too harsh this seed)")
         for child in children:
             self.assertIsInstance(child.controller, ModularController)
             self.assertEqual(int(round(child.params.neural_budget)), child.controller.capacity)
 
-    def test_mixed_population_runs(self):
+    def test_mixed_pool_runs(self):
         sim = Simulation(_smoke_config(initial_modular_fraction=0.5))
-        kinds = {type(o.controller).__name__ for o in sim.organisms.values() if o.kind == "agent"}
+        kinds = {type(o.controller).__name__ for o in sim.individuals.values() if o.kind == "agent"}
         self.assertEqual(kinds, {"TinyController", "ModularController"})
         for _ in range(60):
             sim.step()

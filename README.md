@@ -1,23 +1,23 @@
 # Microcosmic God
 
-Microcosmic God is a headless artificial-life sandbox for evolving system-level behavior, intelligence, tool use, communication, and reproduction inside a cheap but consistent causal universe.
+Microcosmic God is a headless artificial-life sandbox for developing system-level behavior, intelligence, tool use, communication, and spawning inside a cheap but consistent causal universe.
 
 The current implementation is Prototype 0: a runnable Python simulation designed for short local experiments first, with portable run folders that can later move to Modal, Colab, or a faster systems core.
 
 ## What Exists Now
 
 - Sparse environment graph world, not a grid.
-- Multiple energy gradients from day one: solar, essence, organic storage, thermal, mechanical, electrical, and high-density latent energy.
-- Evolving non-neural individuals: non-policy producer and consumer analogs.
-- Evolving neural agents with recurrent ANNs, eligibility traces, predictive learning, and representational plasticity.
-- Standard parameter inheritance of genome/development parameters and innate controller templates.
-- Lifetime learning through evolved valence wiring and plasticity.
+- Multiple energy gradients from day one: solar, essence, residue storage, thermal, mechanical, electrical, and high-density latent energy.
+- Developing non-neural individuals: non-policy producer and consumer analogs.
+- Developing neural agents with recurrent ANNs, eligibility traces, predictive learning, and representational plasticity.
+- Standard parameter inheritance of params/development parameters and innate controller templates.
+- Lifetime learning through developed valence wiring and plasticity.
 - Evolution operators are split from world physics through an `EvolutionEngine`.
-- `clone_mutate` and `recombine` are the first two in-world operators; they replace domain-specific action labels.
-- Recombine requires behavioral coordination through short-lived local intent states.
+- `clone_perturb` and `combine` are the first two in-world operators; they replace domain-specific action labels.
+- Combine requires behavioral coordination through short-lived local intent states.
 - Short action-result traces and event-memory slots let agents perceive recent consequences of their own behavior.
-- Multiple prediction heads learn energy, damage, reproduction, social, tool, and movement-hazard outcomes.
-- Observer-only success profiles track energy capture, prediction fit, tool making/use, structures, causal unlocks, social learning, and reproduction for checkpointing and debriefs without becoming hidden reward.
+- Multiple prediction heads learn energy, damage, spawning, social, tool, and movement-hazard outcomes.
+- Observer-only success profiles track energy capture, prediction fit, tool making/use, structures, causal unlocks, social learning, and spawning for checkpointing and debriefs without becoming hidden reward.
 - Tool affordances derived from material properties.
 - Tool use requires object affordance, body compatibility, learned skill, and context.
 - Crafting now has proto-reasoning: agents infer a local target affordance, choose components under noisy planning/skill constraints, and only get better artifacts when the materials actually fit the problem.
@@ -25,29 +25,29 @@ The current implementation is Prototype 0: a runnable Python simulation designed
 - The payoff curve is intentionally steep: learned sequencing, useful tools, and structures can open much larger energy reservoirs than surface foraging.
 - Composite artifacts with derived capabilities, durability, and tiered resistance against harder materials/obstacles.
 - Persistent material structures built from gathered components, including place-level boundaries, channels, supports, filters, and gradient harvesters.
-- Structure decay through general material-environment coupling: mechanical wear, corrosion, organic decay, thermal damage, solubility, radiation, and fatigue.
+- Structure decay through general material-environment coupling: mechanical wear, corrosion, residue decay, thermal damage, solubility, radiation, and fatigue.
 - Graph-field physics for temperature, fluid level, pressure/depth, humidity, salinity, elevation, current exposure, edge slope, edge current, permeability, and conductance.
-- Environmental degradation fields such as oxygen-like exposure, acidity, organic activity, abrasion, and wet/dry cycling are visible to agents.
+- Environmental degradation fields such as oxygen-like exposure, acidity, residue activity, abrasion, and wet/dry cycling are visible to agents.
 - Physics-driven effects such as heat/pressure/current stress, essence advection, signal advection, mark erosion, current-assisted movement, and gravity falls.
 - Material-coupled artifact capabilities including filtering, floating, anchoring, traversal, insulation, conductivity, containment, cracking, cutting, levering, and heat concentration.
 - General artifact capacities for carrying, protection, and record surfaces, so backpack-like, protective, and portable-writing objects can emerge from material properties.
 - Inside/outside is modeled as boundary physics: `enclose`, `permeable`, and `shelter` are separate capabilities, so not every inside is protective.
 - Diversified environments: aquatic/terrestrial balance, depth, salinity, humidity, heat, height, water, and thorn barriers.
 - Hostile-but-valuable environment archetypes such as pelagic water, reefs, trenches, vents, ridges, scree, desert glass, forest edges, marshes, and caverns. These bias fields and resources without creating quests.
-- Evolving environment tolerances, so some individuals can suffer fluid overload, dehydrate, or specialize for aquatic/dry regimes.
+- Developing environment tolerances, so some individuals can suffer fluid overload, dehydrate, or specialize for aquatic/dry regimes.
 - Movement has real teeth: distance, load, slope, current, pressure, barriers, and relocation shock impose energy/health costs, while tools, memory, planning, and collaboration can mitigate them.
 - Collaboration can indirectly matter through active helper support for expeditions, tool use, causal unlocks, and pooled-material structures, without making cooperation a required objective.
 - Local signals with no fixed semantics.
 - Durable-but-decaying place marks, a primitive external memory channel analogous to durable symbol encoding.
 - Intentional lesson inscriptions are distinct from plain marks. Agents must have recent tool/problem experience and discover/use `inscribe`; readers improve through `interpret_mark`.
-- Competitive interaction and population collapse can happen.
-- Extinction or run-limit debriefs are written automatically.
+- Competitive interaction and pool collapse can happen.
+- Washout or run-limit debriefs are written automatically.
 - Selective controller checkpoints are saved for notable neural agents.
 - Controller checkpoints include cognitive context: recent trace, event memory, lesson memory, signal associations, and place memory.
 - Garden mode supports logged interventions.
-- Reproduction failure telemetry, per-action energy accounting, and removals split by individual kind.
+- Spawning failure telemetry, per-action energy accounting, and removals split by individual kind.
 - Movement telemetry summarizes attempts, cost, relocation shock, support, motives, and routes.
-- Regression tests for locality, signal observability, crafting failure costs, and reproduction capacity contracts.
+- Regression tests for locality, signal observability, crafting failure costs, and spawning capacity contracts.
 
 ## Quick Start
 
@@ -80,7 +80,7 @@ Each run folder contains:
 Override any key size directly:
 
 ```powershell
-python -m microcosmic_god run --profile minute --seed 42 --ticks 20000 --wall-seconds 900 --agents 80 --max-population 2500
+python -m microcosmic_god run --profile minute --seed 42 --ticks 20000 --wall-seconds 900 --agents 80 --max-pool 2500
 ```
 
 Disable the wall limit for an intentionally long local run:
@@ -120,13 +120,13 @@ Inactive agents lose their live ANN by default. The simulator only saves control
 
 - first successful use of a new tool affordance
 - interval champion
-- notable deactivation after reproduction or tool success
+- notable deactivation after spawning or tool success
 
 Checkpoint files include:
 
 - live controller weights
 - innate controller template
-- genome
+- params
 - individual state
 - tool skills
 - observer success profile
@@ -137,33 +137,33 @@ Checkpoint files include:
 - environment context
 - reason saved
 
-Checkpoint slots are bucketed so one dramatic failure mode cannot consume the whole archive. First tool successes, interval/final active champions, reproductive champions, tool champions, causal champions, learner champions, lineage founders, and notable deactivations each get their own quota inside the global checkpoint limit.
+Checkpoint slots are bucketed so one dramatic failure mode cannot consume the whole archive. First tool successes, interval/final active champions, spawn champions, tool champions, causal champions, learner champions, line founders, and notable deactivations each get their own quota inside the global checkpoint limit.
 
 These are the transfer candidates for future experiments in other worlds or games.
 
-Prototype 0 controllers are still intentionally compact, but they now carry hidden state, input/hidden eligibility traces, learned action preferences, prediction weights, and valence-modulated input-to-hidden plasticity. Genome neural budgets can mutate far beyond the local starting sizes, with upkeep cost deciding whether larger controllers survive.
+Prototype 0 controllers are still intentionally compact, but they now carry hidden state, input/hidden eligibility traces, learned action preferences, prediction weights, and valence-modulated input-to-hidden plasticity. Params neural budgets can perturb far beyond the local starting sizes, with upkeep cost deciding whether larger controllers persist.
 
 Run summaries include an `evolution_policy` block describing the active operators. The current sealed policy is still triggered by in-world action and interaction, while the code is now shaped to support future farm-mode policies like "these were effective operators and learners, make more like that."
 
 See [docs/TRANSFER_RUNWAY.md](docs/TRANSFER_RUNWAY.md) for the plan to separate reusable controller cores from world-specific adapters and test saved agents in held-out worlds, simple games, and eventually richer RL environments.
 
-See [docs/LEARNING_ARCHITECTURE.md](docs/LEARNING_ARCHITECTURE.md) for the north-star contract: evolve compact causal learners that may transfer through new encoders/action heads, not just policies that memorize this sandbox.
+See [docs/LEARNING_ARCHITECTURE.md](docs/LEARNING_ARCHITECTURE.md) for the north-star contract: develop compact causal learners that may transfer through new encoders/action heads, not just policies that memorize this sandbox.
 
 ## SAE Inspection
 
 Train a small sparse autoencoder on controller checkpoints after a run:
 
 ```powershell
-python analysis\scripts\train_checkpoint_sae.py runs\<run_dir>\checkpoints archives\brains --latent 16 --steps 1500 --out analysis\sae_models\run_sae.npz
+python analysis\scripts\train_checkpoint_sae.py runs\<run_dir>\checkpoints archives\controllers --latent 16 --steps 1500 --out analysis\sae_models\run_sae.npz
 ```
 
 Inspect a checkpoint through the trained SAE:
 
 ```powershell
-python analysis\scripts\inspect_sae.py analysis\sae_models\run_sae.npz runs\<run_dir>\checkpoints\<brain_file>.json
+python analysis\scripts\inspect_sae.py analysis\sae_models\run_sae.npz runs\<run_dir>\checkpoints\<controller_file>.json
 ```
 
-This is an analysis microscope only. SAE features never feed back into agent reward, perception, reproduction, or world physics.
+This is an analysis microscope only. SAE features never feed back into agent reward, perception, spawning, or world physics.
 
 ## Information Transfer
 
@@ -180,7 +180,7 @@ The world now treats durable symbol encoding as an action-mediated advantage, no
 
 Record-capable artifacts can now hold portable lesson traces. A self-read can serve as external memory and improve later action without counting as information transfer; another agent reading that carried trace can still create the ordinary teaching feedback if the author is present. Carry-capable artifacts expand material/tool capacity, while protect-capable artifacts reduce environmental, accident, and competitive-interaction damage through the same material-derived artifact system.
 
-Mark creation is summarized in aggregate/debrief counters rather than logged as one event per mark, so agents are free to mark obsessively if that behavior evolves. Intentional lesson encodings and successful reads can be promoted to `story_events.jsonl`.
+Mark creation is summarized in aggregate/debrief counters rather than logged as one event per mark, so agents are free to mark obsessively if that behavior develops. Intentional lesson encodings and successful reads can be promoted to `story_events.jsonl`.
 
 See [docs/LANGUAGE_RUNWAY.md](docs/LANGUAGE_RUNWAY.md) for the longer path from meaningless signals to possible future language-transfer experiments.
 
@@ -200,4 +200,4 @@ See [side_projects/](side_projects/) for speculative branches, including Univers
 
 Do not directly reward intelligence, tool use, communication, curiosity, family, teaching, trade, or culture.
 
-Make those behaviors possible, make them costly, and let the environment decide whether they survive.
+Make those behaviors possible, make them costly, and let the environment decide whether they persist.

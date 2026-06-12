@@ -80,7 +80,7 @@ class TBI:
     @classmethod
     def from_checkpoint(cls, p):
         d = json.loads(Path(p).read_text())
-        bd = d.get('brain') or d.get('brain_template') or d
+        bd = d.get('controller') or d.get('controller_template') or d
         h = int(bd['hidden_size']); i = int(bd['input_size']); o = int(bd['output_size'])
         wi = np.array(bd['weights_in'], dtype=np.float64).reshape(h, i)
         wo = np.array(bd['weights_out'], dtype=np.float64).reshape(o, h)
@@ -175,7 +175,7 @@ class TBI:
             self.weights_in = np.clip(self.weights_in + delta, -4.0, 4.0)
 
 
-def shuffle_brain(controller, rng):
+def shuffle_controller(controller, rng):
     def _shuf(arr):
         if arr is None:
             return None
@@ -201,15 +201,15 @@ class CatchAdapter:
         self.b_in = np.zeros(controller.input_size)
         self.W_out = rng.normal(0, 0.30, (3, controller.output_size))
         self.b_out = np.zeros(3)
-        self.last_brain_outputs = None
+        self.last_controller_outputs = None
 
     def reset(self):
         self.controller.reset()
-        self.last_brain_outputs = None
+        self.last_controller_outputs = None
 
     def logits(self, obs):
         bo = self.controller.forward(self.W_in @ obs + self.b_in)
-        self.last_brain_outputs = bo
+        self.last_controller_outputs = bo
         return self.W_out @ bo + self.b_out
 
     def _maybe_replay(self, action):
@@ -230,9 +230,9 @@ class CatchAdapter:
         return a
 
     def observe_outcome(self, reward, adaptive_lr=0.0):
-        if adaptive_lr <= 0.0 or reward == 0.0 or self.last_brain_outputs is None:
+        if adaptive_lr <= 0.0 or reward == 0.0 or self.last_controller_outputs is None:
             return
-        mg_action = int(np.argmax(self.last_brain_outputs))
+        mg_action = int(np.argmax(self.last_controller_outputs))
         self.controller.learn(mg_action, valence=reward, learning_rate=adaptive_lr)
 
     def get(self):
@@ -316,7 +316,7 @@ def run_seed(make_adapter, seed, gens=80, balls_per_episode=30, adaptive_lr=0.0)
 
 
 def main():
-    sample_path = 'transfer/sample_brains/v2_multiworld_overall_champion.json'
+    sample_path = 'transfer/sample_controllers/v2_multiworld_overall_champion.json'
     trained = TBI.from_checkpoint(sample_path)
     has_ep = trained.episodic_slots is not None
     cap = trained.episodic_slots.shape[0] if has_ep else 0
@@ -346,16 +346,16 @@ def main():
             rb = TBI.random(72, trained.hidden_size, 15, rng=np.random.default_rng(s + 100),
                             with_episodic=has_ep, capacity=cap)
             return CatchAdapter(rb, rng=np.random.default_rng(s + 1000))
-        results[f'random_brain_{mode_label}'] = [
+        results[f'random_controller_{mode_label}'] = [
             run_seed(random_factory, s, gens=GENS, balls_per_episode=BALLS, adaptive_lr=mode_lr)
             for s in SEEDS
         ]
-        print(f'   {[round(x, 3) for x in results[f"random_brain_{mode_label}"]]}  [{time.time()-t0:.0f}s]')
+        print(f'   {[round(x, 3) for x in results[f"random_controller_{mode_label}"]]}  [{time.time()-t0:.0f}s]')
 
         t0 = time.time()
         print('C) Permuted v2 controller + adapter ...')
         def permuted_factory(s):
-            pb = shuffle_brain(trained, rng=np.random.default_rng(s + 2000))
+            pb = shuffle_controller(trained, rng=np.random.default_rng(s + 2000))
             return CatchAdapter(pb, rng=np.random.default_rng(s + 1000))
         results[f'permuted_{mode_label}'] = [
             run_seed(permuted_factory, s, gens=GENS, balls_per_episode=BALLS, adaptive_lr=mode_lr)
@@ -366,7 +366,7 @@ def main():
         t0 = time.time()
         print('D) v2 multi-world controller + adapter ...')
         def trained_factory(s):
-            # Fresh deep copy per seed in case adaptive learning mutates it.
+            # Fresh deep copy per seed in case adaptive learning perturbs it.
             tb = TBI.from_checkpoint(sample_path)
             return CatchAdapter(tb, rng=np.random.default_rng(s + 1000))
         results[f'trained_{mode_label}'] = [
@@ -377,7 +377,7 @@ def main():
 
     print('\n=== Final summary ===')
     print(f'  {"Condition":24s}  {"Frozen":>20s}  {"Adaptive":>20s}')
-    for k, lbl in zip(['direct', 'random_brain', 'permuted', 'trained'],
+    for k, lbl in zip(['direct', 'random_controller', 'permuted', 'trained'],
                       ['Direct (no controller)', 'Random-init controller', 'Permuted trained controller', 'v2 trained controller']):
         f_arr = np.array(results[f'{k}_frozen'])
         a_arr = np.array(results[f'{k}_adaptive'])
@@ -386,12 +386,12 @@ def main():
     t_f = np.mean(results['trained_frozen'])
     t_a = np.mean(results['trained_adaptive'])
     print('\n  Key contrasts (frozen mode):')
-    print(f'    trained - random_brain: {t_f - np.mean(results["random_brain_frozen"]):+.3f}')
+    print(f'    trained - random_controller: {t_f - np.mean(results["random_controller_frozen"]):+.3f}')
     print(f'    trained - permuted:     {t_f - np.mean(results["permuted_frozen"]):+.3f}')
     print(f'    trained - direct:       {t_f - np.mean(results["direct_frozen"]):+.3f}')
     print('\n  Adaptive vs frozen (does controller plasticity help on Catch?):')
     print(f'    trained:      {t_a - t_f:+.3f}')
-    print(f'    random_brain: {np.mean(results["random_brain_adaptive"]) - np.mean(results["random_brain_frozen"]):+.3f}')
+    print(f'    random_controller: {np.mean(results["random_controller_adaptive"]) - np.mean(results["random_controller_frozen"]):+.3f}')
     print(f'    permuted:     {np.mean(results["permuted_adaptive"]) - np.mean(results["permuted_frozen"]):+.3f}')
 
 

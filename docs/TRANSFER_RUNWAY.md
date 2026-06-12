@@ -5,10 +5,10 @@ This document describes how the simulation should be shaped so saved agent contr
 The near-term target is modest but important:
 
 ```text
-Does a controller evolved in the simulation learn a new environment faster, more robustly, or with better exploration than a random controller of the same size?
+Does a controller developed in the simulation learn a new environment faster, more robustly, or with better exploration than a random controller of the same size?
 ```
 
-Directly wiring one saved policy into an unrelated video game is unlikely to work if the input and action spaces are unrelated. The plausible transfer target is the evolved internal machinery: recurrent state, prediction habits, learned control priors, memory dynamics, and sensorimotor abstractions.
+Directly wiring one saved policy into an unrelated video game is unlikely to work if the input and action spaces are unrelated. The plausible transfer target is the developed internal machinery: recurrent state, prediction habits, learned control priors, memory dynamics, and sensorimotor abstractions.
 
 ## Core Idea
 
@@ -37,7 +37,7 @@ Checkpoint files already save:
 - controller weights and live hidden state
 - input and hidden eligibility traces
 - innate controller template
-- genome
+- params
 - body and individual state
 - tool skill
 - signal associations
@@ -50,18 +50,18 @@ This is enough for archival and early inspection. It is not yet enough for clean
 
 ## Transfer Package Contract
 
-Future saved controllers should export a `BrainPackage` with explicit schema metadata:
+Future saved controllers should export a `ControllerPackage` with explicit schema metadata:
 
 ```text
-BrainPackage
+ControllerPackage
   package_version
-  brain_architecture
+  controller_architecture
   reusable_core_weights
   observation_adapter_weights
   action_adapter_weights
   prediction_heads
   hidden_state_optional
-  genome
+  params
   body_metadata
   training_history_summary
   observation_schema
@@ -77,7 +77,7 @@ The package should say which weights are expected to transfer and which are sand
 Microcosmic observations should avoid becoming arbitrary feature soup. They should be organized around reusable physical concepts:
 
 - self state: energy, damage, age, motion, internal memory
-- local fields: heat, water, salinity, light, current, slope, pressure, oxygen-like exposure, acidity, organic activity, abrasion, and wet/dry cycling
+- local fields: heat, water, salinity, light, current, slope, pressure, oxygen-like exposure, acidity, residue activity, abrasion, and wet/dry cycling
 - objects: material properties, affordances, relative availability
 - agents: motion, proximity, emitted signals, observed action traces
 - consequences: recent action result, energy delta, prediction error
@@ -108,7 +108,7 @@ For another RL environment, the action adapter maps these internal action tenden
 
 For a new environment:
 
-1. Load a saved `BrainPackage`.
+1. Load a saved `ControllerPackage`.
 2. Keep the reusable recurrent/predictive core.
 3. Replace or reinitialize the observation adapter for the new environment.
 4. Replace or reinitialize the action adapter for the new environment.
@@ -124,14 +124,14 @@ The transfer claim only means something if saved controllers beat these controls
 
 ## Selection Without Hidden Objectives
 
-The simulator should not evolve agents for transfer. Transfer candidates should be selected after the run by observer heuristics.
+The simulator should not develop agents for transfer. Transfer candidates should be selected after the run by observer heuristics.
 
 Good checkpoint signals:
 
-- survived across multiple environment regimes
+- persisted across multiple environment regimes
 - used multiple tool affordances successfully
 - improved prediction error during its lifetime
-- reproduced in more than one environment context
+- spawned in more than one environment context
 - carried useful artifacts or moved through barriers
 - communicated or marked before later adaptive behavior
 - recovered from scarcity, competitive-interaction pressure, or environmental drift
@@ -190,10 +190,10 @@ To keep this path open:
 ## Near-Term Implementation Steps
 
 1. Add schema names to every checkpoint: observation features, action names, and controller segment labels.
-2. Add a `brain_package` exporter that can convert a checkpoint into arrays plus metadata.
+2. Add a `controller_package` exporter that can convert a checkpoint into arrays plus metadata.
 3. Split `TinyController` successor into `encoder`, `core`, and `heads`.
 4. Add a tiny external transfer test environment, starting with vector catch.
 5. Add a transfer evaluation script that compares saved cores to random controls.
 6. Add held-out Microcosmic probe worlds before claiming any cross-domain generality.
 
-The dream version is not magic weights that instantly play anything. It is evolved machinery that brings useful priors: memory, causal prediction, exploration under scarcity, tool-like action sequencing, and adaptation under unfamiliar physics.
+The dream version is not magic weights that instantly play anything. It is developed machinery that brings useful priors: memory, causal prediction, exploration under scarcity, tool-like action sequencing, and adaptation under unfamiliar physics.
