@@ -157,7 +157,7 @@ class Individual:
         body = (
             self.params.mobility * 0.030
             + self.params.manipulator * 0.020
-            + self.params.armor * 0.015
+            + self.params.resilience * 0.015
             + self.params.sensor_range * 0.010
             + self.params.developmental_complexity * 0.020
         )

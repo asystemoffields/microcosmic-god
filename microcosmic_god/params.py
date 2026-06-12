@@ -43,6 +43,7 @@ _LEGACY_KEYS = {
     "single_parent_threshold": "asexual_threshold",
     "two_parent_threshold": "sexual_threshold",
     "perturbation_rate": "mutation_rate",
+    "resilience": "armor",
 }
 _LEGACY_TO_NEUTRAL = {legacy: neutral for neutral, legacy in _LEGACY_KEYS.items()}
 
@@ -64,7 +65,7 @@ class ParamVector:
     essence_conversion: float
     mobility: float
     manipulator: float
-    armor: float
+    resilience: float
     sensor_range: float
     neural_budget: float
     memory_budget: float
@@ -105,7 +106,7 @@ class ParamVector:
             essence_conversion=rng.uniform(0.00, 0.12),
             mobility=rng.uniform(0.00, 0.04),
             manipulator=rng.uniform(0.00, 0.03),
-            armor=rng.uniform(0.05, 0.35),
+            resilience=rng.uniform(0.05, 0.35),
             sensor_range=rng.uniform(0.00, 0.10),
             neural_budget=0.0,
             memory_budget=0.0,
@@ -144,7 +145,7 @@ class ParamVector:
             essence_conversion=rng.uniform(0.45, 0.90),
             mobility=rng.uniform(0.00, 0.06),
             manipulator=rng.uniform(0.00, 0.02),
-            armor=rng.uniform(0.00, 0.18),
+            resilience=rng.uniform(0.00, 0.18),
             sensor_range=rng.uniform(0.00, 0.12),
             neural_budget=0.0,
             memory_budget=0.0,
@@ -183,7 +184,7 @@ class ParamVector:
             essence_conversion=rng.uniform(0.35, 0.90),
             mobility=rng.uniform(0.35, 0.90),
             manipulator=rng.uniform(0.15, 0.75),
-            armor=rng.uniform(0.02, 0.45),
+            resilience=rng.uniform(0.02, 0.45),
             sensor_range=rng.uniform(0.35, 0.90),
             neural_budget=rng.uniform(4.0, 13.0),
             memory_budget=rng.uniform(1.0, 6.0),

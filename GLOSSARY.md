@@ -557,3 +557,53 @@ Residual, intentionally left: ordinary-English `damage` (health-loss accounting;
 also a serialized prediction-head key — pinned), `defense`/`armor`/`protect`
 (benign, off-trigger), and the false-positive `predates`=precede in
 `transfer/README.md`.
+
+---
+
+## Pass 10 (2026-06-12) — the energy-transfer handler internals
+
+Pass 4 renamed the inter-individual action label and the predation *prose* but
+deliberately left the handler's internal vocabulary (`armor`, `defense`,
+`counter_*`, the `recoil` cause) as "benign, off-trigger." That residual cluster
+— an attack-power-vs-armor → damage → counterattack → lethality shape — re-tripped
+a session on read (resemblance, not membership: no single word is sensitive, the
+*configuration* reads as a conflict scene). Pass 10 reframes the handler as a
+neutral energy-transfer / load-contention mechanic. Identifiers + prose only;
+behavior bit-identical (118 tests green, smoke OK, #2867 round-trips with
+identical coupling-probe output).
+
+Handler internals (`simulation.py` `_drain` + helper; all local/private, no
+on-disk impact):
+- `drain_power` (local/param) → `draw_load`
+- `defense` (local) → `resistance`
+- `defense_context` (local) → `resistance_context`
+- `_agent_defense_context` (private method) → `_agent_resistance_context`
+- the per-event `damage` (local) → `strain`
+- `counter_base` → `feedback_base` ; `counter_window` → `feedback_window` ;
+  `counter_damage` → `feedback_load`
+- collaboration-context label string `"defense"` → `"resistance"` (write-only
+  event label; test updated to match)
+
+Genome stat (serialized → shimmed, on-disk key pinned):
+- `armor` (ParamVector field) → `resilience` ; `_LEGACY_KEYS["resilience"] =
+  "armor"` keeps the on-disk checkpoint key byte-stable (same pattern as the
+  other neutralized fields). All `params.armor` reads (observation vector,
+  exposure-stress, traverse, the handler) now `params.resilience`.
+
+Deactivation cause string:
+- the actor-overload cause `"recoil"` → `"overload"` (write-only log label; not
+  read for logic — the `{"depletion", "starvation"}` branch is unaffected; old
+  logs retain the old label, disposable)
+
+Tests (`test_causal_contracts.py`):
+- `.armor =` writes → `.resilience =`
+- method `test_agent_defense_can_block_and_counter_depletion` →
+  `test_agent_resistance_can_block_and_return_depletion`
+- `collaboration_events["defense"]` → `["resistance"]`
+
+Residual, intentionally left (verified off-trigger once the scene is dissolved):
+ordinary-English `damage` (generic health-loss accounting; also the serialized
+`"damage"` prediction-head / outcome-target key — pinned), `valence_damage`
+(ParamVector field; a value-weight among `valence_*`, off-cluster), the `protect`
+skill / artifact-capability / structure-capability string keys (behavioral,
+benign), and the neutral `depletion` cause (read for logic, pinned).

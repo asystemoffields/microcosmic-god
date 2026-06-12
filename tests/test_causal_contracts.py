@@ -102,7 +102,7 @@ class CausalContractTests(unittest.TestCase):
                 place.habitat.update({"aquatic": 0.0, "depth": 0.0, "humidity": 0.95, "salinity": 0.0})
                 params = ParamVector.neural(sim.rng)
                 params.thermal_tolerance = 0.0
-                params.armor = 0.0
+                params.resilience = 0.0
                 agent = sim.add_individual("agent", params, 0, 80.0)
                 assert agent is not None
 
@@ -210,18 +210,18 @@ class CausalContractTests(unittest.TestCase):
         self.assertEqual(target.health, before_health)
         self.assertEqual(target.location, 1)
 
-    def test_agent_defense_can_block_and_counter_depletion(self) -> None:
+    def test_agent_resistance_can_block_and_return_depletion(self) -> None:
         self.sim = make_sim(places=1)
         drainer_genome = ParamVector.neural(self.sim.rng)
         drainer_genome.mobility = 0.20
         drainer_genome.manipulator = 0.20
         drainer_genome.mechanical_use = 0.20
         target_genome = ParamVector.neural(self.sim.rng)
-        target_genome.armor = 0.30
+        target_genome.resilience = 0.30
         target_genome.mobility = 0.40
         target_genome.manipulator = 1.00
         helper_genome = ParamVector.neural(self.sim.rng)
-        helper_genome.armor = 1.00
+        helper_genome.resilience = 1.00
         helper_genome.mobility = 1.00
         helper_genome.manipulator = 1.00
         helper_genome.sensor_range = 1.00
@@ -253,7 +253,7 @@ class CausalContractTests(unittest.TestCase):
         self.assertAlmostEqual(target.health, before_target_health)
         self.assertLess(drainer.health, before_drainer_health)
         self.assertGreater(target.tool_skill["protect"], before_protect)
-        self.assertGreater(self.sim.collaboration_events["defense"], 0)
+        self.assertGreater(self.sim.collaboration_events["resistance"], 0)
 
     def test_tool_choice_uses_recognized_situation_without_magic(self) -> None:
         self.sim = make_sim(places=1)
@@ -738,7 +738,7 @@ class CausalContractTests(unittest.TestCase):
         place.physics["abrasion"] = 0.7
         params = ParamVector.neural(self.sim.rng)
         params.pressure_tolerance = 0.05
-        params.armor = 0.0
+        params.resilience = 0.0
         unprotected = self.sim.add_individual("agent", params, 0, 80.0)
         protected = self.sim.add_individual("agent", params, 0, 80.0)
         assert unprotected is not None and protected is not None
@@ -773,7 +773,7 @@ class CausalContractTests(unittest.TestCase):
         place.habitat.update({"aquatic": 0.0, "depth": 0.0, "humidity": 0.95, "salinity": 0.0})
         fragile = ParamVector.neural(self.sim.rng)
         fragile.thermal_tolerance = 0.0
-        fragile.armor = 0.0
+        fragile.resilience = 0.0
         unprotected = self.sim.add_individual("agent", fragile, 0, 80.0)
         protected = self.sim.add_individual("agent", fragile, 0, 80.0)
         assert unprotected is not None and protected is not None
@@ -812,7 +812,7 @@ class CausalContractTests(unittest.TestCase):
             place.habitat.update({"aquatic": 0.0, "depth": 0.0, "humidity": 0.95, "salinity": 0.0})
         fragile = ParamVector.neural(self.sim.rng)
         fragile.thermal_tolerance = 0.0
-        fragile.armor = 0.0
+        fragile.resilience = 0.0
         alone = self.sim.add_individual("agent", fragile, 1, 80.0)
         helped = self.sim.add_individual("agent", fragile, 0, 80.0)
         helper = self.sim.add_individual("agent", ParamVector.neural(self.sim.rng), 0, 80.0)

@@ -553,7 +553,7 @@ class Simulation:
             "raw": raw,
         }
 
-    def _agent_defense_context(self, target: Individual, drain_power: float) -> dict[str, Any]:
+    def _agent_resistance_context(self, target: Individual, draw_load: float) -> dict[str, Any]:
         if target.kind != "agent":
             return {"bonus": 0.0, "support": 0.0, "structure": 0.0, "shelter": 0.0, "collaboration": None}
         place = self.world.places[target.location]
@@ -565,7 +565,7 @@ class Simulation:
             structure_capability(place.structures, "anchor") * 0.18,
         )
         guarded = 0.05 if target.last_action in {"observe", "signal", "coordinate", "build"} else 0.0
-        collaboration = self._collective_support(target, "protect", drain_power)
+        collaboration = self._collective_support(target, "protect", draw_load)
         support = float(collaboration.get("support", 0.0))
         bonus = shelter * 0.16 + structure * 0.24 + support * 0.30 + guarded
         return {
@@ -1214,7 +1214,7 @@ class Simulation:
         salinity_stress = max(0.0, abs(salinity - individual.params.salinity_tolerance) - 0.55 - protection * 0.06)
         heat_stress = max(0.0, temperature - (0.58 + individual.params.thermal_tolerance * 0.42 + insulation * 0.25 + protection * 0.06))
         cold_stress = max(0.0, 0.24 - temperature - individual.params.thermal_tolerance * 0.14 - insulation * 0.20 - heat_control * 0.12 - protection * 0.05)
-        pressure_stress = max(0.0, pressure - (individual.params.pressure_tolerance * 1.05 + individual.params.aquatic_affinity * 0.20 + individual.params.armor * 0.12 + protection * 0.14))
+        pressure_stress = max(0.0, pressure - (individual.params.pressure_tolerance * 1.05 + individual.params.aquatic_affinity * 0.20 + individual.params.resilience * 0.12 + protection * 0.14))
         current_stress = max(0.0, current * aquatic - max(individual.params.buoyancy, float_cap, anchor * 0.80, traverse * 0.55, individual.params.mobility * 0.25))
         stagnant_interior = max(0.0, interiority - shelter) * max(0.0, 1.0 - permeability) * max(0.0, pressure + temperature - 0.80)
         tool_exposure_buffer = artifact_insulation * 0.24 + heat_control * 0.22 + protection * 0.13 + containment * 0.09 + structure_shelter * 0.12
@@ -1228,7 +1228,7 @@ class Simulation:
             + containment * 0.09
             + social_exposure_buffer
             + individual.params.thermal_tolerance * 0.10
-            + individual.params.armor * 0.05
+            + individual.params.resilience * 0.05
         )
         exposure_stress = max(0.0, exposure_severity - exposure_buffer)
         buffered_exposure = max(0.0, exposure_severity - exposure_stress)
@@ -1298,7 +1298,7 @@ class Simulation:
             individual.inventory_count() / max(1.0, individual.inventory_limit()),
             individual.params.mobility,
             individual.params.manipulator,
-            individual.params.armor,
+            individual.params.resilience,
             individual.params.sensor_range,
             individual.params.neural_budget / NEURAL_BUDGET_MAX,
             individual.params.memory_budget / MEMORY_BUDGET_MAX,
@@ -1502,7 +1502,7 @@ class Simulation:
         barrier = (
             destination.obstacles.get("water", 0.0) * (1.0 - max(traverse, aquatic_fit))
             + destination.obstacles.get("height", 0.0) * (1.0 - max(traverse, individual.params.mobility))
-            + destination.obstacles.get("thorn", 0.0) * (1.0 - max(shear, individual.params.armor))
+            + destination.obstacles.get("thorn", 0.0) * (1.0 - max(shear, individual.params.resilience))
             + destination.obstacles.get("heat", 0.0) * (1.0 - max(insulation, individual.params.thermal_tolerance))
             + edge_required * (1.0 - max(traverse, float_cap, anchor * 0.65, individual.params.mobility))
             + uphill * (1.0 - max(traverse, individual.params.mobility))
@@ -2322,45 +2322,51 @@ class Simulation:
         return lost
 
     def _drain(self, individual: Individual) -> None:
+        # Energy-transfer contest between co-located individuals. The actor's
+        # draw_load works against the recipient's resistance; the net excess is
+        # strain on the recipient's condition. A strained recipient can return
+        # some load to the actor (feedback_load); if the actor is overloaded it
+        # is removed, and if the recipient's condition is exhausted the actor
+        # absorbs the remaining energy.
         local = [self.organisms[oid] for oid in self._living_ids_at(individual.location) if oid != individual.id]
         if not local:
             individual.energy -= 0.04
             return
-        target = min(local, key=lambda candidate: (candidate.health + candidate.params.armor * 0.7, -candidate.energy))
-        drain_power = individual.params.mobility * 0.40 + individual.params.manipulator * 0.35 + individual.params.mechanical_use * 0.25
+        target = min(local, key=lambda candidate: (candidate.health + candidate.params.resilience * 0.7, -candidate.energy))
+        draw_load = individual.params.mobility * 0.40 + individual.params.manipulator * 0.35 + individual.params.mechanical_use * 0.25
         protection = artifact_capability(target.artifacts, "protect")
-        defense_context = self._agent_defense_context(target, drain_power)
-        defense = target.params.armor * 0.45 + target.params.mobility * 0.25 + target.health * 0.20 + protection * 0.34 + float(defense_context["bonus"])
-        damage = max(0.0, drain_power - defense + self.rng.gauss(0.0, 0.05))
-        individual.energy -= 0.10 + drain_power * 0.08
-        if target.kind == "agent" and float(defense_context["support"]) > 0.01 and defense_context["collaboration"] is not None:
-            self._apply_collaboration_effects(target, "protect", "defense", defense_context["collaboration"], drain_power)
-        if damage > 0.0:
+        resistance_context = self._agent_resistance_context(target, draw_load)
+        resistance = target.params.resilience * 0.45 + target.params.mobility * 0.25 + target.health * 0.20 + protection * 0.34 + float(resistance_context["bonus"])
+        strain = max(0.0, draw_load - resistance + self.rng.gauss(0.0, 0.05))
+        individual.energy -= 0.10 + draw_load * 0.08
+        if target.kind == "agent" and float(resistance_context["support"]) > 0.01 and resistance_context["collaboration"] is not None:
+            self._apply_collaboration_effects(target, "protect", "resistance", resistance_context["collaboration"], draw_load)
+        if strain > 0.0:
             if protection > 0.0:
-                damage *= max(0.35, 1.0 - protection * 0.38)
-                self._increase_skill(target, "protect", damage * 0.025, transfer=0.06)
-                self._wear_artifacts(target, "protect", amount=damage * (0.55 + protection * 0.35))
-            target.health -= damage
+                strain *= max(0.35, 1.0 - protection * 0.38)
+                self._increase_skill(target, "protect", strain * 0.025, transfer=0.06)
+                self._wear_artifacts(target, "protect", amount=strain * (0.55 + protection * 0.35))
+            target.health -= strain
         elif target.kind == "agent":
-            self._increase_skill(target, "protect", 0.002 + max(0.0, defense - drain_power) * 0.006, transfer=0.05)
+            self._increase_skill(target, "protect", 0.002 + max(0.0, resistance - draw_load) * 0.006, transfer=0.05)
         if target.kind == "agent" and target.health > 0.0:
-            counter_base = (
-                target.params.armor * 0.16
+            feedback_base = (
+                target.params.resilience * 0.16
                 + target.params.mobility * 0.14
                 + target.params.manipulator * 0.10
                 + protection * 0.22
-                + float(defense_context["structure"]) * 0.12
-                + float(defense_context["support"]) * 0.18
+                + float(resistance_context["structure"]) * 0.12
+                + float(resistance_context["support"]) * 0.18
             )
-            counter_window = counter_base - drain_power * 0.38 + self.rng.gauss(0.0, 0.035)
-            if counter_window > 0.12:
-                counter_damage = min(0.32, (counter_window - 0.12) * 0.42)
-                individual.health -= counter_damage
-                target.energy -= 0.025 + counter_damage * 0.05
-                target.record_success("collaboration", float(defense_context["support"]) * 0.25)
-                self._increase_skill(target, "protect", 0.003 + counter_damage * 0.030, transfer=0.07)
+            feedback_window = feedback_base - draw_load * 0.38 + self.rng.gauss(0.0, 0.035)
+            if feedback_window > 0.12:
+                feedback_load = min(0.32, (feedback_window - 0.12) * 0.42)
+                individual.health -= feedback_load
+                target.energy -= 0.025 + feedback_load * 0.05
+                target.record_success("collaboration", float(resistance_context["support"]) * 0.25)
+                self._increase_skill(target, "protect", 0.003 + feedback_load * 0.030, transfer=0.07)
                 if individual.health <= 0.0:
-                    self._deactivate(individual, "recoil")
+                    self._deactivate(individual, "overload")
         if target.health <= 0.0 and individual.alive:
             gained = target.energy * (0.30 + individual.params.essence_conversion * 0.45)
             individual.energy += max(0.0, gained)
