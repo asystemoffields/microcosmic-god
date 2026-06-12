@@ -167,7 +167,7 @@ def _random_template_modular(controller_dict: dict[str, Any], seed: int) -> Modu
 
     Same block count and per-block hidden sizes; every array re-drawn at the
     init scales used by ModularController.random/add_block; gates back to the
-    uniform 1/K birth convention; plasticity/neuromod/wiring birth-neutral.
+    uniform 1/K init convention; plasticity/neuromod/wiring init-neutral.
     """
     rng = Random(seed)
     controller = ModularController.from_dict(controller_dict)
@@ -227,7 +227,7 @@ def _permuted_template_modular(controller_dict: dict[str, Any], seed: int) -> Mo
 
 
 def _remapped_template(controller_dict: dict[str, Any], seed: int) -> TinyController:
-    """Trained weights with input columns permuted: an in-vitro interface
+    """Trained weights with input columns permuted: a controlled interface
     remap. Measures how indexical the competence is — the first rung of the
     interface-distance ladder (the Catch question in controlled form)."""
     controller = TinyController.from_dict(controller_dict)
@@ -243,7 +243,7 @@ def _remapped_template_modular(controller_dict: dict[str, Any], seed: int) -> Mo
     """Modular variant: permute each typed encoder's input columns within its
     group span. Group identity (which span is resource-like, self-like, ...)
     is preserved; the wiring inside each type is scrambled. A pure
-    within-type re-binding challenge."""
+    within-type re-mapping challenge."""
     controller = ModularController.from_dict(controller_dict)
     rs = np.random.RandomState(seed)
     controller.encoders = [
@@ -277,7 +277,7 @@ def build_brain_instances(
     for i in range(n_remapped):
         instances.append(BrainInstance("remapped", f"remapped_{i}", remapped_b(controller_dict, seed=3000 + i)))
     # Frozen arm: the trained weights with lifetime learning disabled — the
-    # "is its merit what it knows at birth, or what it keeps re-learning?"
+    # "is its merit what it knows at init, or what it keeps re-learning?"
     # control. The flag survives the per-individual serialization round-trip.
     for i in range(n_frozen):
         template = trained(controller_dict)
