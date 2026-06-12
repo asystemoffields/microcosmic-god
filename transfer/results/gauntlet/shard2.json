@@ -1,0 +1,1247 @@
+{
+  "checkpoint": "runs/long6h/seed341/20260611_143225_seed341_minute/checkpoints/brain_t00003000_o2867_interval_lineage_founder.json",
+  "brain_shape": {
+    "input_size": 72,
+    "hidden_size": null,
+    "output_size": 15,
+    "architecture": "modular_v1"
+  },
+  "blocks": [
+    13,
+    13,
+    13
+  ],
+  "episodic_capacity": null,
+  "config": {
+    "worlds": [
+      90006,
+      90007,
+      90008
+    ],
+    "cohort": 8,
+    "ticks": 2000,
+    "places": 24,
+    "harshness": 1.6,
+    "start_energy": 40.0,
+    "n_random": 3,
+    "n_permuted": 3,
+    "n_frozen": 1,
+    "world_refresh_every": 600
+  },
+  "summary": {
+    "trained": {
+      "alive_fraction": 0.4583333333333333,
+      "mean_lifespan": 1344.8333333333333,
+      "mean_energy": 61.34201597594716,
+      "peak_energy": 89.48466278051889,
+      "tool_successes": 2.0,
+      "causal_steps": 0.25,
+      "causal_unlocks": 0.0,
+      "structures": 0.4947916666666667,
+      "energy_gain": 53.111463478383406,
+      "pred_err_delta": -0.004693637565025952,
+      "action_entropy": 0.7153466884904197,
+      "move_rate": 0.003026800318029751,
+      "observe_rate": 0.003793433980801506,
+      "rest_rate": 0.0034905173814853466,
+      "tool_attempt_rate": 0.011460160318216103,
+      "places_visited": 3.0
+    },
+    "random": {
+      "alive_fraction": 0.2222222222222222,
+      "mean_lifespan": 708.013888888889,
+      "mean_energy": 31.337302418375646,
+      "peak_energy": 57.15743207125619,
+      "tool_successes": 0.9722222222222223,
+      "causal_steps": 0.19444444444444445,
+      "causal_unlocks": 0.0,
+      "structures": 0.14930555555555555,
+      "energy_gain": 20.505287467688945,
+      "pred_err_delta": 5.270281224502669e-06,
+      "action_entropy": 0.5803975953795617,
+      "move_rate": 0.0031664223149014815,
+      "observe_rate": 0.3198214506783611,
+      "rest_rate": 0.009491484474421394,
+      "tool_attempt_rate": 0.010464919279009442,
+      "places_visited": 2.0972222222222223
+    },
+    "permuted": {
+      "alive_fraction": 0.027777777777777776,
+      "mean_lifespan": 276.63888888888886,
+      "mean_energy": 17.93318533348241,
+      "peak_energy": 43.85820362616683,
+      "tool_successes": 82.23611111111111,
+      "causal_steps": 3.777777777777778,
+      "causal_unlocks": 0.041666666666666664,
+      "structures": 0.020833333333333332,
+      "energy_gain": 12.853218190917637,
+      "pred_err_delta": 0.001294146324835946,
+      "action_entropy": 0.3183596262978436,
+      "move_rate": 0.3168931050450734,
+      "observe_rate": 0.003714180445970385,
+      "rest_rate": 0.004021936952650882,
+      "tool_attempt_rate": 0.10502017187748941,
+      "places_visited": 1.875
+    },
+    "frozen": {
+      "alive_fraction": 0.75,
+      "mean_lifespan": 1663.0833333333333,
+      "mean_energy": 67.67750140312317,
+      "peak_energy": 89.77992290115013,
+      "tool_successes": 1.875,
+      "causal_steps": 0.16666666666666666,
+      "causal_unlocks": 0.0,
+      "structures": 0.2916666666666667,
+      "energy_gain": 63.67841454629766,
+      "pred_err_delta": 0.0,
+      "action_entropy": 0.6773935895449436,
+      "move_rate": 0.0035468449280399764,
+      "observe_rate": 0.003638104863167286,
+      "rest_rate": 0.0035082268099094617,
+      "tool_attempt_rate": 0.01096350635187224,
+      "places_visited": 3.9166666666666665
+    }
+  },
+  "contrasts": {
+    "alive_fraction": {
+      "trained_minus_random": {
+        "mean": 0.23611111111111113,
+        "sd": 0.11947673982003648,
+        "n": 3,
+        "t": 3.4228958815915242,
+        "win_rate": 1.0
+      },
+      "trained_minus_permuted": {
+        "mean": 0.4305555555555556,
+        "sd": 0.17123372230469378,
+        "n": 3,
+        "t": 4.355124023854877,
+        "win_rate": 1.0
+      },
+      "trained_minus_frozen": {
+        "mean": -0.2916666666666667,
+        "sd": 0.11785113019775792,
+        "n": 3,
+        "t": -4.286607049870562,
+        "win_rate": 0.0
+      }
+    },
+    "mean_lifespan": {
+      "trained_minus_random": {
+        "mean": 636.8194444444445,
+        "sd": 48.837046376346656,
+        "n": 3,
+        "t": 22.585387832950186,
+        "win_rate": 1.0
+      },
+      "trained_minus_permuted": {
+        "mean": 1068.1944444444446,
+        "sd": 70.15361231602873,
+        "n": 3,
+        "t": 26.373083139410358,
+        "win_rate": 1.0
+      },
+      "trained_minus_frozen": {
+        "mean": -318.25,
+        "sd": 98.66467833019068,
+        "n": 3,
+        "t": -5.586854169473577,
+        "win_rate": 0.0
+      }
+    },
+    "mean_energy": {
+      "trained_minus_random": {
+        "mean": 30.004713557571517,
+        "sd": 1.4677058612995288,
+        "n": 3,
+        "t": 35.408789811774575,
+        "win_rate": 1.0
+      },
+      "trained_minus_permuted": {
+        "mean": 43.40883064246476,
+        "sd": 2.1190248793926,
+        "n": 3,
+        "t": 35.48155611625155,
+        "win_rate": 1.0
+      },
+      "trained_minus_frozen": {
+        "mean": -6.335485427176006,
+        "sd": 2.317031733232817,
+        "n": 3,
+        "t": -4.735965629253831,
+        "win_rate": 0.0
+      }
+    },
+    "peak_energy": {
+      "trained_minus_random": {
+        "mean": 32.3272307092627,
+        "sd": 1.0242510655017605,
+        "n": 3,
+        "t": 54.66668079960872,
+        "win_rate": 1.0
+      },
+      "trained_minus_permuted": {
+        "mean": 45.62645915435206,
+        "sd": 1.735675240188199,
+        "n": 3,
+        "t": 45.53118209846386,
+        "win_rate": 1.0
+      },
+      "trained_minus_frozen": {
+        "mean": -0.29526012063122664,
+        "sd": 0.41629062296354097,
+        "n": 3,
+        "t": -1.2284819839119687,
+        "win_rate": 0.0
+      }
+    },
+    "tool_successes": {
+      "trained_minus_random": {
+        "mean": 1.027777777777778,
+        "sd": 0.17458062624967416,
+        "n": 3,
+        "t": 10.19679771027668,
+        "win_rate": 1.0
+      },
+      "trained_minus_permuted": {
+        "mean": -80.23611111111111,
+        "sd": 13.167428482414712,
+        "n": 3,
+        "t": -10.55430232499737,
+        "win_rate": 0.0
+      },
+      "trained_minus_frozen": {
+        "mean": 0.125,
+        "sd": 0.3679900360969936,
+        "n": 3,
+        "t": 0.5883484054145521,
+        "win_rate": 0.3333333333333333
+      }
+    },
+    "causal_steps": {
+      "trained_minus_random": {
+        "mean": 0.05555555555555555,
+        "sd": 0.05196746370519363,
+        "n": 3,
+        "t": 1.8516401995451026,
+        "win_rate": 0.6666666666666666
+      },
+      "trained_minus_permuted": {
+        "mean": -3.527777777777778,
+        "sd": 2.1710248191653863,
+        "n": 3,
+        "t": -2.814472821767435,
+        "win_rate": 0.0
+      },
+      "trained_minus_frozen": {
+        "mean": 0.08333333333333333,
+        "sd": 0.15590239111558088,
+        "n": 3,
+        "t": 0.9258200997725514,
+        "win_rate": 0.6666666666666666
+      }
+    },
+    "causal_unlocks": {
+      "trained_minus_random": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "n": 3,
+        "t": 0.0,
+        "win_rate": 0.0
+      },
+      "trained_minus_permuted": {
+        "mean": -0.041666666666666664,
+        "sd": 0.05892556509887896,
+        "n": 3,
+        "t": -1.224744871391589,
+        "win_rate": 0.0
+      },
+      "trained_minus_frozen": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "n": 3,
+        "t": 0.0,
+        "win_rate": 0.0
+      }
+    },
+    "structures": {
+      "trained_minus_random": {
+        "mean": 0.3454861111111111,
+        "sd": 0.2795516278870881,
+        "n": 3,
+        "t": 2.1405688182775546,
+        "win_rate": 1.0
+      },
+      "trained_minus_permuted": {
+        "mean": 0.4739583333333333,
+        "sd": 0.1732113452949572,
+        "n": 3,
+        "t": 4.7394119167314095,
+        "win_rate": 1.0
+      },
+      "trained_minus_frozen": {
+        "mean": 0.203125,
+        "sd": 0.31970852610880846,
+        "n": 3,
+        "t": 1.1004486635670456,
+        "win_rate": 0.6666666666666666
+      }
+    },
+    "energy_gain": {
+      "trained_minus_random": {
+        "mean": 32.60617601069446,
+        "sd": 2.346936162435741,
+        "n": 3,
+        "t": 24.063523497138405,
+        "win_rate": 1.0
+      },
+      "trained_minus_permuted": {
+        "mean": 40.25824528746577,
+        "sd": 5.241641568810727,
+        "n": 3,
+        "t": 13.30295582902321,
+        "win_rate": 1.0
+      },
+      "trained_minus_frozen": {
+        "mean": -10.566951067914255,
+        "sd": 6.030709818329955,
+        "n": 3,
+        "t": -3.034882573041806,
+        "win_rate": 0.0
+      }
+    },
+    "pred_err_delta": {
+      "trained_minus_random": {
+        "mean": -0.004698907846250455,
+        "sd": 0.0012648590734100284,
+        "n": 3,
+        "t": -6.434509030202056,
+        "win_rate": 0.0
+      },
+      "trained_minus_permuted": {
+        "mean": -0.005987783889861899,
+        "sd": 0.004715415625798517,
+        "n": 3,
+        "t": -2.19941289273455,
+        "win_rate": 0.0
+      },
+      "trained_minus_frozen": {
+        "mean": -0.004693637565025952,
+        "sd": 3.5943030731842504e-05,
+        "n": 3,
+        "t": -226.18066894778184,
+        "win_rate": 0.0
+      }
+    },
+    "action_entropy": {
+      "trained_minus_random": {
+        "mean": 0.13494909311085812,
+        "sd": 0.031822559508803035,
+        "n": 3,
+        "t": 7.345062412050501,
+        "win_rate": 1.0
+      },
+      "trained_minus_permuted": {
+        "mean": 0.39698706219257623,
+        "sd": 0.03402440337475281,
+        "n": 3,
+        "t": 20.20907623541961,
+        "win_rate": 1.0
+      },
+      "trained_minus_frozen": {
+        "mean": 0.03795309894547627,
+        "sd": 0.09513688070482416,
+        "n": 3,
+        "t": 0.690969634396688,
+        "win_rate": 0.6666666666666666
+      }
+    },
+    "move_rate": {
+      "trained_minus_random": {
+        "mean": -0.0001396219968717305,
+        "sd": 0.0006453771498396529,
+        "n": 3,
+        "t": -0.37471483534262795,
+        "win_rate": 0.6666666666666666
+      },
+      "trained_minus_permuted": {
+        "mean": -0.31386630472704363,
+        "sd": 0.003756298999209413,
+        "n": 3,
+        "t": -144.72553614223824,
+        "win_rate": 0.0
+      },
+      "trained_minus_frozen": {
+        "mean": -0.0005200446100102255,
+        "sd": 0.000933578107161264,
+        "n": 3,
+        "t": -0.9648294875711567,
+        "win_rate": 0.3333333333333333
+      }
+    },
+    "observe_rate": {
+      "trained_minus_random": {
+        "mean": -0.3160280166975596,
+        "sd": 0.0016565716343493935,
+        "n": 3,
+        "t": -330.4273538103753,
+        "win_rate": 0.0
+      },
+      "trained_minus_permuted": {
+        "mean": 7.92535348311207e-05,
+        "sd": 0.001658930692528903,
+        "n": 3,
+        "t": 0.08274676550692554,
+        "win_rate": 0.3333333333333333
+      },
+      "trained_minus_frozen": {
+        "mean": 0.00015532911763421926,
+        "sd": 0.0012913669106038063,
+        "n": 3,
+        "t": 0.2083357730697282,
+        "win_rate": 0.6666666666666666
+      }
+    },
+    "rest_rate": {
+      "trained_minus_random": {
+        "mean": -0.006000967092936048,
+        "sd": 0.005508556539995374,
+        "n": 3,
+        "t": -1.886879044273705,
+        "win_rate": 0.0
+      },
+      "trained_minus_permuted": {
+        "mean": -0.0005314195711655351,
+        "sd": 0.002251612242474914,
+        "n": 3,
+        "t": -0.40879405433656796,
+        "win_rate": 0.6666666666666666
+      },
+      "trained_minus_frozen": {
+        "mean": -1.7709428424114916e-05,
+        "sd": 0.001184639421950515,
+        "n": 3,
+        "t": -0.025892798462731532,
+        "win_rate": 0.6666666666666666
+      }
+    },
+    "tool_attempt_rate": {
+      "trained_minus_random": {
+        "mean": 0.0009952410392066637,
+        "sd": 0.0009399760874035524,
+        "n": 3,
+        "t": 1.833884998548396,
+        "win_rate": 0.6666666666666666
+      },
+      "trained_minus_permuted": {
+        "mean": -0.0935600115592733,
+        "sd": 0.01596806126159617,
+        "n": 3,
+        "t": -10.148426344476222,
+        "win_rate": 0.0
+      },
+      "trained_minus_frozen": {
+        "mean": 0.000496653966343864,
+        "sd": 0.0012836002085234314,
+        "n": 3,
+        "t": 0.6701696507806952,
+        "win_rate": 0.6666666666666666
+      }
+    },
+    "places_visited": {
+      "trained_minus_random": {
+        "mean": 0.9027777777777777,
+        "sd": 0.19934305686676837,
+        "n": 3,
+        "t": 7.844050370414013,
+        "win_rate": 1.0
+      },
+      "trained_minus_permuted": {
+        "mean": 1.125,
+        "sd": 0.05892556509887896,
+        "n": 3,
+        "t": 33.0681115275729,
+        "win_rate": 1.0
+      },
+      "trained_minus_frozen": {
+        "mean": -0.9166666666666666,
+        "sd": 0.2568505834570407,
+        "n": 3,
+        "t": -6.18146635643918,
+        "win_rate": 0.0
+      }
+    }
+  },
+  "per_seed": {
+    "trained": {
+      "90006": {
+        "alive_fraction": 0.25,
+        "mean_lifespan": 1244.375,
+        "mean_energy": 56.92221751546322,
+        "peak_energy": 90.04042974843502,
+        "tool_successes": 1.75,
+        "causal_steps": 0.25,
+        "causal_unlocks": 0.0,
+        "structures": 0.34375,
+        "energy_gain": 47.5273374451582,
+        "pred_err_delta": -0.004650588215217648,
+        "action_entropy": 0.7568349148024025,
+        "move_rate": 0.0027460319081403757,
+        "observe_rate": 0.0038740938116821706,
+        "rest_rate": 0.004286916250513015,
+        "tool_attempt_rate": 0.01083993066480334,
+        "places_visited": 3.0
+      },
+      "90007": {
+        "alive_fraction": 0.5,
+        "mean_lifespan": 1329.25,
+        "mean_energy": 61.572102544267544,
+        "peak_energy": 87.48986514084652,
+        "tool_successes": 2.125,
+        "causal_steps": 0.25,
+        "causal_unlocks": 0.0,
+        "structures": 0.359375,
+        "energy_gain": 49.413852947184566,
+        "pred_err_delta": -0.004738569873259789,
+        "action_entropy": 0.6963320404850445,
+        "move_rate": 0.0026844271790459865,
+        "observe_rate": 0.004740264688735159,
+        "rest_rate": 0.001885746715141246,
+        "tool_attempt_rate": 0.01156210068311868,
+        "places_visited": 2.875
+      },
+      "90008": {
+        "alive_fraction": 0.625,
+        "mean_lifespan": 1460.875,
+        "mean_energy": 65.53172786811074,
+        "peak_energy": 90.92369345227515,
+        "tool_successes": 2.125,
+        "causal_steps": 0.25,
+        "causal_unlocks": 0.0,
+        "structures": 0.78125,
+        "energy_gain": 62.39320004280745,
+        "pred_err_delta": -0.004691754606600419,
+        "action_entropy": 0.6928731101838124,
+        "move_rate": 0.00364994186690289,
+        "observe_rate": 0.002765943441987187,
+        "rest_rate": 0.004298889178801779,
+        "tool_attempt_rate": 0.011978449606726293,
+        "places_visited": 3.125
+      }
+    },
+    "random": {
+      "90006": {
+        "alive_fraction": 0.16666666666666666,
+        "mean_lifespan": 630.0833333333334,
+        "mean_energy": 28.68063473824431,
+        "peak_energy": 56.88731928737783,
+        "tool_successes": 0.9583333333333334,
+        "causal_steps": 0.125,
+        "causal_unlocks": 0.0,
+        "structures": 0.057291666666666664,
+        "energy_gain": 15.005442101917268,
+        "pred_err_delta": -0.0011368876338721972,
+        "action_entropy": 0.5821237607188446,
+        "move_rate": 0.002732090911628434,
+        "observe_rate": 0.31953990560493206,
+        "rest_rate": 0.005949384404260449,
+        "tool_attempt_rate": 0.01094562872907893,
+        "places_visited": 1.9166666666666667
+      },
+      "90007": {
+        "alive_fraction": 0.25,
+        "mean_lifespan": 737.7083333333334,
+        "mean_energy": 31.634384681252474,
+        "peak_energy": 56.60614567543873,
+        "tool_successes": 1.0416666666666667,
+        "causal_steps": 0.20833333333333334,
+        "causal_unlocks": 0.0,
+        "structures": 0.3229166666666667,
+        "energy_gain": 19.639007779344567,
+        "pred_err_delta": -0.0006073452202140983,
+        "action_entropy": 0.5995190270508136,
+        "move_rate": 0.0036799848958542296,
+        "observe_rate": 0.3189449013428745,
+        "rest_rate": 0.015659476724383687,
+        "tool_attempt_rate": 0.010661589584695106,
+        "places_visited": 2.25
+      },
+      "90008": {
+        "alive_fraction": 0.25,
+        "mean_lifespan": 756.25,
+        "mean_energy": 33.69688783563016,
+        "peak_energy": 57.97883125095202,
+        "tool_successes": 0.9166666666666666,
+        "causal_steps": 0.25,
+        "causal_unlocks": 0.0,
+        "structures": 0.06770833333333333,
+        "energy_gain": 26.871412521805,
+        "pred_err_delta": 0.0017600436977598035,
+        "action_entropy": 0.5595499983690267,
+        "move_rate": 0.00308719113722178,
+        "observe_rate": 0.3209795450872767,
+        "rest_rate": 0.006865592294620047,
+        "tool_attempt_rate": 0.009787539523254287,
+        "places_visited": 2.125
+      }
+    },
+    "permuted": {
+      "90006": {
+        "alive_fraction": 0.041666666666666664,
+        "mean_lifespan": 257.375,
+        "mean_energy": 15.979660964153737,
+        "peak_energy": 42.14049221974691,
+        "tool_successes": 75.79166666666667,
+        "causal_steps": 0.7083333333333334,
+        "causal_unlocks": 0.0,
+        "structures": 0.0,
+        "energy_gain": 13.808789645835473,
+        "pred_err_delta": 0.007735756974617811,
+        "action_entropy": 0.32909174197755015,
+        "move_rate": 0.31813796178096737,
+        "observe_rate": 0.004720083128479603,
+        "rest_rate": 0.003266253838644845,
+        "tool_attempt_rate": 0.10581103288079703,
+        "places_visited": 1.9166666666666667
+      },
+      "90007": {
+        "alive_fraction": 0.041666666666666664,
+        "mean_lifespan": 269.8333333333333,
+        "mean_energy": 18.40442069679318,
+        "peak_energy": 43.80159690032685,
+        "tool_successes": 70.25,
+        "causal_steps": 5.375,
+        "causal_unlocks": 0.125,
+        "structures": 0.0,
+        "energy_gain": 8.908419511299487,
+        "pred_err_delta": -0.00032325172261648297,
+        "action_entropy": 0.28267562682438696,
+        "move_rate": 0.32019462152339734,
+        "observe_rate": 0.002331300867576065,
+        "rest_rate": 0.0056010938353987585,
+        "tool_attempt_rate": 0.08489798376745018,
+        "places_visited": 1.7916666666666667
+      },
+      "90008": {
+        "alive_fraction": 0.0,
+        "mean_lifespan": 302.7083333333333,
+        "mean_energy": 19.415474339500307,
+        "peak_energy": 45.63252175842672,
+        "tool_successes": 100.66666666666667,
+        "causal_steps": 5.25,
+        "causal_unlocks": 0.0,
+        "structures": 0.0625,
+        "energy_gain": 15.84244541561795,
+        "pred_err_delta": -0.0035300662774934897,
+        "action_entropy": 0.34331151009159355,
+        "move_rate": 0.31234673183085554,
+        "observe_rate": 0.004091157341855487,
+        "rest_rate": 0.0031984631839090416,
+        "tool_attempt_rate": 0.12435149898422103,
+        "places_visited": 1.9166666666666667
+      }
+    },
+    "frozen": {
+      "90006": {
+        "alive_fraction": 0.625,
+        "mean_lifespan": 1495.5,
+        "mean_energy": 62.83544626515587,
+        "peak_energy": 90.92441369489322,
+        "tool_successes": 1.75,
+        "causal_steps": 0.375,
+        "causal_unlocks": 0.0,
+        "structures": 0.515625,
+        "energy_gain": 55.286736543154426,
+        "pred_err_delta": 0.0,
+        "action_entropy": 0.754444206042722,
+        "move_rate": 0.004386027385785477,
+        "observe_rate": 0.0032390604849639507,
+        "rest_rate": 0.003676935244493048,
+        "tool_attempt_rate": 0.010694502241822466,
+        "places_visited": 3.875
+      },
+      "90007": {
+        "alive_fraction": 0.875,
+        "mean_lifespan": 1787.0,
+        "mean_energy": 70.93282870185553,
+        "peak_energy": 87.49063362271103,
+        "tool_successes": 1.5,
+        "causal_steps": 0.125,
+        "causal_unlocks": 0.0,
+        "structures": 0.1875,
+        "energy_gain": 68.3589925431692,
+        "pred_err_delta": 0.0,
+        "action_entropy": 0.5282232546410527,
+        "move_rate": 0.0032500000000000003,
+        "observe_rate": 0.003298728813559322,
+        "rest_rate": 0.0035624999999999997,
+        "tool_attempt_rate": 0.009347457627118643,
+        "places_visited": 4.125
+      },
+      "90008": {
+        "alive_fraction": 0.75,
+        "mean_lifespan": 1706.75,
+        "mean_energy": 69.26422924235811,
+        "peak_energy": 90.92472138584611,
+        "tool_successes": 2.375,
+        "causal_steps": 0.0,
+        "causal_unlocks": 0.0,
+        "structures": 0.171875,
+        "energy_gain": 67.38951455256937,
+        "pred_err_delta": 0.0,
+        "action_entropy": 0.7495133079510559,
+        "move_rate": 0.0030045073983344514,
+        "observe_rate": 0.004376525290978587,
+        "rest_rate": 0.003285245185235337,
+        "tool_attempt_rate": 0.012848559186675611,
+        "places_visited": 3.75
+      }
+    }
+  },
+  "raw": {
+    "trained": {
+      "90006": {
+        "cohort_size": 8,
+        "ticks": 2000,
+        "alive_fraction": 0.25,
+        "mean_lifespan": 1244.375,
+        "mean_energy": 56.92221751546322,
+        "peak_energy": 90.04042974843502,
+        "tool_successes": 1.75,
+        "causal_steps": 0.25,
+        "causal_unlocks": 0.0,
+        "structures": 0.34375,
+        "energy_gain": 47.5273374451582,
+        "pred_err_early": 0.01398459460770862,
+        "pred_err_late": 0.009334006392490973,
+        "pred_err_delta": -0.004650588215217648,
+        "action_entropy": 0.7568349148024025,
+        "move_rate": 0.0027460319081403757,
+        "observe_rate": 0.0038740938116821706,
+        "rest_rate": 0.004286916250513015,
+        "tool_attempt_rate": 0.01083993066480334,
+        "places_visited": 3.0
+      },
+      "90007": {
+        "cohort_size": 8,
+        "ticks": 2000,
+        "alive_fraction": 0.5,
+        "mean_lifespan": 1329.25,
+        "mean_energy": 61.572102544267544,
+        "peak_energy": 87.48986514084652,
+        "tool_successes": 2.125,
+        "causal_steps": 0.25,
+        "causal_unlocks": 0.0,
+        "structures": 0.359375,
+        "energy_gain": 49.413852947184566,
+        "pred_err_early": 0.013452873914656235,
+        "pred_err_late": 0.008714304041396446,
+        "pred_err_delta": -0.004738569873259789,
+        "action_entropy": 0.6963320404850445,
+        "move_rate": 0.0026844271790459865,
+        "observe_rate": 0.004740264688735159,
+        "rest_rate": 0.001885746715141246,
+        "tool_attempt_rate": 0.01156210068311868,
+        "places_visited": 2.875
+      },
+      "90008": {
+        "cohort_size": 8,
+        "ticks": 2000,
+        "alive_fraction": 0.625,
+        "mean_lifespan": 1460.875,
+        "mean_energy": 65.53172786811074,
+        "peak_energy": 90.92369345227515,
+        "tool_successes": 2.125,
+        "causal_steps": 0.25,
+        "causal_unlocks": 0.0,
+        "structures": 0.78125,
+        "energy_gain": 62.39320004280745,
+        "pred_err_early": 0.014224940511103474,
+        "pred_err_late": 0.009533185904503055,
+        "pred_err_delta": -0.004691754606600419,
+        "action_entropy": 0.6928731101838124,
+        "move_rate": 0.00364994186690289,
+        "observe_rate": 0.002765943441987187,
+        "rest_rate": 0.004298889178801779,
+        "tool_attempt_rate": 0.011978449606726293,
+        "places_visited": 3.125
+      }
+    },
+    "random_0": {
+      "90006": {
+        "cohort_size": 8,
+        "ticks": 2000,
+        "alive_fraction": 0.0,
+        "mean_lifespan": 268.375,
+        "mean_energy": 11.491098844322103,
+        "peak_energy": 40.301760206937054,
+        "tool_successes": 0.25,
+        "causal_steps": 0.0,
+        "causal_unlocks": 0.0,
+        "structures": 0.0,
+        "energy_gain": 1.0096420186509447,
+        "pred_err_early": 0.007639032369907233,
+        "pred_err_late": 0.006607008412417262,
+        "pred_err_delta": -0.001032023957489971,
+        "action_entropy": 0.7428978678396081,
+        "move_rate": 0.0025010530763523845,
+        "observe_rate": 0.004864858435161711,
+        "rest_rate": 0.011457523195443952,
+        "tool_attempt_rate": 0.010165529113638522,
+        "places_visited": 1.625
+      },
+      "90007": {
+        "cohort_size": 8,
+        "ticks": 2000,
+        "alive_fraction": 0.0,
+        "mean_lifespan": 239.25,
+        "mean_energy": 11.165512017263328,
+        "peak_energy": 39.74306849498881,
+        "tool_successes": 0.125,
+        "causal_steps": 0.0,
+        "causal_unlocks": 0.0,
+        "structures": 0.0,
+        "energy_gain": 0.7366674277385908,
+        "pred_err_early": 0.006883736369702953,
+        "pred_err_late": 0.006645069913476751,
+        "pred_err_delta": -0.000238666456226202,
+        "action_entropy": 0.8514955225457638,
+        "move_rate": 0.0032356291629449343,
+        "observe_rate": 0.007212581055903623,
+        "rest_rate": 0.03880823602499083,
+        "tool_attempt_rate": 0.010622007564629153,
+        "places_visited": 1.5
+      },
+      "90008": {
+        "cohort_size": 8,
+        "ticks": 2000,
+        "alive_fraction": 0.0,
+        "mean_lifespan": 245.5,
+        "mean_energy": 11.251426849822353,
+        "peak_energy": 39.71959071612958,
+        "tool_successes": 0.125,
+        "causal_steps": 0.0,
+        "causal_unlocks": 0.0,
+        "structures": 0.0,
+        "energy_gain": 0.8594186060170402,
+        "pred_err_early": 0.007169066295145986,
+        "pred_err_late": 0.0074339999534640665,
+        "pred_err_delta": 0.0002649336583180808,
+        "action_entropy": 0.7768204164815786,
+        "move_rate": 0.0030897210189879958,
+        "observe_rate": 0.007968610403214534,
+        "rest_rate": 0.01237513951340169,
+        "tool_attempt_rate": 0.010076084424838951,
+        "places_visited": 1.75
+      }
+    },
+    "random_1": {
+      "90006": {
+        "cohort_size": 8,
+        "ticks": 2000,
+        "alive_fraction": 0.5,
+        "mean_lifespan": 1355.25,
+        "mean_energy": 62.9274508390191,
+        "peak_energy": 90.04066038468503,
+        "tool_successes": 2.5,
+        "causal_steps": 0.375,
+        "causal_unlocks": 0.0,
+        "structures": 0.0,
+        "energy_gain": 43.91568350204481,
+        "pred_err_early": 0.009031821556550003,
+        "pred_err_late": 0.005997482941617093,
+        "pred_err_delta": -0.0030343386149329103,
+        "action_entropy": 0.7036905279167971,
+        "move_rate": 0.002894505443960634,
+        "observe_rate": 0.003384908273408738,
+        "rest_rate": 0.003533261498110208,
+        "tool_attempt_rate": 0.010845719740248814,
+        "places_visited": 2.5
+      },
+      "90007": {
+        "cohort_size": 8,
+        "ticks": 2000,
+        "alive_fraction": 0.75,
+        "mean_lifespan": 1706.375,
+        "mean_energy": 71.56863199249116,
+        "peak_energy": 90.34330003633858,
+        "tool_successes": 2.5,
+        "causal_steps": 0.625,
+        "causal_unlocks": 0.0,
+        "structures": 0.78125,
+        "energy_gain": 57.81956965978365,
+        "pred_err_early": 0.008045828215517298,
+        "pred_err_late": 0.005995597063522098,
+        "pred_err_delta": -0.0020502311519952,
+        "action_entropy": 0.6260560207125085,
+        "move_rate": 0.0031169876639626478,
+        "observe_rate": 0.00343739293092155,
+        "rest_rate": 0.002549607623318386,
+        "tool_attempt_rate": 0.01146492542953595,
+        "places_visited": 3.5
+      },
+      "90008": {
+        "cohort_size": 8,
+        "ticks": 2000,
+        "alive_fraction": 0.75,
+        "mean_lifespan": 1696.125,
+        "mean_energy": 76.21890093039576,
+        "peak_energy": 90.92351772681127,
+        "tool_successes": 2.5,
+        "causal_steps": 0.75,
+        "causal_unlocks": 0.0,
+        "structures": 0.203125,
+        "energy_gain": 78.04326898080265,
+        "pred_err_early": 0.008798402339531181,
+        "pred_err_late": 0.013735433239444322,
+        "pred_err_delta": 0.004937030899913141,
+        "action_entropy": 0.6040709708114489,
+        "move_rate": 0.0028241611602236676,
+        "observe_rate": 0.0037759648082997532,
+        "rest_rate": 0.003585822320447335,
+        "tool_attempt_rate": 0.010601384789775986,
+        "places_visited": 3.0
+      }
+    },
+    "random_2": {
+      "90006": {
+        "cohort_size": 8,
+        "ticks": 2000,
+        "alive_fraction": 0.0,
+        "mean_lifespan": 266.625,
+        "mean_energy": 11.62335453139173,
+        "peak_energy": 40.319537270511404,
+        "tool_successes": 0.125,
+        "causal_steps": 0.0,
+        "causal_unlocks": 0.0,
+        "structures": 0.171875,
+        "energy_gain": 0.09100078505605454,
+        "pred_err_early": 0.006951085028558516,
+        "pred_err_late": 0.007606784699364806,
+        "pred_err_delta": 0.0006556996708062899,
+        "action_entropy": 0.2997828864001289,
+        "move_rate": 0.0028007142145722846,
+        "observe_rate": 0.9503699501062257,
+        "rest_rate": 0.002857368519227187,
+        "tool_attempt_rate": 0.011825637333349457,
+        "places_visited": 1.625
+      },
+      "90007": {
+        "cohort_size": 8,
+        "ticks": 2000,
+        "alive_fraction": 0.0,
+        "mean_lifespan": 267.5,
+        "mean_energy": 12.169010034002937,
+        "peak_energy": 39.73206849498881,
+        "tool_successes": 0.5,
+        "causal_steps": 0.0,
+        "causal_unlocks": 0.0,
+        "structures": 0.1875,
+        "energy_gain": 0.36078625051145885,
+        "pred_err_early": 0.007243965457585366,
+        "pred_err_late": 0.007710827405164473,
+        "pred_err_delta": 0.00046686194757910703,
+        "action_entropy": 0.32100553789416836,
+        "move_rate": 0.004687337860655106,
+        "observe_rate": 0.9461847300417984,
+        "rest_rate": 0.005620586524841844,
+        "tool_attempt_rate": 0.009897835759920218,
+        "places_visited": 1.75
+      },
+      "90008": {
+        "cohort_size": 8,
+        "ticks": 2000,
+        "alive_fraction": 0.0,
+        "mean_lifespan": 327.125,
+        "mean_energy": 13.620335726672344,
+        "peak_energy": 43.29338530991521,
+        "tool_successes": 0.125,
+        "causal_steps": 0.0,
+        "causal_unlocks": 0.0,
+        "structures": 0.0,
+        "energy_gain": 1.7115499785953059,
+        "pred_err_early": 0.0069849880724168825,
+        "pred_err_late": 0.007063154607465072,
+        "pred_err_delta": 7.816653504818909e-05,
+        "action_entropy": 0.29775860781405283,
+        "move_rate": 0.003347691232453675,
+        "observe_rate": 0.9511940600503158,
+        "rest_rate": 0.004635815050011119,
+        "tool_attempt_rate": 0.008685149355147925,
+        "places_visited": 1.625
+      }
+    },
+    "permuted_0": {
+      "90006": {
+        "cohort_size": 8,
+        "ticks": 2000,
+        "alive_fraction": 0.0,
+        "mean_lifespan": 281.375,
+        "mean_energy": 12.625203388966721,
+        "peak_energy": 40.35668286488067,
+        "tool_successes": 0.125,
+        "causal_steps": 0.0,
+        "causal_unlocks": 0.0,
+        "structures": 0.0,
+        "energy_gain": 0.7943574915244681,
+        "pred_err_early": 0.01231246640268703,
+        "pred_err_late": 0.012842960186320413,
+        "pred_err_delta": 0.0005304937836333821,
+        "action_entropy": 0.2871653271713954,
+        "move_rate": 0.0036646384597615886,
+        "observe_rate": 0.003014301546252299,
+        "rest_rate": 0.003981922624110313,
+        "tool_attempt_rate": 0.007838294275883196,
+        "places_visited": 1.625
+      },
+      "90007": {
+        "cohort_size": 8,
+        "ticks": 2000,
+        "alive_fraction": 0.0,
+        "mean_lifespan": 286.625,
+        "mean_energy": 13.411136513177997,
+        "peak_energy": 39.777775282478366,
+        "tool_successes": 0.375,
+        "causal_steps": 0.0,
+        "causal_unlocks": 0.0,
+        "structures": 0.0,
+        "energy_gain": 1.3547772604079384,
+        "pred_err_early": 0.013319434268304852,
+        "pred_err_late": 0.013199814852111176,
+        "pred_err_delta": -0.00011961941619367637,
+        "action_entropy": 0.3130767307247507,
+        "move_rate": 0.0028684891764787336,
+        "observe_rate": 0.0032115717971731303,
+        "rest_rate": 0.004683072332973655,
+        "tool_attempt_rate": 0.011774344037312439,
+        "places_visited": 1.625
+      },
+      "90008": {
+        "cohort_size": 8,
+        "ticks": 2000,
+        "alive_fraction": 0.0,
+        "mean_lifespan": 334.75,
+        "mean_energy": 14.898330993707173,
+        "peak_energy": 44.03649825146588,
+        "tool_successes": 0.375,
+        "causal_steps": 0.125,
+        "causal_unlocks": 0.0,
+        "structures": 0.1875,
+        "energy_gain": 2.221325942787895,
+        "pred_err_early": 0.012284383795386163,
+        "pred_err_late": 0.012631729203717124,
+        "pred_err_delta": 0.0003473454083309617,
+        "action_entropy": 0.33475974106067263,
+        "move_rate": 0.002850470980916087,
+        "observe_rate": 0.003984120697506585,
+        "rest_rate": 0.0031991066463603352,
+        "tool_attempt_rate": 0.010700796464725446,
+        "places_visited": 1.75
+      }
+    },
+    "permuted_1": {
+      "90006": {
+        "cohort_size": 8,
+        "ticks": 2000,
+        "alive_fraction": 0.0,
+        "mean_lifespan": 92.625,
+        "mean_energy": 14.705236527127918,
+        "peak_energy": 39.13944977357329,
+        "tool_successes": 0.0,
+        "causal_steps": 0.0,
+        "causal_unlocks": 0.0,
+        "structures": 0.0,
+        "energy_gain": 0.18929566990745786,
+        "pred_err_early": 0.019224094242656746,
+        "pred_err_late": 0.015858265555470256,
+        "pred_err_delta": -0.0033658286871864895,
+        "action_entropy": 0.28951138493331957,
+        "move_rate": 0.9455062872197751,
+        "observe_rate": 0.006970668147986116,
+        "rest_rate": 0.0015060240963855422,
+        "tool_attempt_rate": 0.012223927433503465,
+        "places_visited": 2.25
+      },
+      "90007": {
+        "cohort_size": 8,
+        "ticks": 2000,
+        "alive_fraction": 0.0,
+        "mean_lifespan": 109.625,
+        "mean_energy": 14.015733883910254,
+        "peak_energy": 39.25201745896854,
+        "tool_successes": 0.0,
+        "causal_steps": 0.0,
+        "causal_unlocks": 0.0,
+        "structures": 0.0,
+        "energy_gain": 0.00045203765024657996,
+        "pred_err_early": 0.018559082078159723,
+        "pred_err_late": 0.013662280294256484,
+        "pred_err_delta": -0.004896801783903238,
+        "action_entropy": 0.24178908579903488,
+        "move_rate": 0.9552448681634764,
+        "observe_rate": 0.0010330578512396695,
+        "rest_rate": 0.007415435363648141,
+        "tool_attempt_rate": 0.009111486251911126,
+        "places_visited": 2.125
+      },
+      "90008": {
+        "cohort_size": 8,
+        "ticks": 2000,
+        "alive_fraction": 0.0,
+        "mean_lifespan": 96.875,
+        "mean_energy": 15.316977957056306,
+        "peak_energy": 39.20015214915304,
+        "tool_successes": 0.0,
+        "causal_steps": 0.0,
+        "causal_unlocks": 0.0,
+        "structures": 0.0,
+        "energy_gain": 0.08158121196908855,
+        "pred_err_early": 0.01926489214916522,
+        "pred_err_late": 0.015316391618064678,
+        "pred_err_delta": -0.003948500531100543,
+        "action_entropy": 0.3602535831119571,
+        "move_rate": 0.9311891074727291,
+        "observe_rate": 0.004341491841491841,
+        "rest_rate": 0.0016025641025641025,
+        "tool_attempt_rate": 0.011165386900681019,
+        "places_visited": 2.25
+      }
+    },
+    "permuted_2": {
+      "90006": {
+        "cohort_size": 8,
+        "ticks": 2000,
+        "alive_fraction": 0.125,
+        "mean_lifespan": 398.125,
+        "mean_energy": 20.608542976366575,
+        "peak_energy": 46.92534402078678,
+        "tool_successes": 227.25,
+        "causal_steps": 2.125,
+        "causal_unlocks": 0.0,
+        "structures": 0.0,
+        "energy_gain": 40.44271577607449,
+        "pred_err_early": 0.052981328555710944,
+        "pred_err_late": 0.07902393438311749,
+        "pred_err_delta": 0.026042605827406543,
+        "action_entropy": 0.41059851382793555,
+        "move_rate": 0.005242959663365479,
+        "observe_rate": 0.004175279691200393,
+        "rest_rate": 0.004310814795438681,
+        "tool_attempt_rate": 0.29737087693300446,
+        "places_visited": 1.875
+      },
+      "90007": {
+        "cohort_size": 8,
+        "ticks": 2000,
+        "alive_fraction": 0.125,
+        "mean_lifespan": 413.25,
+        "mean_energy": 27.786391693291293,
+        "peak_energy": 52.37499795953366,
+        "tool_successes": 210.375,
+        "causal_steps": 16.125,
+        "causal_unlocks": 0.375,
+        "structures": 0.0,
+        "energy_gain": 25.370029235840278,
+        "pred_err_early": 0.05419864170495427,
+        "pred_err_late": 0.05824530773720173,
+        "pred_err_delta": 0.004046666032247466,
+        "action_entropy": 0.2931610639493753,
+        "move_rate": 0.0024705072302367817,
+        "observe_rate": 0.002749272954315395,
+        "rest_rate": 0.004704773809574479,
+        "tool_attempt_rate": 0.233808121013127,
+        "places_visited": 1.625
+      },
+      "90008": {
+        "cohort_size": 8,
+        "ticks": 2000,
+        "alive_fraction": 0.0,
+        "mean_lifespan": 476.5,
+        "mean_energy": 28.031114067737438,
+        "peak_energy": 53.66091487466124,
+        "tool_successes": 301.625,
+        "causal_steps": 15.625,
+        "causal_unlocks": 0.0,
+        "structures": 0.0,
+        "energy_gain": 45.22442909209686,
+        "pred_err_early": 0.07503452165404559,
+        "pred_err_late": 0.0680454779443347,
+        "pred_err_delta": -0.006989043709710888,
+        "action_entropy": 0.3349212061021509,
+        "move_rate": 0.0030006170389213957,
+        "observe_rate": 0.003947859486568037,
+        "rest_rate": 0.004793718802802688,
+        "tool_attempt_rate": 0.3511883135872566,
+        "places_visited": 1.75
+      }
+    },
+    "frozen_0": {
+      "90006": {
+        "cohort_size": 8,
+        "ticks": 2000,
+        "alive_fraction": 0.625,
+        "mean_lifespan": 1495.5,
+        "mean_energy": 62.83544626515587,
+        "peak_energy": 90.92441369489322,
+        "tool_successes": 1.75,
+        "causal_steps": 0.375,
+        "causal_unlocks": 0.0,
+        "structures": 0.515625,
+        "energy_gain": 55.286736543154426,
+        "pred_err_early": 0.0,
+        "pred_err_late": 0.0,
+        "pred_err_delta": 0.0,
+        "action_entropy": 0.754444206042722,
+        "move_rate": 0.004386027385785477,
+        "observe_rate": 0.0032390604849639507,
+        "rest_rate": 0.003676935244493048,
+        "tool_attempt_rate": 0.010694502241822466,
+        "places_visited": 3.875
+      },
+      "90007": {
+        "cohort_size": 8,
+        "ticks": 2000,
+        "alive_fraction": 0.875,
+        "mean_lifespan": 1787.0,
+        "mean_energy": 70.93282870185553,
+        "peak_energy": 87.49063362271103,
+        "tool_successes": 1.5,
+        "causal_steps": 0.125,
+        "causal_unlocks": 0.0,
+        "structures": 0.1875,
+        "energy_gain": 68.3589925431692,
+        "pred_err_early": 0.0,
+        "pred_err_late": 0.0,
+        "pred_err_delta": 0.0,
+        "action_entropy": 0.5282232546410527,
+        "move_rate": 0.0032500000000000003,
+        "observe_rate": 0.003298728813559322,
+        "rest_rate": 0.0035624999999999997,
+        "tool_attempt_rate": 0.009347457627118643,
+        "places_visited": 4.125
+      },
+      "90008": {
+        "cohort_size": 8,
+        "ticks": 2000,
+        "alive_fraction": 0.75,
+        "mean_lifespan": 1706.75,
+        "mean_energy": 69.26422924235811,
+        "peak_energy": 90.92472138584611,
+        "tool_successes": 2.375,
+        "causal_steps": 0.0,
+        "causal_unlocks": 0.0,
+        "structures": 0.171875,
+        "energy_gain": 67.38951455256937,
+        "pred_err_early": 0.0,
+        "pred_err_late": 0.0,
+        "pred_err_delta": 0.0,
+        "action_entropy": 0.7495133079510559,
+        "move_rate": 0.0030045073983344514,
+        "observe_rate": 0.004376525290978587,
+        "rest_rate": 0.003285245185235337,
+        "tool_attempt_rate": 0.012848559186675611,
+        "places_visited": 3.75
+      }
+    }
+  }
+}
