@@ -68,6 +68,7 @@ class GrowthEconomicsTest(unittest.TestCase):
             output_dir="/tmp/mcg_grace_wire_test",
         )
         sim = Simulation(config)
+        self.addCleanup(sim.logger.close)
         agents = [o for o in sim.individuals.values() if o.kind == "agent"]
         self.assertTrue(agents)
         self.assertTrue(all(a.neural_upkeep_grace_ticks == 120 for a in agents))

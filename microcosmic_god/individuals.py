@@ -5,11 +5,9 @@ from random import Random
 from typing import Any
 
 from .controller import PREDICTION_HEADS, TinyController
-from .energy import AFFORDANCES, STRUCTURE_CAPABILITIES, Artifact
 from .params import ParamVector
 
 SIGNAL_VALUE_SIZE = 8
-COMMUNICATION_SKILLS = ("inscribe", "interpret_mark")
 RECENT_TRACE_LABELS = (
     "action",
     "energy_delta",
@@ -18,7 +16,7 @@ RECENT_TRACE_LABELS = (
     "prediction_error",
     "spawning",
     "social",
-    "tool",
+    "tap",
 )
 EVENT_MEMORY_LABELS = (
     "energy_gain",
@@ -27,27 +25,21 @@ EVENT_MEMORY_LABELS = (
     "damage",
     "spawning",
     "social",
-    "tool",
+    "tap",
     "surprise",
 )
 SUCCESS_PROFILE_LABELS = (
     "energy_gain",
     "prediction_fit",
-    "tool_make",
-    "tool_use",
-    "structure",
-    "causal_step",
-    "causal_unlock",
-    "collaboration",
-    "social_learning",
-    "written_learning",
-    "knowledge_transmitted",
+    "tap",
     "spawning",
 )
 RECENT_TRACE_SIZE = len(RECENT_TRACE_LABELS)
 PREDICTION_ERROR_SIZE = len(PREDICTION_HEADS)
 EVENT_MEMORY_SIZE = len(EVENT_MEMORY_LABELS)
-OBSERVATION_SIZE = 42 + RECENT_TRACE_SIZE + PREDICTION_ERROR_SIZE + EVENT_MEMORY_SIZE + SIGNAL_VALUE_SIZE
+# Era 2 base: era 1's 42 minus the inventory-ratio and skill-breadth dims
+# (their subsystems were cut; docs/ENV_AXIS_REVIEW.md).
+OBSERVATION_SIZE = 40 + RECENT_TRACE_SIZE + PREDICTION_ERROR_SIZE + EVENT_MEMORY_SIZE + SIGNAL_VALUE_SIZE
 
 ACTIONS = (
     "rest",
@@ -55,16 +47,11 @@ ACTIONS = (
     "eat",
     "absorb_solar",
     "forage",
-    "pickup",
-    "craft",
-    "build",
-    "use_tool",
+    "tap",
     "drain",
     "signal",
-    "mark",
     "coordinate",
     "clone_perturb",
-    "observe",
 )
 
 ACTION_INDEX = {name: i for i, name in enumerate(ACTIONS)}
@@ -90,11 +77,7 @@ class Individual:
     inherited_controller_template: bool = False
     controller: TinyController | None = None
     controller_template: TinyController | None = None
-    inventory: dict[str, int] = field(default_factory=dict)
-    artifacts: list[Artifact] = field(default_factory=list)
-    tool_skill: dict[str, float] = field(default_factory=lambda: {name: 0.0 for name in (*AFFORDANCES, *STRUCTURE_CAPABILITIES, *COMMUNICATION_SKILLS, "build", "craft")})
     signal_values: list[float] = field(default_factory=lambda: [0.0 for _ in range(SIGNAL_VALUE_SIZE)])
-    place_memory: dict[int, float] = field(default_factory=dict)
     prediction_error_profile: list[float] = field(default_factory=lambda: [0.0 for _ in PREDICTION_HEADS])
     event_memory: list[float] = field(default_factory=lambda: [0.0 for _ in range(EVENT_MEMORY_SIZE)])
     alive: bool = True
@@ -107,17 +90,13 @@ class Individual:
     recent_prediction_error: float = 0.0
     recent_spawn_feedback: float = 0.0
     recent_social_feedback: float = 0.0
-    recent_tool_feedback: float = 0.0
+    recent_tap_feedback: float = 0.0
     combine_intent_until: int = -1
     coordination_token: int = 0
-    successful_tools: int = 0
-    tool_use_counts: dict[str, int] = field(default_factory=dict)
+    successful_taps: int = 0
+    mistap_count: int = 0
     child_count: int = 0
     success_profile: dict[str, float] = field(default_factory=lambda: {label: 0.0 for label in SUCCESS_PROFILE_LABELS})
-    last_tool_affordance: str = ""
-    last_craft_target: str = ""
-    last_artifact_method: float = 0.0
-    lesson_memory: list[dict[str, Any]] = field(default_factory=list)
     # Developmental subsidy on the neural component of upkeep (set from
     # RunConfig by the simulation at creation; 0 ticks = legacy full price).
     neural_upkeep_grace_ticks: int = 0
@@ -132,25 +111,6 @@ class Individual:
 
     def storage_limit(self) -> float:
         return 24.0 + self.params.storage_capacity * 95.0 + self.params.developmental_complexity * 25.0
-
-    def carried_capability(self, capability: str) -> float:
-        best = 0.0
-        for artifact in self.artifacts:
-            durability_factor = max(0.0, min(1.0, artifact.durability / 100.0))
-            best = max(best, artifact.capabilities.get(capability, 0.0) * durability_factor)
-        return best
-
-    def inventory_limit(self) -> int:
-        carry = self.carried_capability("carry")
-        carry_skill = self.tool_skill.get("carry", 0.0)
-        return max(0, int(1 + self.params.manipulator * 6.0 + self.params.developmental_complexity * 3.0 + carry * (3.0 + carry_skill * 3.0)))
-
-    def inventory_count(self) -> int:
-        return sum(max(0, qty) for qty in self.inventory.values())
-
-    def artifact_limit(self) -> int:
-        carry = self.carried_capability("carry")
-        return max(0, int(1 + self.params.manipulator * 4.0 + self.params.developmental_complexity * 2.0 + carry * 2.0))
 
     def upkeep_cost(self) -> float:
         base = 0.018
@@ -222,7 +182,7 @@ class Individual:
             _clip(self.recent_prediction_error),
             _clip(self.recent_spawn_feedback, 0.0, 1.5),
             _clip(self.recent_social_feedback),
-            _clip(self.recent_tool_feedback, 0.0, 1.5),
+            _clip(self.recent_tap_feedback, 0.0, 1.5),
         ]
 
     def record_action_result(
@@ -234,7 +194,7 @@ class Individual:
         prediction_error: float,
         spawn_feedback: float,
         social_feedback: float,
-        tool_feedback: float,
+        tap_feedback: float,
         prediction_errors: dict[str, float] | None = None,
     ) -> None:
         prediction_errors = prediction_errors or {"energy": prediction_error}
@@ -247,20 +207,20 @@ class Individual:
         self.prediction_error_profile = [_clip(prediction_errors.get(head, 0.0)) for head in PREDICTION_HEADS]
         self.recent_spawn_feedback = spawn_feedback
         self.recent_social_feedback = social_feedback
-        self.recent_tool_feedback = tool_feedback
+        self.recent_tap_feedback = tap_feedback
         self._write_event_memory(
             energy_delta=energy_delta,
             health_delta=health_delta,
             damage=damage,
             spawn_feedback=spawn_feedback,
             social_feedback=social_feedback,
-            tool_feedback=tool_feedback,
+            tap_feedback=tap_feedback,
             prediction_errors=prediction_errors,
         )
         if energy_delta > 0.0:
             self.record_success("energy_gain", min(3.0, energy_delta / 8.0))
         average_error = sum(abs(prediction_errors.get(head, 0.0)) for head in PREDICTION_HEADS) / max(1, len(PREDICTION_HEADS))
-        if average_error < 1.0 and (abs(energy_delta) + abs(health_delta) + spawn_feedback + social_feedback + tool_feedback) > 0.0:
+        if average_error < 1.0 and (abs(energy_delta) + abs(health_delta) + spawn_feedback + social_feedback + tap_feedback) > 0.0:
             self.record_success("prediction_fit", (1.0 - average_error) * 0.04)
 
     def _write_event_memory(
@@ -270,7 +230,7 @@ class Individual:
         damage: float,
         spawn_feedback: float,
         social_feedback: float,
-        tool_feedback: float,
+        tap_feedback: float,
         prediction_errors: dict[str, float],
     ) -> None:
         if len(self.event_memory) != EVENT_MEMORY_SIZE:
@@ -286,7 +246,7 @@ class Individual:
             _clip(damage * 4.0, 0.0, 1.5),
             _clip(spawn_feedback, 0.0, 1.5),
             _clip(social_feedback),
-            _clip(tool_feedback, 0.0, 1.5),
+            _clip(tap_feedback, 0.0, 1.5),
             _clip(surprise, 0.0, 1.5),
         ]
         self.event_memory = [_clip(old * decay + value * write) for old, value in zip(self.event_memory, event)]
@@ -298,25 +258,11 @@ class Individual:
             self.success_profile[label] = 0.0
         self.success_profile[label] = max(0.0, min(1_000_000.0, self.success_profile[label] + max(0.0, amount)))
 
-    def record_tool_success(self, affordance: str) -> None:
-        self.successful_tools += 1
-        self.tool_use_counts[affordance] = self.tool_use_counts.get(affordance, 0) + 1
-
-    def record_lesson(self, lesson: dict[str, Any]) -> None:
-        self.lesson_memory.append(self._lesson_safe(lesson))
-        if len(self.lesson_memory) > 5:
-            self.lesson_memory = self.lesson_memory[-5:]
-
-    def _lesson_safe(self, value: Any) -> Any:
-        if isinstance(value, dict):
-            return {str(key): self._lesson_safe(item) for key, item in value.items()}
-        if isinstance(value, (list, tuple)):
-            return [self._lesson_safe(item) for item in list(value)[:8]]
-        if isinstance(value, float):
-            return round(max(-1_000.0, min(1_000.0, value)), 6)
-        if isinstance(value, (int, str, bool)) or value is None:
-            return value
-        return str(value)
+    def record_tap(self, success: bool) -> None:
+        if success:
+            self.successful_taps += 1
+        else:
+            self.mistap_count += 1
 
     def repair_or_decay(self) -> None:
         if self.energy > self.storage_limit():
@@ -340,23 +286,17 @@ class Individual:
             "health": round(self.health, 4),
             "neural": self.neural,
             "child_count": self.child_count,
-            "successful_tools": self.successful_tools,
-            "tool_use_counts": dict(sorted(self.tool_use_counts.items())),
+            "successful_taps": self.successful_taps,
+            "mistap_count": self.mistap_count,
             "success_profile": {key: round(value, 4) for key, value in sorted(self.success_profile.items()) if value > 0.0},
             "last_action": self.last_action,
-            "last_tool_affordance": self.last_tool_affordance,
-            "last_craft_target": self.last_craft_target,
-            "last_artifact_method": round(self.last_artifact_method, 4),
-            "last_lesson": self.lesson_memory[-1] if self.lesson_memory else {},
             "last_valence": round(self.last_valence, 4),
             "last_energy_delta": round(self.last_energy_delta, 4),
-            "artifacts": [artifact.to_dict() for artifact in self.artifacts],
             "complexity": round(self.params.complexity(), 4),
             "parents": list(self.parent_ids),
         }
 
     def cognitive_snapshot(self) -> dict[str, Any]:
-        place_memory = sorted(self.place_memory.items(), key=lambda item: item[1], reverse=True)[:8]
         return {
             "line": {
                 "root_id": self.line_root_id,
@@ -370,14 +310,7 @@ class Individual:
             "prediction_errors": {label: round(value, 6) for label, value in zip(PREDICTION_HEADS, self.prediction_error_profile)},
             "event_memory": {label: round(value, 6) for label, value in zip(EVENT_MEMORY_LABELS, self.event_memory)},
             "success_profile": {key: round(value, 6) for key, value in sorted(self.success_profile.items()) if value > 0.0},
-            "tool_trace": {
-                "last_tool_affordance": self.last_tool_affordance,
-                "last_craft_target": self.last_craft_target,
-                "last_artifact_method": round(self.last_artifact_method, 6),
-            },
-            "lesson_memory": [dict(lesson) for lesson in self.lesson_memory[-5:]],
             "signal_values": [round(value, 6) for value in self.signal_values],
-            "place_memory": [{"place_id": place_id, "value": round(value, 6)} for place_id, value in place_memory],
         }
 
 

@@ -103,7 +103,7 @@ def digest(run_dir: Path) -> None:
             print(
                 f"      #{p.get('individual_id')} died t{record.get('tick')} of {p.get('cause')}"
                 f" age={p.get('age', '?')} child={p.get('child_count')}"
-                f" tools={p.get('successful_tools')}{arch_str}"
+                f" taps={p.get('successful_taps')}{arch_str}"
             )
 
 
@@ -125,7 +125,7 @@ def biography(run_dir: Path, individual_id: int) -> None:
         keep = {
             k: payload[k]
             for k in (
-                "mode", "cause", "age", "child_count", "successful_tools",
+                "mode", "cause", "age", "child_count", "successful_taps",
                 "child_id", "parent_ids", "generation", "complexity", "place",
                 "affordance", "gain", "architecture",
             )

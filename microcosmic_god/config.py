@@ -88,6 +88,29 @@ class RunConfig:
     # (docs/TRANSFER_BARRIER.md). 1.0 = legacy; 0.0 removes the injection so
     # spawning timing must come from the controller's own outputs.
     drive_injection_scale: float = 1.0
+    # Era 2 (docs/ENV_AXIS_REVIEW.md): tap — gate-free release of a place's
+    # sealed reserve, keyed to an observable cue channel. The gate level is
+    # the tap_cue_threshold percentile of the active channel's distribution
+    # across places (recomputed each refresh), so every cue contract keeps a
+    # comparable fraction of places tappable. Above the level a tap releases
+    # energy (actor share + place spill); below it the tap misfires at an
+    # energy cost and a small health hit. Both inputs are existing
+    # observation dims, so discriminating taps are a pure perception demand.
+    tap_cue_threshold: float = 0.70
+    # Cue contract drift: 0 = the cue channel is fixed (era 2.0). 1 = the
+    # cue channel identity is re-drawn from TAP_CUE_CHANNELS at every world
+    # refresh (era 2.1) — the contract is then discoverable only through tap
+    # outcomes and prediction errors, selecting for in-lifetime re-mapping.
+    tap_cue_drift: int = 0
+    # Scale on the combine-intent window (one coordinate action holds pairing
+    # intent open for 6-19 ticks at 1.0). The window is an ungated
+    # spawn-timing channel — a blind policy reproduces through it at
+    # exploration-floor rates — so scaling it down makes pairing demand
+    # repeated deliberate coordination. 1.0 = legacy.
+    combine_intent_window_scale: float = 1.0
+    # Constant part of the chooser's random-action rate (param terms add to
+    # it). Legacy 0.025. Annealable in later stages.
+    exploration_floor: float = 0.025
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

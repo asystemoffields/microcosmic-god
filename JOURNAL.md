@@ -9,6 +9,76 @@ current state.
 
 ---
 
+## 2026-06-12 ~21:10 — ERA 2 LANDED: suite green (98+3), smoke clean, P-E1 already visible
+
+Surgery complete per docs/ENV_AXIS_REVIEW.md. Verification:
+- **Tests: 101 total, 98 pass, 3 skip** (torch parity, no torch). Suite
+  reshaped: 31 era-1 subsystem tests deleted, 47 kept/fixed in
+  `tests/test_core_contracts.py` (renamed from the old name), 13 new
+  (`tests/test_tap_contract.py` 10 + action-resolution 3) covering the tap
+  percentile gate, drift redraw, window-scale, exploration-floor
+  determinism, drain-on-empty, and size pins (OBSERVATION_SIZE 70,
+  ACTIONS 10).
+- **Smoke run** completes; tap_champion/learner/overall/notable buckets all
+  fill; tap outcomes 9/289 at smoke scale (pre-selection baseline).
+- **300-tick k=1 pre-flight: the gate-blind tax is GONE** — infeasible
+  commits land only on coordinate/clone_perturb (observable adult gate).
+  P-E1's mechanism is confirmed by construction; the validation kernels
+  measure it at campaign scale.
+- **Design fix found during implementation:** an absolute tap threshold
+  left 2 of 3 cue channels with zero tappable places (dead action under
+  drift). The gate is now the `tap_cue_threshold` percentile (default 0.70)
+  of the active channel across places, recomputed each refresh — every
+  contract stays comparably winnable; review doc §2.3 corrected.
+- **Probe-compat correction:** era-1 modular checkpoints reconstruct only
+  under era-1 group geometry. Era-1 probing = worktree at `era1-full-env`,
+  absolute path to the checkpoint; verified to reproduce the #2867
+  fingerprint exactly (heads=1, coupling 0.154947, zero_match=True).
+  Review doc §2.4 corrected. The Catch notebook's 72/15 control-arm
+  constants still need parametrizing at extraction time.
+- **Pass-11 residual migration finished + committed (148bf48):** zero
+  residuals by full-mapping scan in runs/, kaggle/results/, archives/,
+  transfer/.
+- Kaggle harness carries the four new flags (tap-cue-threshold/-drift,
+  combine-intent-window-scale, exploration-floor).
+
+NEXT: era-2 validation kernels (Stage 0.5 protocol — 45 min, h1.6 campaign
+config, k=1/drive 1.0, seeds 341/44/45 + a k=0 baseline s341, drift OFF),
+then if boot ≥2/3 and the tax profile holds → Stage 1 6-h tier overnight.
+
+## 2026-06-12 ~19:40 — era-2 surgery IN PROGRESS (checkpoint note; not yet green)
+
+Tag `era1-full-env` = afaf18e marks the last full-env commit. Done so far:
+- config.py: 4 new knobs (tap_cue_threshold/0.45, tap_cue_drift/0,
+  combine_intent_window_scale/1.0, exploration_floor/0.025) + CLI flags.
+- individuals.py: ACTIONS 15→10 (rest, move, eat, absorb_solar, forage,
+  **tap**, drain, signal, coordinate, clone_perturb); OBSERVATION_SIZE
+  72→70 (inventory + skill dims out); SUCCESS_PROFILE → 4 labels;
+  trace/event/prediction labels tool→tap; cut inventory/artifacts/skill/
+  lesson/place-memory fields; record_tap(success) with successful_taps/
+  mistap_count.
+- controller.py PREDICTION_HEADS tool→tap; modular.py group table rebuilt
+  (7 fixed groups, 40 base dims).
+- simulation.py 3,628 → ~1,750 lines: ten method-block deletions (helpers/
+  collaboration, situation cognition, movement telemetry, pickup/craft/
+  build/use_tool/causal/wear, marks chain, observe/mark-read, place memory);
+  terrain stress + physics transport + relocation shock rebuilt params-only;
+  _move destination = uniform-random neighbor; _drain target = random
+  co-located; _forage resource-only; **_tap implemented** (cue-gated reserve
+  release, mistap cost, tap_outcomes counters, drift re-draw at refresh);
+  refresh carries resources+reserve only and clears signals; partner score
+  de-accumulated; champion scoring re-aimed (fit RATE × tap discrimination;
+  tap_champion replaces tool/causal buckets); aggregates/debrief trimmed.
+- debrief.py, cli.py, analysis/run_digest.py updated to match.
+- probe_worlds.py OBSERVATION_SIZE check: KEPT after reflection — in-world
+  probes genuinely require era-matched controllers; era-1 champions are
+  probed from the `era1-full-env` tag; the checkpoint-only coupling probe is
+  era-agnostic already. (Correction to the review doc's §2.4 line.)
+- Outstanding: agent trimming world.py/energy.py/checkpoints.py; then test
+  suite triage (cut era-1 subsystem tests, add tap/knob tests), smoke run,
+  green commit. Pass-11 residual data migration (separate stream) is
+  finishing on runs/ (12 files left).
+
 ## 2026-06-12 ~18:40 — ENV-AXIS REVIEW LANDED: era 2 decided (docs/ENV_AXIS_REVIEW.md)
 
 Both mapping agents returned; full maps saved at docs/review/ACTION_MAP.md

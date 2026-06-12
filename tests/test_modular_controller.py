@@ -143,9 +143,14 @@ class PredictionLearningTest(unittest.TestCase):
     def test_neuromodulation_gates_learning(self):
         seed_state = ModularController.random(Random(109), OBSERVATION_SIZE, len(ACTIONS), n_blocks=1).to_dict()
         free, suppressed = ModularController.from_dict(seed_state), ModularController.from_dict(seed_state)
-        # Strongly negative neuromod drive -> gate ~ 0 -> learning frozen.
-        suppressed.blocks[0].neuromod_weights = np.full(suppressed.blocks[0].hidden_size, -50.0)
         obs = _obs(Random(113))
+        # Strongly negative neuromod drive -> gate ~ 0 -> learning frozen.
+        # The drive is out_gate * (weights @ hidden), so align the weights
+        # against the realized hidden signs instead of assuming them.
+        suppressed.forward(obs)
+        block = suppressed.blocks[0]
+        drive_sign = np.sign(block.out_gate) if block.out_gate != 0.0 else 1.0
+        block.neuromod_weights = -50.0 * drive_sign * np.sign(block.hidden)
         for c in (free, suppressed):
             for _ in range(30):
                 c.forward(obs)
@@ -176,7 +181,7 @@ class LearningFrozenTest(unittest.TestCase):
         from random import Random as _Random
         import numpy as _np
         rng = _Random(3)
-        c = ModularController.random(rng, input_size=OBSERVATION_SIZE, output_size=15, n_blocks=2)
+        c = ModularController.random(rng, input_size=OBSERVATION_SIZE, output_size=len(ACTIONS), n_blocks=2)
         c.learning_frozen = True
         # Round-trip without state (the path add_individual uses).
         c2 = ModularController.from_dict(c.to_dict(include_state=False))
@@ -193,5 +198,5 @@ class LearningFrozenTest(unittest.TestCase):
     def test_unfrozen_serialization_has_no_flag_key(self):
         from random import Random as _Random
         rng = _Random(3)
-        c = ModularController.random(rng, input_size=OBSERVATION_SIZE, output_size=15, n_blocks=1)
+        c = ModularController.random(rng, input_size=OBSERVATION_SIZE, output_size=len(ACTIONS), n_blocks=1)
         self.assertNotIn("learning_frozen", c.to_dict())

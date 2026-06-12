@@ -54,6 +54,10 @@ def main() -> None:
     parser.add_argument("--world-refresh-every", type=int, default=0)
     parser.add_argument("--action-search-depth", type=int, default=None)
     parser.add_argument("--drive-injection-scale", type=float, default=None)
+    parser.add_argument("--tap-cue-threshold", type=float, default=None)
+    parser.add_argument("--tap-cue-drift", type=int, default=None)
+    parser.add_argument("--combine-intent-window-scale", type=float, default=None)
+    parser.add_argument("--exploration-floor", type=float, default=None)
     parser.add_argument("--checkpoint-every", type=int, default=1000)
     parser.add_argument("--checkpoint-limit", type=int, default=64)
     parser.add_argument("--log-every", type=int, default=100)
@@ -81,6 +85,10 @@ def main() -> None:
         "log_every": args.log_every,
         "action_search_depth": args.action_search_depth,
         "drive_injection_scale": args.drive_injection_scale,
+        "tap_cue_threshold": args.tap_cue_threshold,
+        "tap_cue_drift": args.tap_cue_drift,
+        "combine_intent_window_scale": args.combine_intent_window_scale,
+        "exploration_floor": args.exploration_floor,
     }
 
     package = HERE / "_packages" / args.name

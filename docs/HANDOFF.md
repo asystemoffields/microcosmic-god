@@ -233,7 +233,7 @@ python -m microcosmic_god specs
 
 ## Current Test Coverage Highlights
 
-Important tests are in `tests/test_causal_contracts.py`.
+Important tests are in `tests/test_core_contracts.py` (named `tests/test_causal_contracts.py` until the era-2 cut removed the causal-challenge subsystem; the per-test lists below record the 2026-05 state — the craft/build/marks/collaboration tests went with their subsystems, `docs/ENV_AXIS_REVIEW.md` §2). Era-2 tap/cue-contract tests are in `tests/test_tap_contract.py`.
 
 The 2026-05-06 session added a `TexturedHarshnessTests` class covering the prep-step rule:
 

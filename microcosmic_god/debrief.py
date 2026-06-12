@@ -63,10 +63,6 @@ def world_physics_summary(world: World) -> dict[str, Any]:
     summary["max_edge_current"] = round(max(edge_currents, default=0.0), 5)
     summary["avg_edge_slope"] = round(sum(edge_slopes) / max(1, len(edge_slopes)), 5)
     summary["max_edge_slope"] = round(max(edge_slopes, default=0.0), 5)
-    structures = [structure for place in world.places for structure in place.structures]
-    summary["structure_count"] = float(len(structures))
-    summary["avg_structure_scale"] = round(sum(structure.scale for structure in structures) / max(1, len(structures)), 5)
-    summary["max_structure_scale"] = round(max((structure.scale for structure in structures), default=0.0), 5)
     archetypes: Counter[str] = Counter(place.archetype for place in world.places)
     summary["archetype_counts"] = dict(archetypes)  # type: ignore[assignment]
     return summary
@@ -96,28 +92,19 @@ def success_profile_summary(individuals: dict[int, Individual]) -> dict[str, dic
 
 def individual_success_score(individual: Individual) -> float:
     profile = individual.success_profile
-    top_specialty = max(individual.tool_use_counts.values(), default=0)
-    distinct_tools = sum(1 for count in individual.tool_use_counts.values() if count > 0)
     return (
         individual.child_count * 4.0
-        + individual.successful_tools * 1.5
-        + math.log1p(top_specialty) * 0.9
-        + distinct_tools * 0.8
-        + profile.get("causal_unlock", 0.0) * 4.0
-        + profile.get("causal_step", 0.0) * 1.0
+        + individual.successful_taps * 1.5
+        + math.log1p(individual.successful_taps + individual.mistap_count) * 0.5
         + profile.get("prediction_fit", 0.0) * 1.2
-        + profile.get("written_learning", 0.0) * 1.1
-        + profile.get("knowledge_transmitted", 0.0) * 1.0
-        + profile.get("tool_make", 0.0)
-        + profile.get("tool_use", 0.0)
-        + profile.get("structure", 0.0)
+        + profile.get("tap", 0.0)
         + individual.energy / max(1.0, individual.storage_limit())
     )
 
 
 def top_individuals(individuals: dict[int, Individual], limit: int = 10) -> list[dict[str, Any]]:
     active = [individual for individual in individuals.values() if individual.alive]
-    active.sort(key=lambda item: (individual_success_score(item), item.child_count, item.successful_tools, item.energy, item.age), reverse=True)
+    active.sort(key=lambda item: (individual_success_score(item), item.child_count, item.successful_taps, item.energy, item.age), reverse=True)
     return [individual.to_summary() for individual in active[:limit]]
 
 
@@ -147,26 +134,12 @@ def build_debrief(sim: Any, reason: str, elapsed_seconds: float) -> dict[str, An
         "births_by_mode": dict(sim.births_by_mode),
         "deaths_by_cause": dict(sim.deaths_by_cause),
         "deaths_by_kind_cause": dict(sim.deaths_by_kind_cause),
-        "tool_successes": dict(sim.tool_successes),
-        "causal_steps": dict(getattr(sim, "causal_steps", {})),
-        "causal_unlocks": dict(getattr(sim, "causal_unlocks", {})),
-        "collaboration_events": dict(getattr(sim, "collaboration_events", {})),
+        "tap_outcomes": dict(getattr(sim, "tap_outcomes", {})),
+        "tap_cue_channel": getattr(sim, "tap_cue_channel", ""),
         "patch_recovery_triggers": int(getattr(sim, "patch_recovery_triggers", 0)),
         "structural_steps": dict(getattr(sim, "structural_steps", {})),
-        "movement": sim._movement_summary() if hasattr(sim, "_movement_summary") else {},
         "success_profile": success_profile_summary(sim.individuals),
         "lines": sim._line_summary() if hasattr(sim, "_line_summary") else {},
-        "marks_created": dict(sim.marks_created),
-        "mark_lessons": dict(getattr(sim, "mark_lessons", {})),
-        "mark_lesson_packets": dict(getattr(sim, "mark_lesson_packets", {})),
-        "mark_read_value": {key: round(value, 6) for key, value in getattr(sim, "mark_read_value", {}).items()},
-        "mark_author_feedbacks": {key: round(value, 6) for key, value in getattr(sim, "mark_author_feedbacks", {}).items()},
-        "portable_marks_created": dict(getattr(sim, "portable_marks_created", {})),
-        "portable_mark_reads": dict(getattr(sim, "portable_mark_reads", {})),
-        "artifacts_created": dict(sim.artifacts_created),
-        "artifacts_broken": dict(sim.artifacts_broken),
-        "structures_built": dict(getattr(sim, "structures_built", {})),
-        "structures_extended": dict(getattr(sim, "structures_extended", {})),
         "spawn_attempts": dict(sim.spawn_attempts),
         "spawn_failures": dict(sim.spawn_failures),
         "evolution_policy": sim.optimization.to_summary(),

@@ -83,8 +83,11 @@ class PatchRecoveryTest(unittest.TestCase):
         self.assertLess(mean, 300.0)
 
     def test_substantial_feed_starts_recovery(self):
-        config = RunConfig.from_profile("smoke", patch_recovery_ticks=40, seed=11)
+        config = RunConfig.from_profile(
+            "smoke", patch_recovery_ticks=40, seed=11, output_dir="/tmp/mcg_patch_recovery_test"
+        )
         sim = Simulation(config)
+        self.addCleanup(sim.logger.close)
         agent = next(ind for ind in sim.individuals.values() if ind.kind == "agent" and ind.alive)
         agent.location = 0
         sim.world.places[0].resources["essence"] = 60.0
@@ -93,8 +96,15 @@ class PatchRecoveryTest(unittest.TestCase):
         self.assertGreater(sim.world.places[0].regen_recovery_until, 0)
 
     def test_refresh_carries_recovery_state(self):
-        config = RunConfig.from_profile("smoke", patch_recovery_ticks=500, world_refresh_every=50, seed=11)
+        config = RunConfig.from_profile(
+            "smoke",
+            patch_recovery_ticks=500,
+            world_refresh_every=50,
+            seed=11,
+            output_dir="/tmp/mcg_patch_recovery_test",
+        )
         sim = Simulation(config)
+        self.addCleanup(sim.logger.close)
         sim.world.note_patch_depletion(0, Random(1))
         until = sim.world.places[0].regen_recovery_until
         sim.tick = 50

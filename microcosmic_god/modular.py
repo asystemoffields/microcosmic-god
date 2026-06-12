@@ -55,9 +55,8 @@ _FIXED_GROUPS: tuple[tuple[str, int], ...] = (
     ("self_state", 3),        # energy, health, age
     ("resources", 8),         # 7 resource channels + sealed_essence
     ("social", 2),            # crowding, neural fraction
-    ("inventory", 1),
     ("body", 8),              # mobility .. plasticity_rate (params introspection)
-    ("context", 4),           # valence, skill breadth, season, climate drift
+    ("context", 3),           # valence, season, climate drift
     ("place_physics", 12),
     ("terrain", 4),           # aquatic, depth, salinity, humidity
 )

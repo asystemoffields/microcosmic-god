@@ -7,7 +7,7 @@ from random import Random
 from typing import Any
 
 from .config import RunConfig
-from .energy import ENERGY_KINDS, MATERIALS, Structure, blank_energy, structure_decay_channels
+from .energy import ENERGY_KINDS, blank_energy
 
 
 def _clamp(value: float, low: float = 0.0, high: float = 1.0) -> float:
@@ -40,68 +40,11 @@ class Signal:
 
 
 @dataclass(slots=True)
-class Mark:
-    source_id: int
-    token: int
-    intensity: float
-    durability: float
-    age: int = 0
-    trace: dict[str, Any] = field(default_factory=dict)
-    reads: int = 0
-    value_transmitted: float = 0.0
-    last_read_tick: int = -1
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "source_id": self.source_id,
-            "token": self.token,
-            "intensity": self.intensity,
-            "durability": self.durability,
-            "age": self.age,
-            "trace": dict(self.trace),
-            "reads": self.reads,
-            "value_transmitted": round(self.value_transmitted, 6),
-            "last_read_tick": self.last_read_tick,
-        }
-
-
-@dataclass(slots=True)
-class CausalChallenge:
-    sequence: tuple[str, ...]
-    payoff_energy: str
-    payoff_remaining: float
-    difficulty: float
-    progress: int = 0
-    attempts: int = 0
-    solved: int = 0
-
-    def expected_affordance(self) -> str | None:
-        if self.payoff_remaining <= 0.0 or not self.sequence:
-            return None
-        return self.sequence[self.progress % len(self.sequence)]
-
-    def signature(self) -> str:
-        return ">".join(self.sequence)
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "sequence": list(self.sequence),
-            "payoff_energy": self.payoff_energy,
-            "payoff_remaining": round(self.payoff_remaining, 6),
-            "difficulty": round(self.difficulty, 6),
-            "progress": self.progress,
-            "attempts": self.attempts,
-            "solved": self.solved,
-        }
-
-
-@dataclass(slots=True)
 class Place:
     id: int
     name: str
     neighbors: list[int]
     resources: dict[str, float]
-    materials: dict[str, int]
     sealed_essence: float
     capacity: int
     sun_exposure: float
@@ -113,10 +56,7 @@ class Place:
     terrain: dict[str, float]
     physics: dict[str, float]
     archetype: str = "mixed"
-    structures: list[Structure] = field(default_factory=list)
     signals: list[Signal] = field(default_factory=list)
-    marks: list[Mark] = field(default_factory=list)
-    causal_challenge: CausalChallenge | None = None
     # Tick until which staple regeneration is suppressed (patch recovery).
     regen_recovery_until: int = 0
 
@@ -130,15 +70,11 @@ class Place:
             "neighbors": self.neighbors,
             "resources": {k: round(v, 4) for k, v in self.resources.items()},
             "sealed_essence": round(self.sealed_essence, 4),
-            "materials": dict(self.materials),
             "capacity": self.capacity,
             "obstacles": {k: round(v, 4) for k, v in self.obstacles.items()},
             "terrain": {k: round(v, 4) for k, v in self.terrain.items()},
             "physics": {k: round(v, 4) for k, v in self.physics.items()},
             "archetype": self.archetype,
-            "structures": [structure.to_dict() for structure in self.structures[-8:]],
-            "marks": [mark.to_dict() for mark in self.marks[-8:]],
-            "causal_challenge": self.causal_challenge.to_dict() if self.causal_challenge else None,
         }
 
 
@@ -306,22 +242,6 @@ class World:
             resources["mechanical"] *= 1.0 + hardship * 0.08
             sealed_essence *= 1.0 + hardship * 0.30
 
-            materials = {name: 0 for name in MATERIALS}
-            for name in MATERIALS:
-                abundance = rng.random()
-                if name in {"stone", "crystal"}:
-                    abundance *= mineral + 0.25
-                if name in {"branch", "fiber", "resin"}:
-                    abundance *= water + sun + 0.20
-                if name in {"shell", "bone"}:
-                    abundance *= water + 0.15
-                if archetype in {"reef", "pelagic", "trench"} and name in {"shell", "bone"}:
-                    abundance *= 1.0 + water * 1.4
-                if archetype in {"hydrothermal_vent", "mineral_scree", "desert_glass", "cavern"} and name in {"stone", "crystal"}:
-                    abundance *= 1.0 + mineral * 1.2
-                if archetype in {"forest_edge", "tidal_marsh"} and name in {"branch", "fiber", "resin"}:
-                    abundance *= 1.0 + sun * water
-                materials[name] = int(abundance * rng.randint(1, 8))
             obstacles = {
                 "water": min(1.0, water * rng.uniform(0.15, 0.95)),
                 "thorn": min(1.0, (sun + water) * rng.uniform(0.05, 0.55)),
@@ -402,7 +322,7 @@ class World:
                 + resources["mechanical"] / 240.0
                 + sealed_essence / 160.0
             )
-            physics["terrain_richness"] = _clamp(sum(materials.values()) / 65.0 + mineral * 0.35 + water * 0.12)
+            physics["terrain_richness"] = _clamp(0.05 + mineral * 0.42 + water * 0.29 + sun * 0.10)
             base_capacity = rng.randint(35, 95)
             capacity = max(12, int(round(base_capacity * max(0.52, 1.0 - hardship * 0.26))))
 
@@ -412,7 +332,6 @@ class World:
                     name=f"{names[i % len(names)]} {i}",
                     neighbors=[],
                     resources=resources,
-                    materials=materials,
                     sealed_essence=sealed_essence,
                     capacity=capacity,
                     sun_exposure=sun,
@@ -425,18 +344,6 @@ class World:
                     physics=physics,
                     archetype=archetype,
                 )
-            )
-            places[-1].causal_challenge = cls._make_causal_challenge(
-                rng,
-                places[-1].resources,
-                sealed_essence=places[-1].sealed_essence,
-                water=water,
-                sun=sun,
-                geo=geo,
-                mineral=mineral,
-                volatility=volatility,
-                obstacles=obstacles,
-                physics=physics,
             )
 
         edges: list[Edge] = []
@@ -462,63 +369,6 @@ class World:
             patch_recovery_ticks=int(getattr(config, "patch_recovery_ticks", 0)),
             patch_recovery_floor=float(getattr(config, "patch_recovery_floor", 0.0)),
             patch_recovery_jitter=float(getattr(config, "patch_recovery_jitter", 0.0)),
-        )
-
-    @staticmethod
-    def _make_causal_challenge(
-        rng: Random,
-        resources: dict[str, float],
-        *,
-        sealed_essence: float,
-        water: float,
-        sun: float,
-        geo: float,
-        mineral: float,
-        volatility: float,
-        obstacles: dict[str, float],
-        physics: dict[str, float],
-    ) -> CausalChallenge | None:
-        candidates = [
-            (water * 0.55 + physics.get("current_exposure", 0.0) * 0.45, ("encase", "winnow"), "essence"),
-            (mineral * 0.42 + sealed_essence / 180.0 + obstacles.get("height", 0.0) * 0.18, ("cleave", "hoist"), "essence"),
-            (sun * 0.35 + geo * 0.38 + mineral * 0.22, ("kindle", "ferry"), "electrical"),
-            (obstacles.get("thorn", 0.0) * 0.48 + resources.get("residue_store", 0.0) / 180.0, ("shear", "lash"), "residue_store"),
-            (physics.get("salinity", 0.0) * 0.30 + mineral * 0.36 + geo * 0.28, ("winnow", "ferry"), "dense_node"),
-        ]
-        score, sequence, payoff_energy = max(candidates, key=lambda item: item[0] + rng.random() * 0.035)
-        if score < 0.16 and rng.random() > 0.30:
-            return None
-        if score > 0.58 or rng.random() < score * 0.18:
-            extra_step = {
-                "essence": "encase",
-                "residue_store": "shear",
-                "electrical": "encase",
-                "dense_node": "kindle",
-            }.get(payoff_energy, "lash")
-            if extra_step not in sequence:
-                sequence = (*sequence, extra_step)
-        prep_steps: list[str] = []
-        if physics.get("temperature", 0.5) < 0.25:
-            prep_steps.append("kindle")
-        if physics.get("fluid_level", 0.0) > 0.45 and obstacles.get("water", 0.0) > 0.30:
-            if "encase" not in prep_steps:
-                prep_steps.append("encase")
-        if physics.get("abrasion", 0.0) > 0.30:
-            if "lash" not in prep_steps:
-                prep_steps.append("lash")
-        if physics.get("pressure", 0.0) > 0.40:
-            if "encase" not in prep_steps:
-                prep_steps.append("encase")
-        prep_steps = [s for s in prep_steps if s not in sequence]
-        if prep_steps:
-            sequence = (*prep_steps, *sequence)
-        difficulty = _clamp(0.18 + score * 0.42 + volatility * 0.18 + len(prep_steps) * 0.06)
-        payoff = 14.0 + score * 68.0 + min(sealed_essence, 120.0) * 0.16 + max(0, len(sequence) - 2) * 18.0
-        return CausalChallenge(
-            sequence=sequence,
-            payoff_energy=payoff_energy,
-            payoff_remaining=payoff,
-            difficulty=difficulty,
         )
 
     @staticmethod
@@ -578,102 +428,6 @@ class World:
             if best is None or outward > best[1]:
                 best = (edge.other(place_id), outward)
         return best
-
-    def _apply_structures(self, place: Place, events: Counter[str]) -> None:
-        if not place.structures:
-            place.physics["interiority"] = max(0.0, place.physics.get("interiority", 0.0) * 0.98)
-            place.physics["boundary_permeability"] = max(0.0, place.physics.get("boundary_permeability", 0.0) * 0.98)
-            place.physics["shelter"] = max(0.0, place.physics.get("shelter", 0.0) * 0.98)
-            return
-        physics = place.physics
-        edges = self.edges_from(place.id)
-        edge_current = max((abs(edge.current_from(place.id)) for edge in edges), default=0.0)
-        edge_slope = max((abs(edge.slope_from(place.id)) for edge in edges), default=0.0)
-        flow_gradient = _clamp(physics.get("fluid_level", 0.0) * physics.get("current_exposure", 0.0) + edge_current * 0.35 + edge_slope * physics.get("fluid_level", 0.0) * 0.08)
-        interiority = 0.0
-        boundary_permeability = 0.0
-        shelter = 0.0
-        kept: list[Structure] = []
-        for structure in place.structures:
-            structure.age += 1
-            scale = min(1.0, math.log1p(max(1, structure.scale)) / math.log(14.0))
-            enclose = structure.capabilities.get("enclose", 0.0)
-            permeable = structure.capabilities.get("permeable", 0.0)
-            channel = structure.capabilities.get("channel", 0.0)
-            gradient_harvest = structure.capabilities.get("gradient_harvest", 0.0)
-            ferry = structure.capabilities.get("ferry", 0.0)
-            storage = structure.capabilities.get("energy_storage", 0.0)
-            winnow_cap = structure.capabilities.get("winnow", 0.0)
-            reaction_surface = structure.capabilities.get("reaction_surface", 0.0)
-            support = structure.capabilities.get("support", 0.0)
-            anchor = structure.capabilities.get("anchor", 0.0)
-            interiority = max(interiority, enclose * (0.55 + scale * 0.45))
-            boundary_permeability = max(boundary_permeability, permeable)
-            shelter = max(shelter, structure.capabilities.get("shelter", 0.0))
-
-            if gradient_harvest > 0.08 and flow_gradient > 0.03:
-                mechanical = gradient_harvest * flow_gradient * (0.06 + scale * 0.10)
-                place.resources["mechanical"] = min(180.0, place.resources["mechanical"] + mechanical)
-                events["structure_gradient_harvest"] += 1
-                if ferry > 0.08:
-                    electrical = mechanical * ferry * (0.10 + storage * 0.10)
-                    place.resources["electrical"] = min(180.0, place.resources["electrical"] + electrical)
-                    events["structure_gradient_conversion"] += 1
-
-            if winnow_cap > 0.08 and (flow_gradient > 0.02 or permeable > 0.25):
-                captured = winnow_cap * (flow_gradient + permeable * 0.15) * (0.03 + scale * 0.04)
-                place.resources["essence"] = min(180.0, place.resources["essence"] + captured)
-                place.resources["residue_store"] = min(180.0, place.resources["residue_store"] + captured * 0.35)
-                events["structure_filtration"] += 1
-
-            if reaction_surface > 0.08:
-                heat_gradient = abs(physics.get("temperature", 0.5) - 0.48) + place.geothermal * 0.10
-                reaction = reaction_surface * heat_gradient * (0.01 + scale * 0.025)
-                place.resources["essence"] = min(180.0, place.resources["essence"] + reaction)
-                events["structure_reaction_surface"] += 1
-
-            if channel > 0.05:
-                place.resources["mechanical"] = min(180.0, place.resources["mechanical"] + channel * flow_gradient * 0.025)
-
-            if enclose > 0.05:
-                exchange_block = enclose * max(0.0, 1.0 - permeable * 0.70)
-                physics["humidity"] = _clamp(physics.get("humidity", 0.5) + exchange_block * 0.002 - max(0.0, physics.get("temperature", 0.5) - 0.65) * permeable * 0.001)
-                physics["current_exposure"] = _clamp(physics.get("current_exposure", 0.0) * (1.0 - min(0.12, exchange_block * anchor * 0.035)))
-
-            decay_environment = {
-                "temperature": physics.get("temperature", 0.5),
-                "fluid_level": physics.get("fluid_level", 0.0),
-                "humidity": physics.get("humidity", 0.5),
-                "salinity": physics.get("salinity", 0.0),
-                "oxygen": physics.get("oxygen", 0.35),
-                "acidity": physics.get("acidity", 0.10),
-                "residue_activity": physics.get("residue_activity", 0.0),
-                "abrasion": physics.get("abrasion", 0.0),
-                "wet_dry_cycle": physics.get("wet_dry_cycle", 0.0),
-                "current_exposure": physics.get("current_exposure", 0.0),
-                "pressure": physics.get("pressure", 0.0),
-                "light": physics.get("light", 0.0),
-                "flow_gradient": flow_gradient,
-            }
-            decay_channels = structure_decay_channels(structure, decay_environment)
-            structure.last_decay = decay_channels
-            dominant_channel = max(decay_channels, key=decay_channels.get)
-            total_wear = sum(decay_channels.values())
-            structure.durability -= total_wear
-            if total_wear > 0.006:
-                events[f"structure_wear_{dominant_channel}"] += 1
-            if structure.durability > 0.0:
-                kept.append(structure)
-            else:
-                for name, qty in structure.components.items():
-                    if qty > 0:
-                        place.materials[name] = min(99, place.materials.get(name, 0) + max(1, qty // 3))
-                events["structure_decay"] += 1
-                events[f"structure_decay_{dominant_channel}"] += 1
-        place.structures = kept[-16:]
-        physics["interiority"] = _clamp(interiority)
-        physics["boundary_permeability"] = _clamp(boundary_permeability)
-        physics["shelter"] = _clamp(shelter)
 
     def update_environment(self, rng: Random) -> dict[str, int]:
         events: Counter[str] = Counter()
@@ -750,10 +504,6 @@ class World:
             place.resources["residue_store"] *= max(0.9965, 0.9994 - hardship * 0.0008)
             place.sealed_essence += place.mineral_richness * (0.003 + hardship * 0.001)
 
-            if rng.random() < 0.002 + place.water_flow * 0.002:
-                material = rng.choice(tuple(MATERIALS.keys()))
-                place.materials[material] = min(99, place.materials.get(material, 0) + 1)
-
             for kind in ENERGY_KINDS:
                 place.resources[kind] = max(0.0, min(180.0, place.resources[kind]))
             place.sealed_essence = max(0.0, min(260.0, place.sealed_essence))
@@ -821,9 +571,6 @@ class World:
             place.resources["thermal"] = max(0.0, min(180.0, place.resources["thermal"]))
             place.resources["mechanical"] = max(0.0, min(180.0, place.resources["mechanical"]))
 
-        for place in self.places:
-            self._apply_structures(place, events)
-
         signal_transfers: list[tuple[int, Signal]] = []
         for place in self.places:
             current = place.physics.get("current_exposure", 0.0)
@@ -839,19 +586,6 @@ class World:
                 if signal.age < 8 and signal.intensity > 0.015:
                     kept.append(signal)
             place.signals = kept
-
-            kept_marks: list[Mark] = []
-            for mark in place.marks:
-                mark.age += 1
-                mark.intensity *= 0.997
-                mark.durability -= 0.10 + place.volatility * 0.06 + place.physics.get("fluid_level", 0.0) * 0.035 + current * 0.020 + place.physics.get("temperature", 0.5) * 0.010
-                if mark.durability > 0.0 and mark.intensity > 0.025:
-                    kept_marks.append(mark)
-                else:
-                    events["mark_eroded"] += 1
-            if len(kept_marks) > 32:
-                kept_marks = sorted(kept_marks, key=lambda item: (item.intensity * item.durability, -item.age), reverse=True)[:32]
-            place.marks = kept_marks
         for target_id, signal in signal_transfers:
             self.places[target_id].signals.append(signal)
         return dict(events)
@@ -877,26 +611,6 @@ class World:
         place = self.places[place_id]
         place.regen_recovery_until = max(place.regen_recovery_until, until)
         return True
-
-    def create_mark(
-        self,
-        place_id: int,
-        source_id: int,
-        token: int,
-        intensity: float,
-        durability: float,
-        trace: dict[str, Any] | None = None,
-    ) -> None:
-        if 0 <= place_id < len(self.places):
-            self.places[place_id].marks.append(
-                Mark(
-                    source_id=source_id,
-                    token=token % 8,
-                    intensity=max(0.0, intensity),
-                    durability=max(1.0, durability),
-                    trace=dict(trace or {}),
-                )
-            )
 
     def to_summary(self) -> dict[str, Any]:
         return {

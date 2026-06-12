@@ -24,8 +24,13 @@ def _smoke_config(**overrides):
 
 
 class ModularWireinTest(unittest.TestCase):
+    def _sim(self, config) -> Simulation:
+        sim = Simulation(config)
+        self.addCleanup(sim.logger.close)
+        return sim
+
     def test_all_modular_run_steps_and_agents_act(self):
-        sim = Simulation(_smoke_config())
+        sim = self._sim(_smoke_config())
         agents = [o for o in sim.individuals.values() if o.kind == "agent"]
         self.assertTrue(agents)
         self.assertTrue(all(isinstance(a.controller, ModularController) for a in agents))
@@ -37,7 +42,7 @@ class ModularWireinTest(unittest.TestCase):
         self.assertTrue(acted, "no modular agent ever chose an action")
 
     def test_modular_children_inherit_modular_and_budget_tracks_capacity(self):
-        sim = Simulation(_smoke_config(max_ticks=400))
+        sim = self._sim(_smoke_config(max_ticks=400))
         for _ in range(400):
             sim.step()
         children = [
@@ -52,7 +57,7 @@ class ModularWireinTest(unittest.TestCase):
             self.assertEqual(int(round(child.params.neural_budget)), child.controller.capacity)
 
     def test_mixed_pool_runs(self):
-        sim = Simulation(_smoke_config(initial_modular_fraction=0.5))
+        sim = self._sim(_smoke_config(initial_modular_fraction=0.5))
         kinds = {type(o.controller).__name__ for o in sim.individuals.values() if o.kind == "agent"}
         self.assertEqual(kinds, {"TinyController", "ModularController"})
         for _ in range(60):

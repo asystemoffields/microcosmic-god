@@ -12,7 +12,7 @@ def _rand_weight(rng: Random) -> float:
     return rng.gauss(0.0, 0.45)
 
 
-PREDICTION_HEADS = ("energy", "damage", "spawning", "social", "tool", "hazard")
+PREDICTION_HEADS = ("energy", "damage", "spawning", "social", "tap", "hazard")
 AUXILIARY_PREDICTION_HEADS = tuple(head for head in PREDICTION_HEADS if head != "energy")
 
 # Controller hidden-layer size cap. Controllers can grow up to this size if their

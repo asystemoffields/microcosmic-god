@@ -21,6 +21,10 @@ CONFIG = {
     "log_every": 100,
     "action_search_depth": None,
     "drive_injection_scale": None,
+    "tap_cue_threshold": None,
+    "tap_cue_drift": None,
+    "combine_intent_window_scale": None,
+    "exploration_floor": None,
 }
 
 import json
@@ -64,6 +68,14 @@ if CONFIG.get("action_search_depth") is not None:
     args += ["--action-search-depth", str(CONFIG["action_search_depth"])]
 if CONFIG.get("drive_injection_scale") is not None:
     args += ["--drive-injection-scale", str(CONFIG["drive_injection_scale"])]
+if CONFIG.get("tap_cue_threshold") is not None:
+    args += ["--tap-cue-threshold", str(CONFIG["tap_cue_threshold"])]
+if CONFIG.get("tap_cue_drift") is not None:
+    args += ["--tap-cue-drift", str(CONFIG["tap_cue_drift"])]
+if CONFIG.get("combine_intent_window_scale") is not None:
+    args += ["--combine-intent-window-scale", str(CONFIG["combine_intent_window_scale"])]
+if CONFIG.get("exploration_floor") is not None:
+    args += ["--exploration-floor", str(CONFIG["exploration_floor"])]
 if CONFIG["quiet_events"]:
     args += ["--quiet-events"]
 

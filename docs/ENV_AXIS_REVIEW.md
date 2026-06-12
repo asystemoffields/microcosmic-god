@@ -113,12 +113,19 @@ move — this is one design decision, not two:
 
 - **`tap` (new action, era 2.0).** Gate-free. Attempts to release the
   place's sealed reserve. Payoff keyed to an observable cue channel: when
-  the cue is high, release `min(sealed, 2 + 8·cue)` — actor takes a share,
-  the rest lands in place resources; when the cue is low, the tap misfires:
-  energy cost plus a small health hit. Both inputs (sealed reserve, cue) are
-  existing observation dims. A constant-tap blind policy bleeds; a policy
-  that reads two channels prospers. This replaces the use_tool/causal-unlock
-  payoff topology (its S part) at ~1/20th the machinery.
+  the cue reads above the gate level, release `min(sealed, 2 + 8·headroom)`
+  — actor takes a share, the rest lands in place resources; below the gate
+  the tap misfires: energy cost plus a small health hit. **The gate level is
+  a percentile of the active channel's distribution across places
+  (`tap_cue_threshold`, default 0.70), recomputed at each refresh** — an
+  absolute level was measured to leave two of the three channels with zero
+  tappable places (a dead action, not a demand); the percentile form keeps
+  every contract comparably winnable. Both inputs (sealed reserve, cue) are
+  existing observation dims. A constant-tap blind policy pays the misfire
+  tax a discriminating policy avoids, and the reserve is a finite stock, so
+  the relative-fitness margin always favors perception. This replaces the
+  use_tool/causal-unlock payoff topology (its S part) at ~1/20th the
+  machinery.
 - **Cue contract drift (era 2.1, the pocketknife pressure).** The identity
   of the cue channel is drawn **per world refresh** from a small physics set
   (e.g. residue_activity / current_exposure / wet_dry_cycle). The contract
@@ -148,9 +155,14 @@ move — this is one design decision, not two:
   **70 dims**. The `tool` labels in trace/event-memory/prediction-heads
   become `tap`. No other channel changes — the cue rides existing physics
   dims by design.
-- **Probe compat**: relax `probe_worlds.py`'s hard OBSERVATION_SIZE assert
-  to read sizes from the checkpoint; parametrize the two hard-coded 72/15
-  constants in the Catch notebook's control arms.
+- **Probe compat (corrected during implementation)**: `probe_worlds.py`'s
+  OBSERVATION_SIZE check is KEPT — in-world probes genuinely require
+  era-matched controllers, and era-1 modular checkpoints reconstruct only
+  under era-1 group geometry. Era-1 probing runs from the `era1-full-env`
+  tag (e.g. a temporary worktree), pointing at checkpoints in the main tree
+  by absolute path; verified to reproduce the #2867 fingerprint exactly.
+  The Catch notebook's two hard-coded 72/15 control-arm constants still
+  need parametrizing when era-2 extraction starts.
 
 ### 2.5 Deferred (pre-registered as later rungs, not this surgery)
 

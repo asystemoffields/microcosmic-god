@@ -113,12 +113,40 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="scale on the harness-side coordinate/clone_perturb output boost for adult, energy-rich individuals (1.0 = legacy, 0 = controller outputs only)",
     )
+    run.add_argument(
+        "--tap-cue-threshold",
+        dest="tap_cue_threshold",
+        type=float,
+        default=None,
+        help="percentile (0-1) of the active cue channel at which the tap gate sits; above the gate a tap releases the sealed reserve, below it misfires at a cost",
+    )
+    run.add_argument(
+        "--tap-cue-drift",
+        dest="tap_cue_drift",
+        type=int,
+        default=None,
+        help="1 = re-draw the tap cue channel at every world refresh (the re-mapping pressure); 0 = fixed channel",
+    )
+    run.add_argument(
+        "--combine-intent-window-scale",
+        dest="combine_intent_window_scale",
+        type=float,
+        default=None,
+        help="scale on the pairing-intent window a coordinate action opens (1.0 = legacy 6-19 ticks)",
+    )
+    run.add_argument(
+        "--exploration-floor",
+        dest="exploration_floor",
+        type=float,
+        default=None,
+        help="constant part of the chooser's random-action rate (legacy 0.025)",
+    )
     run.add_argument("--backend", choices=["cpu", "torch"], default=None, help="controller compute backend")
     run.add_argument("--device", default=None, help="compute device for --backend torch, such as auto, cpu, cuda, or cuda:0")
     run.add_argument("--garden", action="store_true", help="allow logged interventions")
     run.add_argument("--interventions", default=None, help="path to an interventions JSON file")
     run.add_argument("--no-stop-on-neural-washout", action="store_true")
-    run.add_argument("--quiet-events", action="store_true", help="only write aggregate events, not births/deaths/tool details")
+    run.add_argument("--quiet-events", action="store_true", help="only write aggregate events, not per-action details")
     run.add_argument("--dry-run", action="store_true", help="print resolved config and exit")
 
     spec = sub.add_parser("specs", help="print local machine specs relevant to simulation sizing")
@@ -153,6 +181,10 @@ def config_from_args(args: argparse.Namespace) -> RunConfig:
         "patch_recovery_jitter": args.patch_recovery_jitter,
         "action_search_depth": args.action_search_depth,
         "drive_injection_scale": args.drive_injection_scale,
+        "tap_cue_threshold": args.tap_cue_threshold,
+        "tap_cue_drift": args.tap_cue_drift,
+        "combine_intent_window_scale": args.combine_intent_window_scale,
+        "exploration_floor": args.exploration_floor,
         "compute_backend": args.backend,
         "device": args.device,
         "run_mode": "garden" if args.garden else "sealed",
@@ -240,9 +272,7 @@ def main(argv: list[str] | None = None) -> None:
         print(f"  pool: {debrief['pool']}")
         print(f"  births: {debrief['births_by_mode']}")
         print(f"  deaths: {debrief['deaths_by_cause']}")
-        print(f"  tool successes: {debrief['tool_successes']}")
-        print(f"  structures built: {debrief.get('structures_built', {})}")
-        print(f"  structures extended: {debrief.get('structures_extended', {})}")
+        print(f"  tap outcomes: {debrief.get('tap_outcomes', {})} (cue channel: {debrief.get('tap_cue_channel', '')})")
         print(f"  likely causes: {', '.join(debrief['likely_causes'])}")
         print(f"  run directory: {sim.logger.run_dir}")
         return
