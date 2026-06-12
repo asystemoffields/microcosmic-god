@@ -226,6 +226,32 @@ def _permuted_template_modular(controller_dict: dict[str, Any], seed: int) -> Mo
     return _reset_transient_modular(controller)
 
 
+def _remapped_template(controller_dict: dict[str, Any], seed: int) -> TinyController:
+    """Trained weights with input columns permuted: an in-vitro interface
+    remap. Measures how indexical the competence is — the first rung of the
+    interface-distance ladder (the Catch question in controlled form)."""
+    controller = TinyController.from_dict(controller_dict)
+    rs = np.random.RandomState(seed)
+    perm = rs.permutation(controller.input_size)
+    controller.weights_in = controller.weights_in[:, perm]
+    if controller.attention_weights.size:
+        controller.attention_weights = controller.attention_weights[:, perm]
+    return _reset_transient_and_memory(controller)
+
+
+def _remapped_template_modular(controller_dict: dict[str, Any], seed: int) -> ModularController:
+    """Modular variant: permute each typed encoder's input columns within its
+    group span. Group identity (which span is resource-like, self-like, ...)
+    is preserved; the wiring inside each type is scrambled. A pure
+    within-type re-binding challenge."""
+    controller = ModularController.from_dict(controller_dict)
+    rs = np.random.RandomState(seed)
+    controller.encoders = [
+        (W[:, rs.permutation(W.shape[1])], b) for W, b in controller.encoders
+    ]
+    return _reset_transient_modular(controller)
+
+
 @dataclass
 class BrainInstance:
     condition: str
@@ -234,19 +260,22 @@ class BrainInstance:
 
 
 def build_brain_instances(
-    checkpoint: dict[str, Any], n_random: int, n_permuted: int, n_frozen: int = 0
+    checkpoint: dict[str, Any], n_random: int, n_permuted: int, n_frozen: int = 0, n_remapped: int = 0
 ) -> list[BrainInstance]:
     controller_dict = checkpoint["brain"]
     modular = _is_modular(controller_dict)
     trained = _trained_template_modular if modular else _trained_template
     random_b = _random_template_modular if modular else _random_template
     permuted_b = _permuted_template_modular if modular else _permuted_template
+    remapped_b = _remapped_template_modular if modular else _remapped_template
 
     instances = [BrainInstance("trained", "trained", trained(controller_dict))]
     for i in range(n_random):
         instances.append(BrainInstance("random", f"random_{i}", random_b(controller_dict, seed=1000 + i)))
     for i in range(n_permuted):
         instances.append(BrainInstance("permuted", f"permuted_{i}", permuted_b(controller_dict, seed=2000 + i)))
+    for i in range(n_remapped):
+        instances.append(BrainInstance("remapped", f"remapped_{i}", remapped_b(controller_dict, seed=3000 + i)))
     # Frozen arm: the trained weights with lifetime learning disabled — the
     # "is its merit what it knows at birth, or what it keeps re-learning?"
     # control. The flag survives the per-individual serialization round-trip.
@@ -471,6 +500,8 @@ def main() -> None:
     parser.add_argument("--n-permuted", type=int, default=3)
     parser.add_argument("--n-frozen", type=int, default=0,
                         help="trained weights with lifetime learning disabled (re-learning control)")
+    parser.add_argument("--n-remapped", type=int, default=0,
+                        help="trained weights with input columns permuted (interface-remap arm)")
     parser.add_argument("--world-refresh-every", type=int, default=0,
                         help="rewrite world physics every N ticks inside each probe (0 = never)")
     parser.add_argument("--out", default=str(REPO_ROOT / "transfer" / "probe_worlds_results.json"))
@@ -487,7 +518,7 @@ def main() -> None:
             f"controller input_size {controller_dict['input_size']} != current OBSERVATION_SIZE {OBSERVATION_SIZE}"
         )
 
-    instances = build_brain_instances(checkpoint, args.n_random, args.n_permuted, args.n_frozen)
+    instances = build_brain_instances(checkpoint, args.n_random, args.n_permuted, args.n_frozen, args.n_remapped)
     world_seeds = [args.world_seed_base + i for i in range(args.worlds)]
 
     # Incremental per-run results, so a crash mid-sweep never loses finished
@@ -606,7 +637,8 @@ def main() -> None:
             "places": args.places, "harshness": args.harshness,
             "start_energy": args.start_energy,
             "n_random": args.n_random, "n_permuted": args.n_permuted,
-            "n_frozen": args.n_frozen, "world_refresh_every": args.world_refresh_every,
+            "n_frozen": args.n_frozen, "n_remapped": args.n_remapped,
+            "world_refresh_every": args.world_refresh_every,
         },
         "summary": summary,
         "contrasts": contrasts,
