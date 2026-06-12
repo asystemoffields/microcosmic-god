@@ -9,7 +9,7 @@ current state.
 
 ---
 
-## 2026-06-12 ~22:30 — LAUNCH CORRECTION: tonight's pushes were silently dropped; trickle-launcher armed
+## 2026-06-12 14:45 — LAUNCH CORRECTION: tonight's pushes were silently dropped; trickle-launcher armed
 
 The ~21:25 entry was wrong: none of the four kernels materialized. Browser
 check (cb harness → kaggle.com/work) shows the account's 5 CPU batch slots
@@ -31,9 +31,9 @@ the launcher logs the materialized names; collect each via
 `kaggle kernels output asystemoffields/<slug> -p kaggle/results/<slug>`).
 Decision rule unchanged (entry below).
 
-## 2026-06-12 ~21:25 — era-2 validation kernels UP (3/4; baseline queued on the slot cap)
+## 2026-06-12 ~14:20 — era-2 validation kernels UP (3/4; baseline queued on the slot cap)
 
-RUNNING on Kaggle, land ~22:15: **mg-era2v-s341 / -s44 / -s45** (k=1, drive
+RUNNING on Kaggle (so it was believed; see the correction above): **mg-era2v-s341 / -s44 / -s45** (k=1, drive
 1.0, h1.6, r1500, modular 0.5, max-blocks 3, rate 0.30, grace 150/0.35,
 wall 2700s, drift OFF — era 2.0). **mg-era2b-s341** (k=0 baseline, same
 otherwise) hit the 5-slot cap; a local watcher re-pushes it as a slot
@@ -49,7 +49,7 @@ boot ≥2/3 AND tax profile holds → Stage 1 6-h tier (5 kernels: k=1 seeds
 PARK per scale discipline, diagnose the failing seed's trajectory first
 (grace extension or window-scale arm are the pre-registered fallbacks).
 
-## 2026-06-12 ~21:10 — ERA 2 LANDED: suite green (98+3), smoke clean, P-E1 already visible
+## 2026-06-12 14:13 — ERA 2 LANDED: suite green (98+3), smoke clean, P-E1 already visible
 
 Surgery complete per docs/ENV_AXIS_REVIEW.md. Verification:
 - **Tests: 101 total, 98 pass, 3 skip** (torch parity, no torch). Suite
@@ -86,7 +86,7 @@ NEXT: era-2 validation kernels (Stage 0.5 protocol — 45 min, h1.6 campaign
 config, k=1/drive 1.0, seeds 341/44/45 + a k=0 baseline s341, drift OFF),
 then if boot ≥2/3 and the tax profile holds → Stage 1 6-h tier overnight.
 
-## 2026-06-12 ~19:40 — era-2 surgery IN PROGRESS (checkpoint note; not yet green)
+## 2026-06-12 ~13:45 — era-2 surgery IN PROGRESS (checkpoint note; not yet green)
 
 Tag `era1-full-env` = afaf18e marks the last full-env commit. Done so far:
 - config.py: 4 new knobs (tap_cue_threshold/0.45, tap_cue_drift/0,
@@ -119,7 +119,7 @@ Tag `era1-full-env` = afaf18e marks the last full-env commit. Done so far:
   green commit. Pass-11 residual data migration (separate stream) is
   finishing on runs/ (12 files left).
 
-## 2026-06-12 ~18:40 — ENV-AXIS REVIEW LANDED: era 2 decided (docs/ENV_AXIS_REVIEW.md)
+## 2026-06-12 13:28 — ENV-AXIS REVIEW LANDED: era 2 decided (docs/ENV_AXIS_REVIEW.md)
 
 Both mapping agents returned; full maps saved at docs/review/ACTION_MAP.md
 and docs/review/SHAPING_MAP.md; synthesis + pre-registered cut list + era-2
@@ -151,7 +151,7 @@ design at **docs/ENV_AXIS_REVIEW.md**. The short of it:
 Surgery next (this session): one coherent era-2 commit, tests green, smoke,
 then Stage 0.5-protocol validation on Kaggle before any 6-h tier.
 
-## 2026-06-12 ~17:50 — env-axis review: direct lever read DONE (notes before synthesis)
+## 2026-06-12 ~13:15 — env-axis review: direct lever read DONE (notes before synthesis)
 
 Alex granted full freedom to reshape the project into whatever delivers the
 goal (portable perception-coupled controller → extract → Catch + a second
@@ -207,7 +207,7 @@ perception demand must be installed at the same time — cue-dependent payoffs
 on the staple energy actions (the A4 lever), reading the existing resource/
 physics channels. Otherwise k=1 on the trimmed env selects for nothing.
 
-## 2026-06-12 ~17:30 — s45b collected: boot 2/3 at h1.6, Stage 0.5 CLOSED; env-axis review begins
+## 2026-06-12 ~13:10 — s45b collected: boot 2/3 at h1.6, Stage 0.5 CLOSED; env-axis review begins
 
 Collected mg-percept-v-s45b (campaign config, k=1/drive 1.0, wall 2700s).
 **s45 boots, and cleanest of the three**: neural 80 → 582@t1000 → plateau
