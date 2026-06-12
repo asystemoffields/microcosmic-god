@@ -10,7 +10,7 @@ current state.
 
 ## 2026-06-12 ~13:00 — scrub pass 10 done; NEXT TASK = env review against the transfer axis
 
-**Pourquoi the interruption:** a session was switched off this work mid-read on
+**Why the interruption:** a session was switched off this work mid-read on
 one handler in `simulation.py` — an inter-individual energy-transfer interaction
 whose internal framing had accumulated a shape that reads, out of context, as a
 contest scene (a resemblance-class trip, not any single word). An earlier pass
