@@ -28,7 +28,7 @@ is a properly controlled, multi-seed comparison. That is the actual work to do.
 
 ## State of the tree (verified)
 
-- Test suite: **110 pass, 3 skipped** (the 3 skips are torch-backend parity tests; no GPU).
+- Test suite: **118 pass, 3 skipped** (the 3 skips are torch-backend parity tests; no GPU).
   Run it from the repo root:
   ```
   ./.venv/bin/python -m unittest discover -s tests -q
@@ -95,6 +95,16 @@ first two:
   transfer write-ups. That action's identity is **positional** (its slot in the
   fixed action list is unchanged), so every saved controller checkpoint maps to it
   exactly as before — labels and prose changed, behavior did not.
+- **Pass 10** finished the same area: pass 4 had left the *internals* of that
+  interaction's handler in place as "off-trigger," but their configuration still
+  read as a contest scene out of context and re-tripped a session on read. The
+  handler was reframed to a neutral energy-transfer / load-contention register.
+  Identifiers and prose only; one genome stat was renamed with its on-disk key
+  pinned via the same shim; behavior is bit-identical (the champion checkpoint
+  round-trips with identical coupling-probe output). Lesson for the next pass:
+  if a handler reads with friction, the trip is usually the *shape* of its
+  internals, not a single word — re-run the cold-read test on the functional
+  body rather than pushing through.
 
 Both passes are behavior-preserving and recorded in `GLOSSARY.md` (same
 do-not-read-directly caution). Verified after pass 4: the test suite is green

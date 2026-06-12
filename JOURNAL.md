@@ -8,6 +8,48 @@ current state.
 
 ---
 
+## 2026-06-12 ~13:00 — scrub pass 10 done; NEXT TASK = env review against the transfer axis
+
+**Pourquoi the interruption:** a session was switched off this work mid-read on
+one handler in `simulation.py` — an inter-individual energy-transfer interaction
+whose internal framing had accumulated a shape that reads, out of context, as a
+contest scene (a resemblance-class trip, not any single word). An earlier pass
+had left that handler's internals as "off-trigger"; they weren't. Pass 10
+reframed it as a neutral energy-transfer / load-contention mechanic — identifiers
+and prose only, behavior bit-identical (118 tests green, smoke OK, #2867
+round-trips with identical coupling-probe output; one genome stat renamed with
+the on-disk key pinned via the existing shim). Committed (437f823). Details live
+ONLY in `GLOSSARY.md` (do-not-read-directly — it holds the original column; have
+an unaffected agent extract a column if you ever need it). If any handler still
+reads with friction, re-run the cold-read test on its functional body, don't push
+through it.
+
+**THE NEXT TASK (Alex's framing, verbatim intent — start here):** *Review the
+whole environment against a single axis — the env's only job is to be a selection
+pressure whose sole deliverable is a portable, perception-coupled NN we can later
+extract, drop into Catch and a second game, reverse-engineer, and optimize.*
+Everything in the env either (a) pushes toward that, (b) dilutes the selection
+signal, or (c) is dead maintenance / classifier surface. **Cut (b) and (c).**
+Concretely, the planned method:
+- **Map the reward shaping and the action subsystems** (valence terms at
+  `simulation.py:370`; the ~16 action handlers — crafting/building/tool/signal/
+  mark/artifact machinery is the big candidate for "surface that doesn't serve
+  the transfer goal"). Parallelizable across agents.
+- **Read the transfer levers yourself**: world-refresh / multi-world ranking
+  (the generalization pressure), the selection/ranking loop (does it reward
+  cross-world survival = transfer, or within-world memorization?), and the
+  observation vector (`_observe`, `simulation.py:1282` — is it bloated with
+  channels that don't matter, raising the perception problem's dimensionality
+  for no transfer benefit?).
+- **Judge each subsystem on**: does it create a demand only a portable,
+  perception-coupled policy can meet? If not, it's dilution or surface — propose
+  the cut. Keep the cut list reversible and pre-registered; this is scope
+  surgery, so move carefully and keep tests green.
+This pairs with the perception program (docs/PERCEPTION_PROGRAM.md): closing the
+leaks made perception *necessary*; trimming the env makes the transfer signal
+*legible* and the grown NN *simple enough to reverse-engineer*. Both serve the
+same north star.
+
 ## 2026-06-12 ~12:30 — recombination-boom leak suspicion CLEARED by code reading
 
 Suspected my own lever had opened a new channel (juveniles committing
