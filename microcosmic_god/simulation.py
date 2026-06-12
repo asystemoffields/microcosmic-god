@@ -106,6 +106,7 @@ class Simulation:
         self.reproduction_failures: Counter[str] = Counter()
         self.action_counts: Counter[str] = Counter()
         self.action_energy_delta: Counter[str] = Counter()
+        self.infeasible_commits: Counter[str] = Counter()
         self.aggregate_history: list[dict[str, Any]] = []
         self.interventions_applied: list[dict[str, Any]] = []
         self.demonstrations: dict[int, list[tuple[int, str, bool]]] = defaultdict(list)
@@ -1362,8 +1363,9 @@ class Simulation:
         if self.rng.random() < exploration:
             return self.rng.choice(ACTIONS)
         energy_ratio = individual.energy / max(1.0, individual.storage_limit())
-        if individual.adult() and energy_ratio > 0.62:
-            reproductive_drive = individual.params.valence_reproduction * (energy_ratio - 0.62)
+        drive_scale = float(getattr(self.config, "drive_injection_scale", 1.0))
+        if drive_scale > 0.0 and individual.adult() and energy_ratio > 0.62:
+            reproductive_drive = individual.params.valence_reproduction * (energy_ratio - 0.62) * drive_scale
             outputs[ACTION_INDEX["coordinate"]] += reproductive_drive * (0.9 + individual.params.pairing_selectivity)
             outputs[ACTION_INDEX["clone_mutate"]] += reproductive_drive * (0.7 + (1.0 - individual.params.pairing_selectivity) * 0.4)
         ranked = sorted(range(len(outputs)), key=lambda i: outputs[i], reverse=True)
@@ -1380,7 +1382,9 @@ class Simulation:
         # an infeasible attempt with a small energy cost (the exploration branch
         # relies on this), so a wrong ranking wastes the tick instead of falling
         # through to a free feasibility oracle.
-        return ACTIONS[ranked[0]]
+        committed = ACTIONS[ranked[0]]
+        self.infeasible_commits[committed] += 1
+        return committed
 
     def _action_feasible(self, individual: Individual, action: str) -> bool:
         if action in {"coordinate", "clone_mutate"} and not individual.adult():
@@ -3581,6 +3585,7 @@ class Simulation:
             "reproduction_attempts": dict(self.reproduction_attempts),
             "reproduction_failures": dict(self.reproduction_failures),
             "action_counts": dict(self.action_counts),
+            "infeasible_commits": dict(self.infeasible_commits),
             "action_energy_delta": {key: round(value, 5) for key, value in self.action_energy_delta.items()},
             "action_avg_energy_delta": {
                 key: round(self.action_energy_delta[key] / max(1, self.action_counts[key]), 5)

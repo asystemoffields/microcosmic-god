@@ -80,6 +80,14 @@ class RunConfig:
     # the search entirely: the policy must rank a currently-executable action
     # first, which it can only do by reading state — i.e. perception must pay.
     action_search_depth: int = 0
+    # Scale on the harness-side output boost for coordinate/clone_mutate when an
+    # individual is adult and energy-rich. This is the second free-state channel
+    # (after the feasibility walk): it conditions reproduction timing on state
+    # the controller never has to perceive — it is what gave the #2867 champion
+    # its realized energy-conditional behavior despite a constant ranking
+    # (docs/TRANSFER_BARRIER.md). 1.0 = legacy; 0.0 removes the injection so
+    # reproduction timing must come from the controller's own outputs.
+    drive_injection_scale: float = 1.0
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

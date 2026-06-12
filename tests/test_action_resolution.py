@@ -13,7 +13,7 @@ class _NoExploration:
 
 
 def _sim(**overrides) -> Simulation:
-    config = RunConfig.from_profile("smoke", **overrides)
+    config = RunConfig.from_profile("smoke", output_dir="/tmp/mcg_test_runs", **overrides)
     sim = Simulation(config)
     sim.rng = _NoExploration()
     return sim
@@ -62,6 +62,44 @@ class ActionSearchDepthTest(unittest.TestCase):
             _juvenile(), _outputs("clone_mutate", "coordinate", "rest")
         )
         self.assertEqual(action, "clone_mutate")
+
+    def test_commit_increments_infeasible_counter(self):
+        sim = _sim(action_search_depth=1)
+        self.assertEqual(sum(sim.infeasible_commits.values()), 0)
+        sim._choose_action_from_outputs(_juvenile(), _outputs("clone_mutate", "rest"))
+        self.assertEqual(sim.infeasible_commits["clone_mutate"], 1)
+        sim._choose_action_from_outputs(_juvenile(), _outputs("rest", "clone_mutate"))
+        self.assertEqual(sum(sim.infeasible_commits.values()), 1)
+
+
+def _rich_adult():
+    individual = _juvenile()
+    individual.age = 100  # adult
+    individual.energy = individual.storage_limit()  # energy ratio 1.0 > 0.62
+    individual.params.valence_reproduction = 1.0
+    return individual
+
+
+def _flat_outputs_with_small_rest_lead() -> list[float]:
+    # The injection is additive and small (~0.3-0.7 for a saturated adult), so
+    # the controller's own preference must be of comparable size for the test
+    # to discriminate.
+    outputs = [0.0] * len(ACTIONS)
+    outputs[ACTION_INDEX["rest"]] = 0.05
+    return outputs
+
+
+class DriveInjectionScaleTest(unittest.TestCase):
+    def test_legacy_default_injects_drive(self):
+        sim = _sim()
+        self.assertEqual(sim.config.drive_injection_scale, 1.0)
+        action = sim._choose_action_from_outputs(_rich_adult(), _flat_outputs_with_small_rest_lead())
+        self.assertIn(action, ("coordinate", "clone_mutate"))
+
+    def test_zero_scale_leaves_controller_outputs_alone(self):
+        sim = _sim(drive_injection_scale=0.0)
+        action = sim._choose_action_from_outputs(_rich_adult(), _flat_outputs_with_small_rest_lead())
+        self.assertEqual(action, "rest")
 
 
 if __name__ == "__main__":

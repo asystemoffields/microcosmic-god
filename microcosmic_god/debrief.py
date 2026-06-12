@@ -171,6 +171,7 @@ def build_debrief(sim: Any, reason: str, elapsed_seconds: float) -> dict[str, An
         "reproduction_failures": dict(sim.reproduction_failures),
         "evolution_policy": sim.optimization.to_summary(),
         "action_counts": dict(sim.action_counts),
+        "infeasible_commits": dict(getattr(sim, "infeasible_commits", {})),
         "action_energy_delta": {key: round(value, 6) for key, value in sim.action_energy_delta.items()},
         "action_avg_energy_delta": {
             key: round(sim.action_energy_delta[key] / max(1, sim.action_counts[key]), 6)
