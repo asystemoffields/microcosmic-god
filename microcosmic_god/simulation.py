@@ -1367,11 +1367,20 @@ class Simulation:
             outputs[ACTION_INDEX["coordinate"]] += reproductive_drive * (0.9 + individual.params.pairing_selectivity)
             outputs[ACTION_INDEX["clone_mutate"]] += reproductive_drive * (0.7 + (1.0 - individual.params.pairing_selectivity) * 0.4)
         ranked = sorted(range(len(outputs)), key=lambda i: outputs[i], reverse=True)
-        for index in ranked:
+        depth = int(getattr(self.config, "action_search_depth", 0))
+        search = ranked if depth <= 0 else ranked[:depth]
+        for index in search:
             action = ACTIONS[index]
             if self._action_feasible(individual, action):
                 return action
-        return "rest"
+        if depth <= 0:
+            return "rest"
+        # Bounded search exhausted: commit to the top-ranked action anyway and
+        # let the action handlers adjudicate it — every handler already no-ops
+        # an infeasible attempt with a small energy cost (the exploration branch
+        # relies on this), so a wrong ranking wastes the tick instead of falling
+        # through to a free feasibility oracle.
+        return ACTIONS[ranked[0]]
 
     def _action_feasible(self, individual: Individual, action: str) -> bool:
         if action in {"coordinate", "clone_mutate"} and not individual.adult():

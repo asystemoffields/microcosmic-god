@@ -99,6 +99,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="0 = fixed recovery window (predictable); 1 = same-mean exponential draw (scrambled control)",
     )
+    run.add_argument(
+        "--action-search-depth",
+        dest="action_search_depth",
+        type=int,
+        default=None,
+        help="check only the top-k ranked actions for feasibility; past k the individual commits to its top choice and infeasible attempts no-op with an energy cost (0 = legacy full walk)",
+    )
     run.add_argument("--backend", choices=["cpu", "torch"], default=None, help="controller compute backend")
     run.add_argument("--device", default=None, help="compute device for --backend torch, such as auto, cpu, cuda, or cuda:0")
     run.add_argument("--garden", action="store_true", help="allow logged interventions")
@@ -137,6 +144,7 @@ def config_from_args(args: argparse.Namespace) -> RunConfig:
         "patch_recovery_ticks": args.patch_recovery_ticks,
         "patch_recovery_floor": args.patch_recovery_floor,
         "patch_recovery_jitter": args.patch_recovery_jitter,
+        "action_search_depth": args.action_search_depth,
         "compute_backend": args.backend,
         "device": args.device,
         "run_mode": "garden" if args.garden else "sealed",

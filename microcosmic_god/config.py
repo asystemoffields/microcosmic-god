@@ -68,6 +68,18 @@ class RunConfig:
     patch_recovery_ticks: int = 0
     patch_recovery_floor: float = 0.0
     patch_recovery_jitter: float = 0.0
+    # Action-resolution search depth. Legacy behavior (0) walks the controller's
+    # full ranked action list and executes the first FEASIBLE action — the world
+    # silently filters by feasibility, so a fixed priority ordering plus this
+    # walk is already a context-sensitive policy with the context supplied free
+    # by the harness (docs/TRANSFER_BARRIER.md: this is the leak that let the
+    # #2867 champion be a blind priority program). When k>=1, only the top-k
+    # ranked actions are checked for feasibility; if none is feasible the
+    # individual commits to its top-ranked choice and the world adjudicates
+    # it (an infeasible action no-ops while upkeep still drains). k=1 removes
+    # the search entirely: the policy must rank a currently-executable action
+    # first, which it can only do by reading state — i.e. perception must pay.
+    action_search_depth: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
