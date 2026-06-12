@@ -9,6 +9,38 @@ current state.
 
 ---
 
+## 2026-06-12 ~18:40 — ENV-AXIS REVIEW LANDED: era 2 decided (docs/ENV_AXIS_REVIEW.md)
+
+Both mapping agents returned; full maps saved at docs/review/ACTION_MAP.md
+and docs/review/SHAPING_MAP.md; synthesis + pre-registered cut list + era-2
+design at **docs/ENV_AXIS_REVIEW.md**. The short of it:
+
+- Diagnosis unified: four harness-subsidy levels. k and drive gates closed
+  two; the review closes the other two — the **verb/argument split** (the
+  harness picks every action argument and answers every situation question;
+  the policy only emits verbs) and the **gate-blind tax** (83% pooled on
+  use_tool/craft/build/pickup, unobservable gate inputs).
+- Era 2 cuts ~4,200 lines: actions pickup/craft/build/use_tool/mark/observe
+  and their stacks (artifacts/materials, structures+decay, marks chain,
+  causal challenges, skill table, collaboration, planning amplifier,
+  place-memory move steering, motive telemetry). Keeps the lean core:
+  eat/absorb_solar/rest/move/forage/drain/signal + spawning + physics +
+  refresh + the whole controller substrate + instruments.
+- Adds **tap** + the **cue contract**: gate-free reserve release keyed to an
+  observable cue channel (era 2.0 fixed cue; era 2.1 the cue channel
+  identity re-draws per world refresh — selects for in-lifetime re-mapping,
+  which is the *general* competence per Alex's bar: pocketknife, not
+  wrench; Catch-only transfer = no-go).
+- Champion metrics re-aimed (fit RATE, tap discrimination; accumulation
+  demoted), partner score de-accumulated, two new legacy-default knobs
+  (combine_intent_window_scale, exploration_floor), obs 72→70, actions
+  15→10. Predictions P-E1..E5 pre-registered in the review doc.
+- Reversibility: tag `era1-full-env` goes on the last era-1 commit before
+  surgery. Probes are era-agnostic (sizes read from checkpoints).
+
+Surgery next (this session): one coherent era-2 commit, tests green, smoke,
+then Stage 0.5-protocol validation on Kaggle before any 6-h tier.
+
 ## 2026-06-12 ~17:50 — env-axis review: direct lever read DONE (notes before synthesis)
 
 Alex granted full freedom to reshape the project into whatever delivers the
