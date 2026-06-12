@@ -45,6 +45,43 @@ baseline. None of these gaps is first-order for boot viability. If a gap
 proves binding, batch all channel additions into one schema change at a
 new-era boundary and keep the old branch for legacy probes.
 
+## Requirement B½ — the controllers must be able to *grow* what perception needs
+
+Audit of the substrate side (modular.py / brain.py), 2026-06-12:
+
+**Set up well:**
+- **Every tensor on the perception path is evolvable.** `clone_for_offspring`
+  perturbs the per-group encoders (W and b), each block's `token_mix`,
+  `weights_in`, the wiring matrix, and message weights — nothing between
+  observation and action is frozen.
+- **Typed group attention exists per block.** `token_mix` is a softmax over
+  observation groups, so a block can specialize onto exactly the groups the
+  feasibility gates read (occupancy, inventory, own-params). This is also the
+  natural substrate for typed interface contracts later (R2/R3).
+- **Capacity growth is function-preserving and subsidized.** add_block joins
+  with a zero output gate (listens before it speaks), duplicate_block halves
+  gates exactly; the grace subsidy opens the growth corridor. If perception
+  needs more capacity, the path there has no fitness valley.
+- **Lifetime plasticity reaches `weights_in`** (the learn path updates it from
+  the pooled-input trace) and `plasticity_scale` is per-block and evolvable —
+  fast re-mapping machinery can evolve if it ever pays.
+
+**Two deck-stackings to watch (not blockers — biases):**
+1. **Attractor-tilted dynamics.** Block drive is
+   `bias + 0.62·prev + (weights_in @ pooled)/√token_dim`: the recurrent term
+   has a fixed 0.62 gain while the input term is √-attenuated (TinyController
+   has the same shape with √input_size ≈ ÷8). This is precisely the geometry
+   in which #2867 found attractor encoding cheaper than perception. Mutation
+   can compensate (weights clip at ±4) but the path of least resistance is
+   internal dynamics. **Trigger:** if Stage 1 coupling stays pinned at the
+   #2867 floor despite k=1 pressure and healthy populations, the minimal
+   intervention is an evolvable per-block input gain (scalar, init 1.0 =
+   legacy, serialization-compatible via tolerant from_dict) — symmetric to
+   `out_gate`.
+2. **`token_dim` is fixed at construction** — blocks can multiply but encoder
+   bandwidth per group cannot widen. Deeper surgery; deferred unless evidence
+   points specifically at encoder bandwidth rather than coupling.
+
 ## Requirement C — we must be able to *see* it happening
 
 Built today, both validated:
