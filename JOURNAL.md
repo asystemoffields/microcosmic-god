@@ -9,6 +9,82 @@ current state.
 
 ---
 
+## 2026-06-12 ~17:50 — env-axis review: direct lever read DONE (notes before synthesis)
+
+Alex granted full freedom to reshape the project into whatever delivers the
+goal (portable perception-coupled controller → extract → Catch + a second
+game → reverse-engineer), keeping all surfaces in the plain register. Cuts
+will therefore be TRUE REMOVAL (new era, old era kept reachable via git tag),
+not config gates. Two mapping agents are out (action subsystem; reward
+shaping); migration agent fixing a pass-11 residual (~270 result files under
+runs/ + kaggle/results/ still carry the old key for `drain` and old
+death-cause filenames — missed key family).
+
+My own read of the transfer levers (the part not delegated), findings:
+
+1. **Selection is purely in-world survival + spawning.** optimization.py is
+   variation only (clone_perturb/combine planning); no external ranking, no
+   explicit cross-world score. Generalization pressure exists ONLY via
+   refresh-survival.
+2. **The refresh (simulation.py:118) persists structures/signals/marks/
+   materials across refreshes.** Physics, obstacles, causal challenges, and
+   place memory are invalidated; accumulated artifacts are not. So
+   accumulation strategies compound straight through the generalization
+   probe while perception-dependent knowledge is wiped — backwards for the
+   axis. (Resource persistence is intended and stays: prevents free
+   re-supply.)
+3. **`_partner_score` (simulation.py:2797) is a scripted oracle inside the
+   spawning currency**: candidates ranked by health/energy/mobility/
+   manipulator/skill-breadth/child-count — a hand-written quality function,
+   not anything the chooser perceives. Crafting skill gets a 0.10 weight
+   inside reproduction itself. A3-family (world-side targeting).
+4. **Third ungated chooser bypass: the exploration floor**
+   (`_choose_action_from_outputs`, 0.025 + plasticity·0.055 +
+   perturbation_rate·0.25 random action). It is load-bearing for discovery
+   but is also how blind policies collect tool/craft successes.
+5. **Observation = 72 channels** (42 base + 8 trace + 6 prediction heads +
+   8 event memory + 8 signal values). Gate inputs missing: artifact count,
+   collective materials (craft/use_tool/build) — confirmed at
+   `_action_feasible` (1389). Several channels exist only for subsystems
+   under cut review (best_skill, signal_values, tool/social trace+memory).
+6. **Extraction interface is era-robust**: probes and the Catch notebook
+   read input/output sizes from the checkpoint itself; only
+   probe_worlds.py:574 (hard OBSERVATION_SIZE assert) and two hard-coded
+   72/15 constants in Catch control arms need parametrizing for a new era.
+7. **Empirical action economics** (landed runs): absorb_solar ~68% of all
+   actions (collector-scripted), eat ~20%; drain is gate-free, world-targeted
+   and the 2nd-most profitable action per call (+0.68..+1.09 avg dE) = a
+   blind-profitable constant action (A4 offender) AND the pass-10 friction
+   site. craft/build/use_tool/pickup sum to ~1% of actions yet carry ~78% of
+   the k=1 infeasible tax.
+
+Design insight for the synthesis: **the cut and the Stage-2 cue feature are
+two halves of one move.** Removing the gate-blind subsystems removes the
+unwinnable tax; remaining gates (adult, mobility) are thin, so a winnable
+perception demand must be installed at the same time — cue-dependent payoffs
+on the staple energy actions (the A4 lever), reading the existing resource/
+physics channels. Otherwise k=1 on the trimmed env selects for nothing.
+
+## 2026-06-12 ~17:30 — s45b collected: boot 2/3 at h1.6, Stage 0.5 CLOSED; env-axis review begins
+
+Collected mg-percept-v-s45b (campaign config, k=1/drive 1.0, wall 2700s).
+**s45 boots, and cleanest of the three**: neural 80 → 582@t1000 → plateau
+~500 → rides through the t1500 world refresh → 763@t2500 → 793 at wall,
+stable (no s44-style overshoot crash). First evidence a k=1 pool survives a
+refresh boundary. Stage 0.5 final: **boot at h1.6 is 2/3** (s44 overshoot
+boot, s45 clean boot, s341 fail). Updated table + verdict in
+docs/PERCEPTION_PROGRAM.md.
+
+Tax profile confirms the cross-link a third time: infeasible commits 73,166,
+of which use_tool 20.3k / craft 20.1k / build 11.3k / pickup 5.1k — the
+gate-blind share is 78%; coordinate (observable gate, the legitimate
+pressure) is 21%. Three seeds, one pattern: under k=1 the crafting/tool/
+build/artifact subsystem is an unwinnable tax, not a perception question.
+
+**Now starting the held task: the env-axis review** (method in the entry two
+below; deliverable docs/ENV_AXIS_REVIEW.md + reversible pre-registered cut
+list). Stage 1 stays held until it lands.
+
 ## 2026-06-12 ~16:30 — full vocabulary neutralization (pass 11): every readable surface + on-disk format
 
 A session was switched mid-read again, localized to the reward-shaping +

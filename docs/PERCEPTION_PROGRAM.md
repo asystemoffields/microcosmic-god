@@ -166,14 +166,21 @@ contention; aggregates every 100 ticks):
 
 ## Stage 0.5 readout (2026-06-12, Kaggle, campaign config h1.6, k=1/drive 1.0, wall 2700s)
 
-Two seeds landed (s341, s44); the third (s45) hit the concurrency cap and was
-re-pushed as `mg-percept-v-s45b` (in flight). **Boot at h1.6 is SPLIT 1/2 —
-seed-contingent, not robust.**
+All three seeds landed (s45 hit the concurrency cap and was re-pushed as
+`mg-percept-v-s45b`). **Final verdict: boot at h1.6 is 2/3 — viable but
+seed-contingent.**
 
 | Seed | end tick | neural trajectory | combine births | infeasible total | top infeasible |
 |------|----------|-------------------|------------------|------------------|----------------|
 | 341 | 7100 (2.67 t/s) | 71@t100 → 3@t1300 → 9@t7100; modular cohort gone by t900 | 4 | 5,241 (flat after t3700) | use_tool 2446, pickup 971, craft 682 |
 | 44 | 3700 (1.4 t/s) | 80 → 39@t300 → ~100 plateau → 1087@t2500 → 387@t3700 (declining) | 3,482 | 175,846 | use_tool 104k, craft 41k, coordinate 21k |
+| 45 | 2767 (1.0 t/s) | 80 → dip 71@t300 → 582@t1000 → plateau ~500 through refresh@t1500 → 763@t2500 → 793 at wall (stable) | 3,630 | 73,166 | use_tool 20.3k, craft 20.1k, coordinate 15.3k, build 11.3k |
+
+- **s45 is the cleanest boot of the three**: a steady climb instead of s44's
+  overshoot, and the pool rides *through* the t1500 world refresh (472 → 420
+  dip → recovery to 763) — first evidence the k=1 pool survives a refresh
+  boundary rather than booming once and crashing. Deaths still
+  depletion-dominated (4,474) but balanced by sustained pairing.
 
 - **s44 spawns the Stage 0 pattern at h1.6**: the same pairing-driven
   pool rise (combine 3,482), followed here by overshoot — deaths
@@ -186,26 +193,28 @@ seed-contingent, not robust.**
   (collector/converter) stands throughout — this is a neural-cohort failure, not a
   world failure.
 - **The infeasible-commit tax concentrates on gates the observation vector
-  cannot express.** In both seeds the top payers are use_tool / craft / build /
-  pickup — exactly the actions whose gate inputs (artifact count, collective
-  material count) are listed above as Requirement-B observation gaps. Under
-  k=1 these are taxes no perception can learn to avoid: an unwinnable
-  component of the pressure. (coordinate's 21k in s44 is the legitimate
-  target — its gate inputs are observable.) This independently corroborates
-  the env-review suspicion that the crafting/tool/build/artifact subsystem is
-  dilution for the transfer goal; see `docs/ENV_AXIS_REVIEW.md`.
-- **Decision-rule outcome:** neither clean branch fires. Boot is possible but
-  fragile at h1.6 (1/2, tiebreaker pending). Stage 1 launch is held pending
-  the env-axis review, since the same actions that tax marginal seeds are the
-  review's prime cut candidates — cutting them is plausibly the boot fix the
-  PARK path (k=3 anneal / grace extension) would otherwise approximate.
+  cannot express.** In all three seeds the top payers are use_tool / craft /
+  build / pickup — exactly the actions whose gate inputs (artifact count,
+  collective material count) are listed above as Requirement-B observation
+  gaps. In s45 the gate-blind share is 78% (56,777 of 73,166). Under k=1
+  these are taxes no perception can learn to avoid: an unwinnable component
+  of the pressure. (coordinate — 21k in s44, 15.3k in s45 — is the
+  legitimate target; its gate inputs are observable.) This independently
+  corroborates the env-review suspicion that the crafting/tool/build/artifact
+  subsystem is dilution for the transfer goal; see `docs/ENV_AXIS_REVIEW.md`.
+- **Decision-rule outcome:** boot at h1.6 is 2/3 — sufficient to proceed, but
+  the failure mode (s341) and the dominant tax are both pinned on the same
+  subsystem the env review targets. Stage 1 stays held until the review
+  lands: if the cut list removes the gate-blind actions, Stage 1 runs on the
+  trimmed env with fresh baselines rather than burning 5×6h on an env about
+  to change.
 
 ## Staging
 
 - **Stage 0** — this pre-flight (boot + counters). Local, short. **Done;
   readout above.**
-- **Stage 0.5** — Kaggle validation at h1.6, campaign config. **Done (split
-  verdict; readout above); s45 tiebreaker in flight.**
+- **Stage 0.5** — Kaggle validation at h1.6, campaign config. **Done; boot
+  2/3 (readout above).**
 - **Stage 1** — Kaggle 6-h tier at the validated campaign config (mixed boot
   0.5, r1500, h1.6, rate 0.30, max-blocks 3, grace 150/0.35) × **{k=1,
   drive 1.0}** (Stage 0 showed drive 0 does not boot at any k and its removal
