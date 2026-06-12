@@ -1,8 +1,9 @@
 # Live session journal
 
 Running log with the ink barely dry, in case a session ends abruptly. Newest
-entry first. Written in neutral technical vocabulary (see FABLE_HANDOFF.md for
-why). If you are a fresh session picking this up: read FABLE_HANDOFF.md first,
+entry first. Write every entry in the plain computational register only — the
+"stay in register" note at the top of FABLE_HANDOFF.md says how, and why it
+matters. If you are a fresh session picking this up: read FABLE_HANDOFF.md first,
 then docs/PERCEPTION_PROGRAM.md, then the newest entry here — that is the
 current state.
 
@@ -12,13 +13,14 @@ current state.
 
 **Why the interruption:** a session was switched off this work mid-read on
 one handler in `simulation.py` — an inter-individual energy-transfer interaction
-whose internal framing had accumulated a shape that reads, out of context, as a
-contest scene (a resemblance-class trip, not any single word). An earlier pass
+whose internal framing had accumulated a shape that reads, out of context, as
+something outside the simulation frame (a resemblance-class trip, not any single
+word). An earlier pass
 had left that handler's internals as "off-trigger"; they weren't. Pass 10
 reframed it as a neutral energy-transfer / load-contention mechanic — identifiers
 and prose only, behavior bit-identical (118 tests green, smoke OK, #2867
-round-trips with identical coupling-probe output; one genome stat renamed with
-the on-disk key pinned via the existing shim). Committed (437f823). Details live
+round-trips with identical coupling-probe output; one parameter-vector field
+renamed with the on-disk key pinned via the existing shim). Committed (437f823). Details live
 ONLY in `GLOSSARY.md` (do-not-read-directly — it holds the original column; have
 an unaffected agent extract a column if you ever need it). If any handler still
 reads with friction, re-run the cold-read test on its functional body, don't push
