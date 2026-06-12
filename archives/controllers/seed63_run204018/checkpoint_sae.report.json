@@ -2,17 +2,17 @@
   "checkpoint_activations": [
     {
       "active_units": 0,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000008_o466_first_lever_tool_success.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00000008_o466_first_hoist_tool_success.json",
       "top_units": []
     },
     {
       "active_units": 0,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000018_o465_first_craft_tool_success.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00000018_o465_first_craft_tool_success.json",
       "top_units": []
     },
     {
       "active_units": 1,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000028_o483_death_predation.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00000028_o483_death_depletion.json",
       "top_units": [
         {
           "activation": 20.869056701660156,
@@ -22,7 +22,7 @@
     },
     {
       "active_units": 5,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000046_o411_first_contain_tool_success.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00000046_o411_first_encase_tool_success.json",
       "top_units": [
         {
           "activation": 21.198192596435547,
@@ -48,12 +48,12 @@
     },
     {
       "active_units": 0,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000070_o480_death_predation.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00000070_o480_death_depletion.json",
       "top_units": []
     },
     {
       "active_units": 1,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000084_o478_death_predation.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00000084_o478_death_depletion.json",
       "top_units": [
         {
           "activation": 31.51999282836914,
@@ -63,7 +63,7 @@
     },
     {
       "active_units": 1,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000087_o456_death_predation.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00000087_o456_death_depletion.json",
       "top_units": [
         {
           "activation": 3.5971806049346924,
@@ -73,22 +73,22 @@
     },
     {
       "active_units": 0,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000094_o465_first_build_tool_success.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00000094_o465_first_build_tool_success.json",
       "top_units": []
     },
     {
       "active_units": 0,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000100_o444_first_bind_tool_success.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00000100_o444_first_lash_tool_success.json",
       "top_units": []
     },
     {
       "active_units": 0,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000126_o487_first_concentrate_heat_tool_success.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00000126_o487_first_kindle_tool_success.json",
       "top_units": []
     },
     {
       "active_units": 3,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000144_o423_death_starvation.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00000144_o423_death_exhaustion.json",
       "top_units": [
         {
           "activation": 32.45953369140625,
@@ -106,7 +106,7 @@
     },
     {
       "active_units": 3,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000150_o469_death_predation.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00000150_o469_death_depletion.json",
       "top_units": [
         {
           "activation": 4.376317501068115,
@@ -124,7 +124,7 @@
     },
     {
       "active_units": 4,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000153_o473_death_predation.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00000153_o473_death_depletion.json",
       "top_units": [
         {
           "activation": 32.05059814453125,
@@ -146,7 +146,7 @@
     },
     {
       "active_units": 1,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000158_o1601_first_crack_tool_success.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00000158_o1601_first_cleave_tool_success.json",
       "top_units": [
         {
           "activation": 21.950437545776367,
@@ -156,7 +156,7 @@
     },
     {
       "active_units": 2,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000163_o445_death_predation.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00000163_o445_death_depletion.json",
       "top_units": [
         {
           "activation": 0.024761486798524857,
@@ -170,7 +170,7 @@
     },
     {
       "active_units": 2,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000167_o459_death_predation.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00000167_o459_death_depletion.json",
       "top_units": [
         {
           "activation": 1.3951166868209839,
@@ -184,7 +184,7 @@
     },
     {
       "active_units": 1,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000178_o1323_death_predation.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00000178_o1323_death_depletion.json",
       "top_units": [
         {
           "activation": 22.118839263916016,
@@ -194,7 +194,7 @@
     },
     {
       "active_units": 1,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000179_o470_death_predation.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00000179_o470_death_depletion.json",
       "top_units": [
         {
           "activation": 15.44568157196045,
@@ -204,12 +204,12 @@
     },
     {
       "active_units": 0,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00000196_o466_first_filter_tool_success.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00000196_o466_first_winnow_tool_success.json",
       "top_units": []
     },
     {
       "active_units": 1,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001000_o1958_interval_overall_champion.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00001000_o1958_interval_overall_champion.json",
       "top_units": [
         {
           "activation": 12.068099975585938,
@@ -219,7 +219,7 @@
     },
     {
       "active_units": 1,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001000_o3148_interval_reproductive_champion.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00001000_o3148_interval_spawn_champion.json",
       "top_units": [
         {
           "activation": 12.077560424804688,
@@ -229,7 +229,7 @@
     },
     {
       "active_units": 6,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001000_o411_interval_tool_champion.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00001000_o411_interval_tool_champion.json",
       "top_units": [
         {
           "activation": 21.377235412597656,
@@ -255,7 +255,7 @@
     },
     {
       "active_units": 1,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001000_o4186_interval_causal_champion.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00001000_o4186_interval_causal_champion.json",
       "top_units": [
         {
           "activation": 12.236943244934082,
@@ -265,7 +265,7 @@
     },
     {
       "active_units": 1,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001000_o4564_interval_lineage_founder.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00001000_o4564_interval_line_founder.json",
       "top_units": [
         {
           "activation": 21.96034049987793,
@@ -275,7 +275,7 @@
     },
     {
       "active_units": 1,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001000_o463_interval_learner_champion.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00001000_o463_interval_learner_champion.json",
       "top_units": [
         {
           "activation": 0.5968932509422302,
@@ -285,7 +285,7 @@
     },
     {
       "active_units": 1,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001689_o1958_final_overall_champion.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00001689_o1958_final_overall_champion.json",
       "top_units": [
         {
           "activation": 12.341972351074219,
@@ -295,7 +295,7 @@
     },
     {
       "active_units": 1,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001689_o3174_final_learner_champion.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00001689_o3174_final_learner_champion.json",
       "top_units": [
         {
           "activation": 0.5846202373504639,
@@ -305,7 +305,7 @@
     },
     {
       "active_units": 1,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001689_o3875_final_tool_champion.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00001689_o3875_final_tool_champion.json",
       "top_units": [
         {
           "activation": 12.146434783935547,
@@ -315,7 +315,7 @@
     },
     {
       "active_units": 1,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001689_o5686_final_reproductive_champion.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00001689_o5686_final_spawn_champion.json",
       "top_units": [
         {
           "activation": 12.760252952575684,
@@ -325,7 +325,7 @@
     },
     {
       "active_units": 1,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001689_o6677_final_causal_champion.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00001689_o6677_final_causal_champion.json",
       "top_units": [
         {
           "activation": 12.901657104492188,
@@ -335,7 +335,7 @@
     },
     {
       "active_units": 1,
-      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\brain_t00001689_o9669_final_lineage_founder.json",
+      "file": "runs\\20260501_204018_seed63_minute\\checkpoints\\controller_t00001689_o9669_final_line_founder.json",
       "top_units": [
         {
           "activation": 12.745843887329102,

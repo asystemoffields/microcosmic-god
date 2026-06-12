@@ -16,7 +16,7 @@
     "last_valence": 0.185019,
     "lesson_memory": [
       {
-        "affordance": "contain",
+        "affordance": "encase",
         "gain": 1.216073,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -25,7 +25,7 @@
           "kind": "obstacle",
           "obstacle": "heat",
           "place": 11,
-          "required_affordance": "contain",
+          "required_affordance": "encase",
           "required_capability": "insulate",
           "severity": 1.0
         },
@@ -34,7 +34,7 @@
         "success": true
       },
       {
-        "affordance": "contain",
+        "affordance": "encase",
         "gain": 1.215708,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -43,7 +43,7 @@
           "kind": "obstacle",
           "obstacle": "heat",
           "place": 11,
-          "required_affordance": "contain",
+          "required_affordance": "encase",
           "required_capability": "insulate",
           "severity": 1.0
         },
@@ -52,7 +52,7 @@
         "success": true
       },
       {
-        "affordance": "contain",
+        "affordance": "encase",
         "gain": 1.21536,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -61,7 +61,7 @@
           "kind": "obstacle",
           "obstacle": "heat",
           "place": 11,
-          "required_affordance": "contain",
+          "required_affordance": "encase",
           "required_capability": "insulate",
           "severity": 1.0
         },
@@ -70,7 +70,7 @@
         "success": true
       },
       {
-        "affordance": "contain",
+        "affordance": "encase",
         "gain": 1.215246,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -79,7 +79,7 @@
           "kind": "obstacle",
           "obstacle": "heat",
           "place": 11,
-          "required_affordance": "contain",
+          "required_affordance": "encase",
           "required_capability": "insulate",
           "severity": 1.0
         },
@@ -88,7 +88,7 @@
         "success": true
       },
       {
-        "affordance": "contain",
+        "affordance": "encase",
         "gain": 1.215302,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -97,7 +97,7 @@
           "kind": "obstacle",
           "obstacle": "heat",
           "place": 11,
-          "required_affordance": "contain",
+          "required_affordance": "encase",
           "required_capability": "insulate",
           "severity": 1.0
         },
@@ -157,7 +157,7 @@
     "tool_trace": {
       "last_artifact_method": 0.0,
       "last_craft_target": "",
-      "last_tool_affordance": "contain"
+      "last_tool_affordance": "encase"
     }
   },
   "context": {
@@ -172,12 +172,12 @@
     },
     "world_energy": {
       "adaptive_storage": 1586.943,
-      "chemical": 248.6819,
+      "dense_node": 3.7703,
       "electrical": 67.6837,
-      "high_density": 3.7703,
-      "locked_chemical": 184.5907,
+      "essence": 248.6819,
       "mechanical": 486.1534,
-      "radiant": 1049.7982,
+      "sealed_essence": 184.5907,
+      "solar": 1049.7982,
       "thermal": 5073.7106
     },
     "world_physics": {
@@ -1636,7 +1636,7 @@
     "last_craft_target": "",
     "last_energy_delta": -4.1922,
     "last_lesson": {
-      "affordance": "contain",
+      "affordance": "encase",
       "gain": 1.215302,
       "kind": "tool_use",
       "method_quality": 0.0,
@@ -1645,7 +1645,7 @@
         "kind": "obstacle",
         "obstacle": "heat",
         "place": 11,
-        "required_affordance": "contain",
+        "required_affordance": "encase",
         "required_capability": "insulate",
         "severity": 1.0
       },
@@ -1653,7 +1653,7 @@
       "skill": 1.0,
       "success": true
     },
-    "last_tool_affordance": "contain",
+    "last_tool_affordance": "encase",
     "last_valence": 0.185,
     "location": 11,
     "neural": true,
@@ -1728,31 +1728,31 @@
   "tick": 1689,
   "tool_skill": {
     "anchor": 0.0,
-    "bind": 0.020668,
     "build": 0.0,
     "carry": 0.0,
     "channel": 0.0,
-    "concentrate_heat": 0.0,
-    "conduct": 0.0,
-    "contain": 1.0,
-    "crack": 0.021072,
+    "cleave": 0.021072,
     "craft": 0.0,
-    "cut": 0.0,
+    "encase": 1.0,
     "enclose": 0.0,
     "energy_storage": 0.0,
-    "filter": 0.0,
+    "ferry": 0.0,
     "float": 0.0,
     "gradient_harvest": 0.0,
+    "hoist": 0.0,
     "inscribe": 0.0,
     "insulate": 0.0,
     "interpret_mark": 0.001301,
-    "lever": 0.0,
+    "kindle": 0.0,
+    "lash": 0.020668,
     "permeable": 0.0,
     "protect": 0.0,
     "reaction_surface": 0.0,
     "record": 0.0,
+    "shear": 0.0,
     "shelter": 0.0,
     "support": 0.0,
-    "traverse": 0.0
+    "traverse": 0.0,
+    "winnow": 0.0
   }
 }

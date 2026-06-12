@@ -16,7 +16,7 @@
     "last_valence": 0.059648,
     "lesson_memory": [
       {
-        "affordance": "contain",
+        "affordance": "encase",
         "gain": 0.39448,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -25,8 +25,8 @@
           "kind": "obstacle",
           "obstacle": "salinity",
           "place": 7,
-          "required_affordance": "contain",
-          "required_capability": "filter",
+          "required_affordance": "encase",
+          "required_capability": "winnow",
           "severity": 1.109067
         },
         "score": 0.3765,
@@ -34,7 +34,7 @@
         "success": true
       },
       {
-        "affordance": "contain",
+        "affordance": "encase",
         "gain": 0.314968,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -43,8 +43,8 @@
           "kind": "obstacle",
           "obstacle": "salinity",
           "place": 7,
-          "required_affordance": "contain",
-          "required_capability": "filter",
+          "required_affordance": "encase",
+          "required_capability": "winnow",
           "severity": 1.109155
         },
         "score": 0.3765,
@@ -52,7 +52,7 @@
         "success": true
       },
       {
-        "affordance": "contain",
+        "affordance": "encase",
         "gain": 0.0,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -61,8 +61,8 @@
           "kind": "obstacle",
           "obstacle": "salinity",
           "place": 7,
-          "required_affordance": "contain",
-          "required_capability": "filter",
+          "required_affordance": "encase",
+          "required_capability": "winnow",
           "severity": 1.109243
         },
         "score": 0.3765,
@@ -70,7 +70,7 @@
         "success": false
       },
       {
-        "affordance": "contain",
+        "affordance": "encase",
         "gain": 0.277619,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -79,8 +79,8 @@
           "kind": "obstacle",
           "obstacle": "salinity",
           "place": 7,
-          "required_affordance": "contain",
-          "required_capability": "filter",
+          "required_affordance": "encase",
+          "required_capability": "winnow",
           "severity": 1.10933
         },
         "score": 0.3765,
@@ -88,7 +88,7 @@
         "success": true
       },
       {
-        "affordance": "contain",
+        "affordance": "encase",
         "gain": 0.279894,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -97,8 +97,8 @@
           "kind": "obstacle",
           "obstacle": "salinity",
           "place": 7,
-          "required_affordance": "contain",
-          "required_capability": "filter",
+          "required_affordance": "encase",
+          "required_capability": "winnow",
           "severity": 1.109419
         },
         "score": 0.3765,
@@ -155,7 +155,7 @@
     "tool_trace": {
       "last_artifact_method": 0.0,
       "last_craft_target": "",
-      "last_tool_affordance": "contain"
+      "last_tool_affordance": "encase"
     }
   },
   "context": {
@@ -170,12 +170,12 @@
     },
     "world_energy": {
       "adaptive_storage": 1586.943,
-      "chemical": 248.6819,
+      "dense_node": 3.7703,
       "electrical": 67.6837,
-      "high_density": 3.7703,
-      "locked_chemical": 184.5907,
+      "essence": 248.6819,
       "mechanical": 486.1534,
-      "radiant": 1049.7982,
+      "sealed_essence": 184.5907,
+      "solar": 1049.7982,
       "thermal": 5073.7106
     },
     "world_physics": {
@@ -1634,7 +1634,7 @@
     "last_craft_target": "",
     "last_energy_delta": 0.1432,
     "last_lesson": {
-      "affordance": "contain",
+      "affordance": "encase",
       "gain": 0.279894,
       "kind": "tool_use",
       "method_quality": 0.0,
@@ -1643,15 +1643,15 @@
         "kind": "obstacle",
         "obstacle": "salinity",
         "place": 7,
-        "required_affordance": "contain",
-        "required_capability": "filter",
+        "required_affordance": "encase",
+        "required_capability": "winnow",
         "severity": 1.109419
       },
       "score": 0.3765,
       "skill": 1.0,
       "success": true
     },
-    "last_tool_affordance": "contain",
+    "last_tool_affordance": "encase",
     "last_valence": 0.0596,
     "location": 7,
     "neural": true,
@@ -1724,31 +1724,31 @@
   "tick": 1689,
   "tool_skill": {
     "anchor": 0.0,
-    "bind": 0.04203,
     "build": 0.0,
     "carry": 0.0,
     "channel": 0.0,
-    "concentrate_heat": 0.0,
-    "conduct": 0.0,
-    "contain": 1.0,
-    "crack": 0.0,
+    "cleave": 0.0,
     "craft": 0.0,
-    "cut": 0.0,
+    "encase": 1.0,
     "enclose": 0.0,
     "energy_storage": 0.0,
-    "filter": 0.0,
+    "ferry": 0.0,
     "float": 0.0,
     "gradient_harvest": 0.0,
+    "hoist": 0.021005,
     "inscribe": 0.0,
     "insulate": 0.0,
     "interpret_mark": 0.002109,
-    "lever": 0.021005,
+    "kindle": 0.0,
+    "lash": 0.04203,
     "permeable": 0.0,
     "protect": 0.0,
     "reaction_surface": 0.0,
     "record": 0.0,
+    "shear": 0.0,
     "shelter": 0.0,
     "support": 0.0,
-    "traverse": 0.0
+    "traverse": 0.0,
+    "winnow": 0.0
   }
 }

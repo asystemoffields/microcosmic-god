@@ -16,15 +16,15 @@
     "last_valence": 0.002109,
     "lesson_memory": [
       {
-        "affordance": "bind",
+        "affordance": "lash",
         "gain": 0.000502,
         "kind": "read_tool_use",
         "problem": {
           "difficulty": 0.443758,
           "kind": "causal_challenge",
-          "payoff_energy": "chemical",
+          "payoff_energy": "essence",
           "remaining": 55.37571,
-          "required_affordance": "filter",
+          "required_affordance": "winnow",
           "sequence": [
             "contain",
             "filter"
@@ -34,7 +34,7 @@
         "success": true
       },
       {
-        "affordance": "lever",
+        "affordance": "hoist",
         "gain": 2.2e-05,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -42,10 +42,10 @@
         "problem": {
           "difficulty": 0.443758,
           "kind": "causal_challenge",
-          "payoff_energy": "chemical",
+          "payoff_energy": "essence",
           "place": 28,
           "remaining": 55.37571,
-          "required_affordance": "filter",
+          "required_affordance": "winnow",
           "sequence": [
             "contain",
             "filter"
@@ -56,7 +56,7 @@
         "success": true
       },
       {
-        "affordance": "lever",
+        "affordance": "hoist",
         "gain": 0.0,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -64,10 +64,10 @@
         "problem": {
           "difficulty": 0.443758,
           "kind": "causal_challenge",
-          "payoff_energy": "chemical",
+          "payoff_energy": "essence",
           "place": 28,
           "remaining": 55.37571,
-          "required_affordance": "filter",
+          "required_affordance": "winnow",
           "sequence": [
             "contain",
             "filter"
@@ -78,7 +78,7 @@
         "success": false
       },
       {
-        "affordance": "lever",
+        "affordance": "hoist",
         "gain": 2.2e-05,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -86,10 +86,10 @@
         "problem": {
           "difficulty": 0.443758,
           "kind": "causal_challenge",
-          "payoff_energy": "chemical",
+          "payoff_energy": "essence",
           "place": 28,
           "remaining": 55.37571,
-          "required_affordance": "contain",
+          "required_affordance": "encase",
           "sequence": [
             "contain",
             "filter"
@@ -100,7 +100,7 @@
         "success": true
       },
       {
-        "affordance": "lever",
+        "affordance": "hoist",
         "gain": 0.0,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -109,8 +109,8 @@
           "kind": "obstacle",
           "obstacle": "salinity",
           "place": 7,
-          "required_affordance": "lever",
-          "required_capability": "filter",
+          "required_affordance": "hoist",
+          "required_capability": "winnow",
           "severity": 1.108121
         },
         "score": 0.50125,
@@ -167,7 +167,7 @@
     "tool_trace": {
       "last_artifact_method": 0.0,
       "last_craft_target": "",
-      "last_tool_affordance": "lever"
+      "last_tool_affordance": "hoist"
     }
   },
   "context": {
@@ -182,12 +182,12 @@
     },
     "world_energy": {
       "adaptive_storage": 1586.943,
-      "chemical": 248.6819,
+      "dense_node": 3.7703,
       "electrical": 67.6837,
-      "high_density": 3.7703,
-      "locked_chemical": 184.5907,
+      "essence": 248.6819,
       "mechanical": 486.1534,
-      "radiant": 1049.7982,
+      "sealed_essence": 184.5907,
+      "solar": 1049.7982,
       "thermal": 5073.7106
     },
     "world_physics": {
@@ -1646,7 +1646,7 @@
     "last_craft_target": "",
     "last_energy_delta": 0.0489,
     "last_lesson": {
-      "affordance": "lever",
+      "affordance": "hoist",
       "gain": 0.0,
       "kind": "tool_use",
       "method_quality": 0.0,
@@ -1655,15 +1655,15 @@
         "kind": "obstacle",
         "obstacle": "salinity",
         "place": 7,
-        "required_affordance": "lever",
-        "required_capability": "filter",
+        "required_affordance": "hoist",
+        "required_capability": "winnow",
         "severity": 1.108121
       },
       "score": 0.50125,
       "skill": 1.0,
       "success": false
     },
-    "last_tool_affordance": "lever",
+    "last_tool_affordance": "hoist",
     "last_valence": 0.0021,
     "location": 7,
     "neural": true,
@@ -1735,31 +1735,31 @@
   "tick": 1689,
   "tool_skill": {
     "anchor": 0.0,
-    "bind": 1.0,
     "build": 0.0,
     "carry": 0.0,
     "channel": 0.0,
-    "concentrate_heat": 0.517918,
-    "conduct": 0.0,
-    "contain": 0.065793,
-    "crack": 0.046872,
+    "cleave": 0.046872,
     "craft": 0.0,
-    "cut": 0.0,
+    "encase": 0.065793,
     "enclose": 0.0,
     "energy_storage": 0.0,
-    "filter": 0.0,
+    "ferry": 0.0,
     "float": 0.0,
     "gradient_harvest": 0.0,
+    "hoist": 1.0,
     "inscribe": 0.0,
     "insulate": 0.0,
     "interpret_mark": 0.252858,
-    "lever": 1.0,
+    "kindle": 0.517918,
+    "lash": 1.0,
     "permeable": 0.0,
     "protect": 0.0,
     "reaction_surface": 0.0,
     "record": 0.0,
+    "shear": 0.0,
     "shelter": 0.0,
     "support": 0.0,
-    "traverse": 0.0
+    "traverse": 0.0,
+    "winnow": 0.0
   }
 }

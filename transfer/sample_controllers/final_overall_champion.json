@@ -16,8 +16,8 @@
     "last_valence": 0.008618,
     "lesson_memory": [
       {
-        "affordance": "lever",
-        "attempted_affordance": "lever",
+        "affordance": "hoist",
+        "attempted_affordance": "hoist",
         "gain": 0.000387,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -26,8 +26,8 @@
           "kind": "obstacle",
           "obstacle": "salinity",
           "place": 32,
-          "required_affordance": "filter",
-          "required_capability": "filter",
+          "required_affordance": "winnow",
+          "required_capability": "winnow",
           "severity": 0.454769
         },
         "score": 0.74,
@@ -35,8 +35,8 @@
         "success": true
       },
       {
-        "affordance": "lever",
-        "attempted_affordance": "lever",
+        "affordance": "hoist",
+        "attempted_affordance": "hoist",
         "gain": 0.000387,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -45,8 +45,8 @@
           "kind": "obstacle",
           "obstacle": "salinity",
           "place": 32,
-          "required_affordance": "filter",
-          "required_capability": "filter",
+          "required_affordance": "winnow",
+          "required_capability": "winnow",
           "severity": 0.454826
         },
         "score": 0.74,
@@ -54,8 +54,8 @@
         "success": true
       },
       {
-        "affordance": "lever",
-        "attempted_affordance": "lever",
+        "affordance": "hoist",
+        "attempted_affordance": "hoist",
         "gain": 0.000387,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -64,8 +64,8 @@
           "kind": "obstacle",
           "obstacle": "salinity",
           "place": 32,
-          "required_affordance": "filter",
-          "required_capability": "filter",
+          "required_affordance": "winnow",
+          "required_capability": "winnow",
           "severity": 0.454885
         },
         "score": 0.74,
@@ -73,8 +73,8 @@
         "success": true
       },
       {
-        "affordance": "lever",
-        "attempted_affordance": "lever",
+        "affordance": "hoist",
+        "attempted_affordance": "hoist",
         "gain": 0.000387,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -83,8 +83,8 @@
           "kind": "obstacle",
           "obstacle": "salinity",
           "place": 32,
-          "required_affordance": "filter",
-          "required_capability": "filter",
+          "required_affordance": "winnow",
+          "required_capability": "winnow",
           "severity": 0.454945
         },
         "score": 0.74,
@@ -92,8 +92,8 @@
         "success": true
       },
       {
-        "affordance": "lever",
-        "attempted_affordance": "lever",
+        "affordance": "hoist",
+        "attempted_affordance": "hoist",
         "gain": 0.000387,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -102,8 +102,8 @@
           "kind": "obstacle",
           "obstacle": "salinity",
           "place": 32,
-          "required_affordance": "filter",
-          "required_capability": "filter",
+          "required_affordance": "winnow",
+          "required_capability": "winnow",
           "severity": 0.455005
         },
         "score": 0.74,
@@ -176,7 +176,7 @@
     "tool_trace": {
       "last_artifact_method": 0.0,
       "last_craft_target": "",
-      "last_tool_affordance": "lever"
+      "last_tool_affordance": "hoist"
     }
   },
   "context": {
@@ -214,14 +214,14 @@
           "score": 98367.02841,
           "successful_tools_total": 1104,
           "tool_use_counts": {
-            "bind": 298,
             "build": 98,
-            "concentrate_heat": 66,
-            "contain": 462,
-            "crack": 53,
+            "cleave": 53,
             "craft": 56,
-            "cut": 5,
-            "lever": 63
+            "encase": 462,
+            "hoist": 63,
+            "kindle": 66,
+            "lash": 298,
+            "shear": 5
           },
           "tool_users": 216,
           "top_active_ids": [
@@ -260,14 +260,14 @@
           "score": 71310.8531,
           "successful_tools_total": 3990,
           "tool_use_counts": {
-            "bind": 1594,
             "build": 164,
-            "concentrate_heat": 551,
-            "contain": 428,
-            "crack": 627,
+            "cleave": 627,
             "craft": 70,
-            "cut": 69,
-            "lever": 474
+            "encase": 428,
+            "hoist": 474,
+            "kindle": 551,
+            "lash": 1594,
+            "shear": 69
           },
           "tool_users": 257,
           "top_active_ids": [
@@ -306,14 +306,14 @@
           "score": 41418.77879,
           "successful_tools_total": 9882,
           "tool_use_counts": {
-            "bind": 2083,
             "build": 91,
-            "concentrate_heat": 1932,
-            "contain": 1146,
-            "crack": 427,
-            "cut": 2272,
-            "filter": 201,
-            "lever": 1675
+            "cleave": 427,
+            "encase": 1146,
+            "hoist": 1675,
+            "kindle": 1932,
+            "lash": 2083,
+            "shear": 2272,
+            "winnow": 201
           },
           "tool_users": 150,
           "top_active_ids": [
@@ -348,9 +348,9 @@
           "score": 376.19963,
           "successful_tools_total": 9,
           "tool_use_counts": {
-            "bind": 4,
             "craft": 3,
-            "lever": 2
+            "hoist": 2,
+            "lash": 4
           },
           "tool_users": 1,
           "top_active_ids": [
@@ -382,10 +382,10 @@
           "score": 218.66179,
           "successful_tools_total": 7,
           "tool_use_counts": {
-            "bind": 1,
             "build": 1,
-            "concentrate_heat": 3,
-            "contain": 2
+            "encase": 2,
+            "kindle": 3,
+            "lash": 1
           },
           "tool_users": 1,
           "top_active_ids": [
@@ -422,14 +422,14 @@
           "score": 98367.02841,
           "successful_tools_total": 1104,
           "tool_use_counts": {
-            "bind": 298,
             "build": 98,
-            "concentrate_heat": 66,
-            "contain": 462,
-            "crack": 53,
+            "cleave": 53,
             "craft": 56,
-            "cut": 5,
-            "lever": 63
+            "encase": 462,
+            "hoist": 63,
+            "kindle": 66,
+            "lash": 298,
+            "shear": 5
           },
           "tool_users": 216,
           "top_active_ids": [
@@ -468,14 +468,14 @@
           "score": 71310.8531,
           "successful_tools_total": 3990,
           "tool_use_counts": {
-            "bind": 1594,
             "build": 164,
-            "concentrate_heat": 551,
-            "contain": 428,
-            "crack": 627,
+            "cleave": 627,
             "craft": 70,
-            "cut": 69,
-            "lever": 474
+            "encase": 428,
+            "hoist": 474,
+            "kindle": 551,
+            "lash": 1594,
+            "shear": 69
           },
           "tool_users": 257,
           "top_active_ids": [
@@ -514,14 +514,14 @@
           "score": 41418.77879,
           "successful_tools_total": 9882,
           "tool_use_counts": {
-            "bind": 2083,
             "build": 91,
-            "concentrate_heat": 1932,
-            "contain": 1146,
-            "crack": 427,
-            "cut": 2272,
-            "filter": 201,
-            "lever": 1675
+            "cleave": 427,
+            "encase": 1146,
+            "hoist": 1675,
+            "kindle": 1932,
+            "lash": 2083,
+            "shear": 2272,
+            "winnow": 201
           },
           "tool_users": 150,
           "top_active_ids": [
@@ -556,9 +556,9 @@
           "successful_tools_total": 1197,
           "tool_use_counts": {
             "build": 1,
-            "concentrate_heat": 1135,
-            "crack": 1,
-            "lever": 60
+            "cleave": 1,
+            "hoist": 60,
+            "kindle": 1135
           },
           "tool_users": 1,
           "top_active_ids": []
@@ -587,13 +587,13 @@
           "score": 2342.45763,
           "successful_tools_total": 700,
           "tool_use_counts": {
-            "bind": 168,
             "build": 205,
-            "concentrate_heat": 2,
-            "contain": 176,
-            "crack": 23,
+            "cleave": 23,
             "craft": 13,
-            "lever": 113
+            "encase": 176,
+            "hoist": 113,
+            "kindle": 2,
+            "lash": 168
           },
           "tool_users": 2,
           "top_active_ids": [
@@ -611,12 +611,12 @@
     },
     "world_energy": {
       "adaptive_storage": 225.8658,
-      "chemical": 2.1115,
+      "dense_node": 10.5386,
       "electrical": 237.6934,
-      "high_density": 10.5386,
-      "locked_chemical": 470.9569,
+      "essence": 2.1115,
       "mechanical": 1854.8698,
-      "radiant": 972.4174,
+      "sealed_essence": 470.9569,
+      "solar": 972.4174,
       "thermal": 3260.6666
     },
     "world_physics": {
@@ -3850,8 +3850,8 @@
     "last_craft_target": "",
     "last_energy_delta": -0.1676,
     "last_lesson": {
-      "affordance": "lever",
-      "attempted_affordance": "lever",
+      "affordance": "hoist",
+      "attempted_affordance": "hoist",
       "gain": 0.000387,
       "kind": "tool_use",
       "method_quality": 0.0,
@@ -3860,15 +3860,15 @@
         "kind": "obstacle",
         "obstacle": "salinity",
         "place": 32,
-        "required_affordance": "filter",
-        "required_capability": "filter",
+        "required_affordance": "winnow",
+        "required_capability": "winnow",
         "severity": 0.455005
       },
       "score": 0.74,
       "skill": 1.0,
       "success": true
     },
-    "last_tool_affordance": "lever",
+    "last_tool_affordance": "hoist",
     "last_valence": 0.0086,
     "line_root_id": 489,
     "location": 32,
@@ -3892,10 +3892,10 @@
     "successful_tools": 1385,
     "tool_use_counts": {
       "build": 1,
-      "concentrate_heat": 669,
-      "contain": 308,
-      "filter": 184,
-      "lever": 223
+      "encase": 308,
+      "hoist": 223,
+      "kindle": 669,
+      "winnow": 184
     }
   },
   "inventory": {
@@ -3952,31 +3952,31 @@
   "tick": 5429,
   "tool_skill": {
     "anchor": 0.003072,
-    "bind": 0.072179,
     "build": 0.073378,
     "carry": 0.016393,
     "channel": 0.001938,
-    "concentrate_heat": 1.0,
-    "conduct": 0.061471,
-    "contain": 1.0,
-    "crack": 0.041519,
+    "cleave": 0.041519,
     "craft": 0.020353,
-    "cut": 0.215291,
+    "encase": 1.0,
     "enclose": 0.002344,
     "energy_storage": 0.043702,
-    "filter": 1.0,
+    "ferry": 0.061471,
     "float": 0.001568,
     "gradient_harvest": 0.001533,
+    "hoist": 1.0,
     "inscribe": 6e-06,
     "insulate": 1.0,
     "interpret_mark": 0.004143,
-    "lever": 1.0,
+    "kindle": 1.0,
+    "lash": 0.072179,
     "permeable": 0.016165,
     "protect": 1.0,
     "reaction_surface": 0.010756,
     "record": 0.00171,
+    "shear": 0.215291,
     "shelter": 0.019704,
     "support": 0.023264,
-    "traverse": 0.03936
+    "traverse": 0.03936,
+    "winnow": 1.0
   }
 }

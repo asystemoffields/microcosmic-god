@@ -904,12 +904,12 @@
   ],
   "tick": 1000,
   "tool_skill": {
-    "bind": 1.0,
-    "concentrate_heat": 0.916,
-    "conduct": 0.916,
-    "contain": 0.916,
-    "crack": 1.0,
-    "cut": 0.916,
-    "lever": 0.916
+    "cleave": 1.0,
+    "encase": 0.916,
+    "ferry": 0.916,
+    "hoist": 0.916,
+    "kindle": 0.916,
+    "lash": 1.0,
+    "shear": 0.916
   }
 }

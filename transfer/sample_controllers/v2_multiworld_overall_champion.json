@@ -16,8 +16,8 @@
     "last_valence": -0.000751,
     "lesson_memory": [
       {
-        "affordance": "contain",
-        "attempted_affordance": "contain",
+        "affordance": "encase",
+        "attempted_affordance": "encase",
         "gain": 0.425847,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -29,7 +29,7 @@
           "place": 28,
           "progress": 0,
           "remaining": 51.09218,
-          "required_affordance": "concentrate_heat",
+          "required_affordance": "kindle",
           "sequence": [
             "concentrate_heat",
             "conduct"
@@ -40,8 +40,8 @@
         "success": true
       },
       {
-        "affordance": "contain",
-        "attempted_affordance": "contain",
+        "affordance": "encase",
+        "attempted_affordance": "encase",
         "gain": 0.413996,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -53,7 +53,7 @@
           "place": 28,
           "progress": 0,
           "remaining": 51.09218,
-          "required_affordance": "concentrate_heat",
+          "required_affordance": "kindle",
           "sequence": [
             "concentrate_heat",
             "conduct"
@@ -64,8 +64,8 @@
         "success": true
       },
       {
-        "affordance": "contain",
-        "attempted_affordance": "contain",
+        "affordance": "encase",
+        "attempted_affordance": "encase",
         "gain": 0.40405,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -77,7 +77,7 @@
           "place": 28,
           "progress": 0,
           "remaining": 51.09218,
-          "required_affordance": "concentrate_heat",
+          "required_affordance": "kindle",
           "sequence": [
             "concentrate_heat",
             "conduct"
@@ -88,8 +88,8 @@
         "success": true
       },
       {
-        "affordance": "contain",
-        "attempted_affordance": "contain",
+        "affordance": "encase",
+        "attempted_affordance": "encase",
         "gain": 0.395707,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -101,7 +101,7 @@
           "place": 28,
           "progress": 0,
           "remaining": 51.09218,
-          "required_affordance": "concentrate_heat",
+          "required_affordance": "kindle",
           "sequence": [
             "concentrate_heat",
             "conduct"
@@ -112,8 +112,8 @@
         "success": true
       },
       {
-        "affordance": "contain",
-        "attempted_affordance": "contain",
+        "affordance": "encase",
+        "attempted_affordance": "encase",
         "gain": 0.6177,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -125,7 +125,7 @@
           "place": 28,
           "progress": 0,
           "remaining": 51.09218,
-          "required_affordance": "concentrate_heat",
+          "required_affordance": "kindle",
           "sequence": [
             "concentrate_heat",
             "conduct"
@@ -204,7 +204,7 @@
     "tool_trace": {
       "last_artifact_method": 0.0,
       "last_craft_target": "",
-      "last_tool_affordance": "contain"
+      "last_tool_affordance": "encase"
     }
   },
   "context": {
@@ -242,14 +242,14 @@
           "score": 209538.73934,
           "successful_tools_total": 6951,
           "tool_use_counts": {
-            "bind": 2652,
             "build": 467,
-            "concentrate_heat": 464,
-            "contain": 800,
-            "crack": 879,
+            "cleave": 879,
             "craft": 192,
-            "cut": 214,
-            "lever": 1273
+            "encase": 800,
+            "hoist": 1273,
+            "kindle": 464,
+            "lash": 2652,
+            "shear": 214
           },
           "tool_users": 697,
           "top_active_ids": [
@@ -288,14 +288,14 @@
           "score": 64659.64718,
           "successful_tools_total": 6094,
           "tool_use_counts": {
-            "bind": 1851,
             "build": 266,
-            "concentrate_heat": 208,
-            "contain": 2145,
-            "crack": 785,
+            "cleave": 785,
             "craft": 16,
-            "cut": 6,
-            "lever": 814
+            "encase": 2145,
+            "hoist": 814,
+            "kindle": 208,
+            "lash": 1851,
+            "shear": 6
           },
           "tool_users": 205,
           "top_active_ids": [
@@ -334,14 +334,14 @@
           "score": 44683.69735,
           "successful_tools_total": 1696,
           "tool_use_counts": {
-            "bind": 198,
             "build": 301,
-            "concentrate_heat": 43,
-            "contain": 120,
-            "crack": 595,
+            "cleave": 595,
             "craft": 20,
-            "cut": 3,
-            "lever": 414
+            "encase": 120,
+            "hoist": 414,
+            "kindle": 43,
+            "lash": 198,
+            "shear": 3
           },
           "tool_users": 188,
           "top_active_ids": [
@@ -379,14 +379,14 @@
           "score": 40617.17835,
           "successful_tools_total": 2326,
           "tool_use_counts": {
-            "bind": 925,
             "build": 63,
-            "concentrate_heat": 145,
-            "contain": 242,
-            "crack": 64,
+            "cleave": 64,
             "craft": 16,
-            "cut": 30,
-            "lever": 839
+            "encase": 242,
+            "hoist": 839,
+            "kindle": 145,
+            "lash": 925,
+            "shear": 30
           },
           "tool_users": 88,
           "top_active_ids": [
@@ -424,13 +424,13 @@
           "score": 7821.32899,
           "successful_tools_total": 135,
           "tool_use_counts": {
-            "bind": 3,
             "build": 34,
-            "concentrate_heat": 4,
-            "contain": 7,
-            "crack": 10,
+            "cleave": 10,
             "craft": 7,
-            "lever": 70
+            "encase": 7,
+            "hoist": 70,
+            "kindle": 4,
+            "lash": 3
           },
           "tool_users": 30,
           "top_active_ids": [
@@ -471,14 +471,14 @@
           "score": 209538.73934,
           "successful_tools_total": 6951,
           "tool_use_counts": {
-            "bind": 2652,
             "build": 467,
-            "concentrate_heat": 464,
-            "contain": 800,
-            "crack": 879,
+            "cleave": 879,
             "craft": 192,
-            "cut": 214,
-            "lever": 1273
+            "encase": 800,
+            "hoist": 1273,
+            "kindle": 464,
+            "lash": 2652,
+            "shear": 214
           },
           "tool_users": 697,
           "top_active_ids": [
@@ -517,14 +517,14 @@
           "score": 64659.64718,
           "successful_tools_total": 6094,
           "tool_use_counts": {
-            "bind": 1851,
             "build": 266,
-            "concentrate_heat": 208,
-            "contain": 2145,
-            "crack": 785,
+            "cleave": 785,
             "craft": 16,
-            "cut": 6,
-            "lever": 814
+            "encase": 2145,
+            "hoist": 814,
+            "kindle": 208,
+            "lash": 1851,
+            "shear": 6
           },
           "tool_users": 205,
           "top_active_ids": [
@@ -563,14 +563,14 @@
           "score": 44683.69735,
           "successful_tools_total": 1696,
           "tool_use_counts": {
-            "bind": 198,
             "build": 301,
-            "concentrate_heat": 43,
-            "contain": 120,
-            "crack": 595,
+            "cleave": 595,
             "craft": 20,
-            "cut": 3,
-            "lever": 414
+            "encase": 120,
+            "hoist": 414,
+            "kindle": 43,
+            "lash": 198,
+            "shear": 3
           },
           "tool_users": 188,
           "top_active_ids": [
@@ -608,14 +608,14 @@
           "score": 40617.17835,
           "successful_tools_total": 2326,
           "tool_use_counts": {
-            "bind": 925,
             "build": 63,
-            "concentrate_heat": 145,
-            "contain": 242,
-            "crack": 64,
+            "cleave": 64,
             "craft": 16,
-            "cut": 30,
-            "lever": 839
+            "encase": 242,
+            "hoist": 839,
+            "kindle": 145,
+            "lash": 925,
+            "shear": 30
           },
           "tool_users": 88,
           "top_active_ids": [
@@ -653,13 +653,13 @@
           "score": 7821.32899,
           "successful_tools_total": 135,
           "tool_use_counts": {
-            "bind": 3,
             "build": 34,
-            "concentrate_heat": 4,
-            "contain": 7,
-            "crack": 10,
+            "cleave": 10,
             "craft": 7,
-            "lever": 70
+            "encase": 7,
+            "hoist": 70,
+            "kindle": 4,
+            "lash": 3
           },
           "tool_users": 30,
           "top_active_ids": [
@@ -681,12 +681,12 @@
     },
     "world_energy": {
       "adaptive_storage": 2.3876,
-      "chemical": 0.0,
+      "dense_node": 10.5386,
       "electrical": 214.3703,
-      "high_density": 10.5386,
-      "locked_chemical": 221.4762,
+      "essence": 0.0,
       "mechanical": 2243.0783,
-      "radiant": 3041.5993,
+      "sealed_essence": 221.4762,
+      "solar": 3041.5993,
       "thermal": 4334.5138
     },
     "world_physics": {
@@ -4664,8 +4664,8 @@
     "last_craft_target": "",
     "last_energy_delta": -0.015,
     "last_lesson": {
-      "affordance": "contain",
-      "attempted_affordance": "contain",
+      "affordance": "encase",
+      "attempted_affordance": "encase",
       "gain": 0.6177,
       "kind": "tool_use",
       "method_quality": 0.0,
@@ -4677,7 +4677,7 @@
         "place": 28,
         "progress": 0,
         "remaining": 51.09218,
-        "required_affordance": "concentrate_heat",
+        "required_affordance": "kindle",
         "sequence": [
           "concentrate_heat",
           "conduct"
@@ -4687,7 +4687,7 @@
       "skill": 1.0,
       "success": true
     },
-    "last_tool_affordance": "contain",
+    "last_tool_affordance": "encase",
     "last_valence": -0.0008,
     "line_root_id": 426,
     "location": 28,
@@ -4713,7 +4713,7 @@
     },
     "successful_tools": 1086,
     "tool_use_counts": {
-      "contain": 1086
+      "encase": 1086
     }
   },
   "inventory": {
@@ -4771,31 +4771,31 @@
   "tick": 2368,
   "tool_skill": {
     "anchor": 0.000464,
-    "bind": 0.027991,
     "build": 0.001832,
     "carry": 0.036997,
     "channel": 0.0,
-    "concentrate_heat": 0.221361,
-    "conduct": 0.001411,
-    "contain": 1.0,
-    "crack": 0.002765,
+    "cleave": 0.002765,
     "craft": 0.000783,
-    "cut": 1.3e-05,
+    "encase": 1.0,
     "enclose": 0.0,
     "energy_storage": 0.058944,
-    "filter": 0.100898,
+    "ferry": 0.001411,
     "float": 0.000358,
     "gradient_harvest": 0.0,
+    "hoist": 0.006808,
     "inscribe": 0.0,
     "insulate": 0.297492,
     "interpret_mark": 0.003658,
-    "lever": 0.006808,
+    "kindle": 0.221361,
+    "lash": 0.027991,
     "permeable": 0.0,
     "protect": 0.862405,
     "reaction_surface": 0.0,
     "record": 0.000112,
+    "shear": 1.3e-05,
     "shelter": 0.003453,
     "support": 0.000608,
-    "traverse": 0.055333
+    "traverse": 0.055333,
+    "winnow": 0.100898
   }
 }

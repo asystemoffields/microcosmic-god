@@ -16,8 +16,8 @@
     "last_valence": 0.068274,
     "lesson_memory": [
       {
-        "affordance": "crack",
-        "attempted_affordance": "crack",
+        "affordance": "cleave",
+        "attempted_affordance": "cleave",
         "gain": 0.003084,
         "kind": "tool_use",
         "method_quality": 0.231558,
@@ -25,11 +25,11 @@
         "problem": {
           "difficulty": 0.590436,
           "kind": "causal_challenge",
-          "payoff_energy": "chemical",
+          "payoff_energy": "essence",
           "place": 4,
           "progress": 2,
           "remaining": 62.645509,
-          "required_affordance": "contain",
+          "required_affordance": "encase",
           "sequence": [
             "crack",
             "lever",
@@ -41,8 +41,8 @@
         "success": true
       },
       {
-        "affordance": "crack",
-        "attempted_affordance": "crack",
+        "affordance": "cleave",
+        "attempted_affordance": "cleave",
         "gain": 0.003084,
         "kind": "tool_use",
         "method_quality": 0.231558,
@@ -50,11 +50,11 @@
         "problem": {
           "difficulty": 0.590436,
           "kind": "causal_challenge",
-          "payoff_energy": "chemical",
+          "payoff_energy": "essence",
           "place": 4,
           "progress": 0,
           "remaining": 62.645509,
-          "required_affordance": "crack",
+          "required_affordance": "cleave",
           "sequence": [
             "crack",
             "lever",
@@ -66,8 +66,8 @@
         "success": true
       },
       {
-        "affordance": "crack",
-        "attempted_affordance": "crack",
+        "affordance": "cleave",
+        "attempted_affordance": "cleave",
         "gain": 0.107053,
         "kind": "causal_step",
         "method_quality": 0.0,
@@ -75,11 +75,11 @@
         "problem": {
           "difficulty": 0.590436,
           "kind": "causal_challenge",
-          "payoff_energy": "chemical",
+          "payoff_energy": "essence",
           "place": 4,
           "progress": 1,
           "remaining": 62.645509,
-          "required_affordance": "lever",
+          "required_affordance": "hoist",
           "sequence": [
             "crack",
             "lever",
@@ -94,8 +94,8 @@
         "success": true
       },
       {
-        "affordance": "crack",
-        "attempted_affordance": "crack",
+        "affordance": "cleave",
+        "attempted_affordance": "cleave",
         "gain": 0.110138,
         "kind": "tool_use",
         "method_quality": 0.231558,
@@ -103,11 +103,11 @@
         "problem": {
           "difficulty": 0.590436,
           "kind": "causal_challenge",
-          "payoff_energy": "chemical",
+          "payoff_energy": "essence",
           "place": 4,
           "progress": 1,
           "remaining": 62.645509,
-          "required_affordance": "lever",
+          "required_affordance": "hoist",
           "sequence": [
             "crack",
             "lever",
@@ -119,8 +119,8 @@
         "success": true
       },
       {
-        "affordance": "crack",
-        "attempted_affordance": "crack",
+        "affordance": "cleave",
+        "attempted_affordance": "cleave",
         "gain": 0.003084,
         "kind": "tool_use",
         "method_quality": 0.231558,
@@ -128,11 +128,11 @@
         "problem": {
           "difficulty": 0.590436,
           "kind": "causal_challenge",
-          "payoff_energy": "chemical",
+          "payoff_energy": "essence",
           "place": 4,
           "progress": 2,
           "remaining": 62.645509,
-          "required_affordance": "contain",
+          "required_affordance": "encase",
           "sequence": [
             "crack",
             "lever",
@@ -221,8 +221,8 @@
     },
     "tool_trace": {
       "last_artifact_method": 0.231558,
-      "last_craft_target": "crack",
-      "last_tool_affordance": "crack"
+      "last_craft_target": "cleave",
+      "last_tool_affordance": "cleave"
     }
   },
   "context": {
@@ -260,14 +260,14 @@
           "score": 98367.02841,
           "successful_tools_total": 1104,
           "tool_use_counts": {
-            "bind": 298,
             "build": 98,
-            "concentrate_heat": 66,
-            "contain": 462,
-            "crack": 53,
+            "cleave": 53,
             "craft": 56,
-            "cut": 5,
-            "lever": 63
+            "encase": 462,
+            "hoist": 63,
+            "kindle": 66,
+            "lash": 298,
+            "shear": 5
           },
           "tool_users": 216,
           "top_active_ids": [
@@ -306,14 +306,14 @@
           "score": 71310.8531,
           "successful_tools_total": 3990,
           "tool_use_counts": {
-            "bind": 1594,
             "build": 164,
-            "concentrate_heat": 551,
-            "contain": 428,
-            "crack": 627,
+            "cleave": 627,
             "craft": 70,
-            "cut": 69,
-            "lever": 474
+            "encase": 428,
+            "hoist": 474,
+            "kindle": 551,
+            "lash": 1594,
+            "shear": 69
           },
           "tool_users": 257,
           "top_active_ids": [
@@ -352,14 +352,14 @@
           "score": 41418.77879,
           "successful_tools_total": 9882,
           "tool_use_counts": {
-            "bind": 2083,
             "build": 91,
-            "concentrate_heat": 1932,
-            "contain": 1146,
-            "crack": 427,
-            "cut": 2272,
-            "filter": 201,
-            "lever": 1675
+            "cleave": 427,
+            "encase": 1146,
+            "hoist": 1675,
+            "kindle": 1932,
+            "lash": 2083,
+            "shear": 2272,
+            "winnow": 201
           },
           "tool_users": 150,
           "top_active_ids": [
@@ -394,9 +394,9 @@
           "score": 376.19963,
           "successful_tools_total": 9,
           "tool_use_counts": {
-            "bind": 4,
             "craft": 3,
-            "lever": 2
+            "hoist": 2,
+            "lash": 4
           },
           "tool_users": 1,
           "top_active_ids": [
@@ -428,10 +428,10 @@
           "score": 218.66179,
           "successful_tools_total": 7,
           "tool_use_counts": {
-            "bind": 1,
             "build": 1,
-            "concentrate_heat": 3,
-            "contain": 2
+            "encase": 2,
+            "kindle": 3,
+            "lash": 1
           },
           "tool_users": 1,
           "top_active_ids": [
@@ -468,14 +468,14 @@
           "score": 98367.02841,
           "successful_tools_total": 1104,
           "tool_use_counts": {
-            "bind": 298,
             "build": 98,
-            "concentrate_heat": 66,
-            "contain": 462,
-            "crack": 53,
+            "cleave": 53,
             "craft": 56,
-            "cut": 5,
-            "lever": 63
+            "encase": 462,
+            "hoist": 63,
+            "kindle": 66,
+            "lash": 298,
+            "shear": 5
           },
           "tool_users": 216,
           "top_active_ids": [
@@ -514,14 +514,14 @@
           "score": 71310.8531,
           "successful_tools_total": 3990,
           "tool_use_counts": {
-            "bind": 1594,
             "build": 164,
-            "concentrate_heat": 551,
-            "contain": 428,
-            "crack": 627,
+            "cleave": 627,
             "craft": 70,
-            "cut": 69,
-            "lever": 474
+            "encase": 428,
+            "hoist": 474,
+            "kindle": 551,
+            "lash": 1594,
+            "shear": 69
           },
           "tool_users": 257,
           "top_active_ids": [
@@ -560,14 +560,14 @@
           "score": 41418.77879,
           "successful_tools_total": 9882,
           "tool_use_counts": {
-            "bind": 2083,
             "build": 91,
-            "concentrate_heat": 1932,
-            "contain": 1146,
-            "crack": 427,
-            "cut": 2272,
-            "filter": 201,
-            "lever": 1675
+            "cleave": 427,
+            "encase": 1146,
+            "hoist": 1675,
+            "kindle": 1932,
+            "lash": 2083,
+            "shear": 2272,
+            "winnow": 201
           },
           "tool_users": 150,
           "top_active_ids": [
@@ -602,9 +602,9 @@
           "successful_tools_total": 1197,
           "tool_use_counts": {
             "build": 1,
-            "concentrate_heat": 1135,
-            "crack": 1,
-            "lever": 60
+            "cleave": 1,
+            "hoist": 60,
+            "kindle": 1135
           },
           "tool_users": 1,
           "top_active_ids": []
@@ -633,13 +633,13 @@
           "score": 2342.45763,
           "successful_tools_total": 700,
           "tool_use_counts": {
-            "bind": 168,
             "build": 205,
-            "concentrate_heat": 2,
-            "contain": 176,
-            "crack": 23,
+            "cleave": 23,
             "craft": 13,
-            "lever": 113
+            "encase": 176,
+            "hoist": 113,
+            "kindle": 2,
+            "lash": 168
           },
           "tool_users": 2,
           "top_active_ids": [
@@ -657,12 +657,12 @@
     },
     "world_energy": {
       "adaptive_storage": 225.8658,
-      "chemical": 2.1115,
+      "dense_node": 10.5386,
       "electrical": 237.6934,
-      "high_density": 10.5386,
-      "locked_chemical": 470.9569,
+      "essence": 2.1115,
       "mechanical": 1854.8698,
-      "radiant": 972.4174,
+      "sealed_essence": 470.9569,
+      "solar": 972.4174,
       "thermal": 3260.6666
     },
     "world_physics": {
@@ -4561,11 +4561,11 @@
     "kind": "agent",
     "last_action": "use_tool",
     "last_artifact_method": 0.2316,
-    "last_craft_target": "crack",
+    "last_craft_target": "cleave",
     "last_energy_delta": -0.1354,
     "last_lesson": {
-      "affordance": "crack",
-      "attempted_affordance": "crack",
+      "affordance": "cleave",
+      "attempted_affordance": "cleave",
       "gain": 0.003084,
       "kind": "tool_use",
       "method_quality": 0.231558,
@@ -4573,11 +4573,11 @@
       "problem": {
         "difficulty": 0.590436,
         "kind": "causal_challenge",
-        "payoff_energy": "chemical",
+        "payoff_energy": "essence",
         "place": 4,
         "progress": 2,
         "remaining": 62.645509,
-        "required_affordance": "contain",
+        "required_affordance": "encase",
         "sequence": [
           "crack",
           "lever",
@@ -4588,7 +4588,7 @@
       "skill": 1.0,
       "success": true
     },
-    "last_tool_affordance": "crack",
+    "last_tool_affordance": "cleave",
     "last_valence": 0.0683,
     "line_root_id": 430,
     "location": 4,
@@ -4616,13 +4616,13 @@
     },
     "successful_tools": 1106,
     "tool_use_counts": {
-      "bind": 89,
       "build": 2,
-      "concentrate_heat": 330,
-      "contain": 151,
-      "crack": 359,
+      "cleave": 359,
       "craft": 1,
-      "lever": 174
+      "encase": 151,
+      "hoist": 174,
+      "kindle": 330,
+      "lash": 89
     }
   },
   "inventory": {
@@ -4680,31 +4680,31 @@
   "tick": 5429,
   "tool_skill": {
     "anchor": 0.012134,
-    "bind": 1.0,
     "build": 0.195065,
     "carry": 0.040365,
     "channel": 0.003867,
-    "concentrate_heat": 1.0,
-    "conduct": 0.036106,
-    "contain": 1.0,
-    "crack": 1.0,
+    "cleave": 1.0,
     "craft": 0.137521,
-    "cut": 0.032768,
+    "encase": 1.0,
     "enclose": 0.003487,
     "energy_storage": 0.028161,
-    "filter": 0.032401,
+    "ferry": 0.036106,
     "float": 0.00281,
     "gradient_harvest": 0.003927,
+    "hoist": 1.0,
     "inscribe": 2.7e-05,
     "insulate": 1.0,
     "interpret_mark": 0.003593,
-    "lever": 1.0,
+    "kindle": 1.0,
+    "lash": 1.0,
     "permeable": 0.003836,
     "protect": 1.0,
     "reaction_surface": 0.002887,
     "record": 0.022174,
+    "shear": 0.032768,
     "shelter": 0.025187,
     "support": 0.063866,
-    "traverse": 0.089218
+    "traverse": 0.089218,
+    "winnow": 0.032401
   }
 }

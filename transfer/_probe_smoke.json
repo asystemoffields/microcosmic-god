@@ -1,5 +1,5 @@
 {
-  "checkpoint": "/data/microcosmic-god/transfer/sample_brains/learner_champion_hidden14.json",
+  "checkpoint": "/data/microcosmic-god/transfer/sample_controllers/learner_champion_hidden14.json",
   "config": {
     "cohort": 12,
     "harshness": 1.2,

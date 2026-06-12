@@ -16,7 +16,7 @@
     "last_valence": -0.003441,
     "lesson_memory": [
       {
-        "affordance": "concentrate_heat",
+        "affordance": "kindle",
         "gain": 0.923192,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -24,10 +24,10 @@
         "problem": {
           "difficulty": 0.526809,
           "kind": "causal_challenge",
-          "payoff_energy": "chemical",
+          "payoff_energy": "essence",
           "place": 35,
           "remaining": 94.306798,
-          "required_affordance": "crack",
+          "required_affordance": "cleave",
           "sequence": [
             "crack",
             "lever",
@@ -39,7 +39,7 @@
         "success": true
       },
       {
-        "affordance": "concentrate_heat",
+        "affordance": "kindle",
         "gain": 0.923192,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -47,10 +47,10 @@
         "problem": {
           "difficulty": 0.526809,
           "kind": "causal_challenge",
-          "payoff_energy": "chemical",
+          "payoff_energy": "essence",
           "place": 35,
           "remaining": 94.306798,
-          "required_affordance": "crack",
+          "required_affordance": "cleave",
           "sequence": [
             "crack",
             "lever",
@@ -62,7 +62,7 @@
         "success": true
       },
       {
-        "affordance": "concentrate_heat",
+        "affordance": "kindle",
         "gain": 0.923192,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -70,10 +70,10 @@
         "problem": {
           "difficulty": 0.526809,
           "kind": "causal_challenge",
-          "payoff_energy": "chemical",
+          "payoff_energy": "essence",
           "place": 35,
           "remaining": 94.306798,
-          "required_affordance": "crack",
+          "required_affordance": "cleave",
           "sequence": [
             "crack",
             "lever",
@@ -85,7 +85,7 @@
         "success": true
       },
       {
-        "affordance": "concentrate_heat",
+        "affordance": "kindle",
         "gain": 0.923192,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -93,10 +93,10 @@
         "problem": {
           "difficulty": 0.526809,
           "kind": "causal_challenge",
-          "payoff_energy": "chemical",
+          "payoff_energy": "essence",
           "place": 35,
           "remaining": 94.306798,
-          "required_affordance": "crack",
+          "required_affordance": "cleave",
           "sequence": [
             "crack",
             "lever",
@@ -108,7 +108,7 @@
         "success": true
       },
       {
-        "affordance": "concentrate_heat",
+        "affordance": "kindle",
         "gain": 0.0,
         "kind": "tool_use",
         "method_quality": 0.0,
@@ -116,10 +116,10 @@
         "problem": {
           "difficulty": 0.526809,
           "kind": "causal_challenge",
-          "payoff_energy": "chemical",
+          "payoff_energy": "essence",
           "place": 35,
           "remaining": 94.306798,
-          "required_affordance": "crack",
+          "required_affordance": "cleave",
           "sequence": [
             "crack",
             "lever",
@@ -178,7 +178,7 @@
     "tool_trace": {
       "last_artifact_method": 0.0,
       "last_craft_target": "",
-      "last_tool_affordance": "concentrate_heat"
+      "last_tool_affordance": "kindle"
     }
   },
   "context": {
@@ -193,12 +193,12 @@
     },
     "world_energy": {
       "adaptive_storage": 2749.3718,
-      "chemical": 152.7726,
+      "dense_node": 3.7703,
       "electrical": 53.6418,
-      "high_density": 3.7703,
-      "locked_chemical": 630.6572,
+      "essence": 152.7726,
       "mechanical": 986.8217,
-      "radiant": 1944.0859,
+      "sealed_essence": 630.6572,
+      "solar": 1944.0859,
       "thermal": 4298.2306
     },
     "world_physics": {
@@ -2797,7 +2797,7 @@
     "last_craft_target": "",
     "last_energy_delta": -0.1677,
     "last_lesson": {
-      "affordance": "concentrate_heat",
+      "affordance": "kindle",
       "gain": 0.0,
       "kind": "tool_use",
       "method_quality": 0.0,
@@ -2805,10 +2805,10 @@
       "problem": {
         "difficulty": 0.526809,
         "kind": "causal_challenge",
-        "payoff_energy": "chemical",
+        "payoff_energy": "essence",
         "place": 35,
         "remaining": 94.306798,
-        "required_affordance": "crack",
+        "required_affordance": "cleave",
         "sequence": [
           "crack",
           "lever",
@@ -2819,7 +2819,7 @@
       "skill": 1.0,
       "success": false
     },
-    "last_tool_affordance": "concentrate_heat",
+    "last_tool_affordance": "kindle",
     "last_valence": -0.0034,
     "location": 35,
     "neural": true,
@@ -2886,31 +2886,31 @@
   "tick": 1000,
   "tool_skill": {
     "anchor": 0.0,
-    "bind": 0.0085,
     "build": 0.006,
     "carry": 0.0,
     "channel": 0.0,
-    "concentrate_heat": 1.0,
-    "conduct": 0.0,
-    "contain": 1.0,
-    "crack": 0.0,
+    "cleave": 0.0,
     "craft": 0.004,
-    "cut": 0.0,
+    "encase": 1.0,
     "enclose": 0.0,
     "energy_storage": 0.0,
-    "filter": 0.0,
+    "ferry": 0.0,
     "float": 0.0,
     "gradient_harvest": 0.0,
+    "hoist": 0.0,
     "inscribe": 0.0,
     "insulate": 0.0,
     "interpret_mark": 0.0,
-    "lever": 0.0,
+    "kindle": 1.0,
+    "lash": 0.0085,
     "permeable": 0.0,
     "protect": 0.0,
     "reaction_surface": 0.0,
     "record": 0.0,
+    "shear": 0.0,
     "shelter": 0.0,
     "support": 0.0,
-    "traverse": 0.0
+    "traverse": 0.0,
+    "winnow": 0.0
   }
 }

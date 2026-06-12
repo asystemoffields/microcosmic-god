@@ -4,7 +4,7 @@
     13,
     13
   ],
-  "checkpoint": "runs/long6h/seed341/20260611_143225_seed341_minute/checkpoints/brain_t00003000_o2867_interval_lineage_founder.json",
+  "checkpoint": "runs/long6h/seed341/20260611_143225_seed341_minute/checkpoints/controller_t00003000_o2867_interval_line_founder.json",
   "config": {
     "cohort": 8,
     "harshness": 1.6,
