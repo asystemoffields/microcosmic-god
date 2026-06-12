@@ -93,12 +93,51 @@ Three arms, seed 7, minute profile: **A** k=0/drive 1.0 (legacy control),
 - **P5 (unification):** capacity-erosion slope shallows under k=1 — same
   phenomenon as the transfer barrier, so the same lever should move both.
 
+## Stage 0 readout (2026-06-12, seed 7, minute profile, ~300s wall each)
+
+Matched-tick comparison at t900 (arms ended at different ticks from CPU
+contention; aggregates every 100 ticks):
+
+| Arm | k | drive | neural @t300 | @t600 | @t900 | infeasible commits @t900 | recombine pairings @t900 |
+|-----|---|-------|------|------|------|------|------|
+| A | 0 | 1.0 | 53 | 39 | 48 | 0 | 266 |
+| B | 1 | 1.0 | 103 | 868 | **1514** | 22,812 | **6,396** |
+| C | 1 | 0.0 | 49 | 20 | **18** | 6,665 | 45 |
+| D | 0 | 0.0 | 47 | 26 | **24** | 0 | 60 |
+
+- **P1 split verdict.** k=1 with drive intact (B) boots emphatically — in
+  fact the neural population *explodes*, riding a 24× recombination-pairing
+  boom (coordinate attempts 32.9k vs A's 2.2k). Mechanism unidentified;
+  single seed; do not over-read. Full pressure (C) does **not** boot: the
+  neural cohort starves toward extinction with coordinate attempts near zero.
+  Per the scale-discipline rule this is a PARK for drive-0-at-boot, not a
+  kill: the predicted path is staged removal (boot at drive 1.0, anneal
+  toward 0 as coupling rises) or a developmental subsidy analog for
+  reproduction timing.
+- **Attribution (arm D, k=0/drive 0): the collapse is NOT a k-interaction.**
+  D tracks C almost exactly (47→26→24 vs 49→20→18) with zero k-pressure. The
+  injection has been carrying neural reproduction timing in *every* run to
+  date — consistent with #2867 ranking clone_mutate last and reproducing via
+  injection + exploration floor, and with both drive-0 arms pairing at ~50-60
+  vs A's 266. The injection is a load-bearing subsidy to remove on its own
+  schedule, independent of k: anneal it, or pair its removal with a
+  reproduction-timing developmental pathway, and treat "reproduction timing
+  becomes perceptual" as its own measurable rung (the coupling probe applies
+  unchanged).
+- **P2 confirmed.** The pressure is real and measurable: 22.8k bounded-search
+  commits in B (top: coordinate, pickup, craft, use_tool), zero in legacy.
+
 ## Staging
 
-- **Stage 0** — this pre-flight (boot + counters). Local, short.
+- **Stage 0** — this pre-flight (boot + counters). Local, short. **Done;
+  readout above.**
 - **Stage 1** — Kaggle 6-h tier at the validated campaign config (mixed boot
-  0.5, r1500, h1.6, rate 0.30, max-blocks 3, grace 150/0.35) × {k=1, drive 0},
-  seeds paired with the legacy 6-h runs. Read P3/P5.
+  0.5, r1500, h1.6, rate 0.30, max-blocks 3, grace 150/0.35) × **{k=1,
+  drive 1.0}** (Stage 0 showed drive 0 does not boot at any k and its removal
+  is a separate, k-independent rung), seeds paired with the legacy 6-h runs.
+  Read P3/P5.
+- **Stage 1.5** — drive annealing: boot at 1.0, decay toward 0 over cycles,
+  with neural-population viability and coupling as the paired readout.
 - **Stage 2** — environmental sufficiency: cue-reliability / recalibrated
   patch recovery, so ungated constant programs (A4) stop being viable.
 - **Stage 3** — re-measure the ladder; reverse-engineer the grown perceivers
