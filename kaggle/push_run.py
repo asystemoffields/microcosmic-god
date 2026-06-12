@@ -52,6 +52,8 @@ def main() -> None:
     parser.add_argument("--modular-max-blocks", type=int, default=1)
     parser.add_argument("--structural-rate", type=float, default=0.06)
     parser.add_argument("--world-refresh-every", type=int, default=0)
+    parser.add_argument("--action-search-depth", type=int, default=None)
+    parser.add_argument("--drive-injection-scale", type=float, default=None)
     parser.add_argument("--checkpoint-every", type=int, default=1000)
     parser.add_argument("--checkpoint-limit", type=int, default=64)
     parser.add_argument("--log-every", type=int, default=100)
@@ -77,6 +79,8 @@ def main() -> None:
         "checkpoint_limit": args.checkpoint_limit,
         "quiet_events": True,
         "log_every": args.log_every,
+        "action_search_depth": args.action_search_depth,
+        "drive_injection_scale": args.drive_injection_scale,
     }
 
     package = HERE / "_packages" / args.name

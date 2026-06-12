@@ -19,6 +19,8 @@ CONFIG = {
     "checkpoint_limit": 64,
     "quiet_events": True,
     "log_every": 100,
+    "action_search_depth": None,
+    "drive_injection_scale": None,
 }
 
 import json
@@ -58,6 +60,10 @@ args = [
 ]
 if CONFIG["harshness"] is not None:
     args += ["--harshness", str(CONFIG["harshness"])]
+if CONFIG.get("action_search_depth") is not None:
+    args += ["--action-search-depth", str(CONFIG["action_search_depth"])]
+if CONFIG.get("drive_injection_scale") is not None:
+    args += ["--drive-injection-scale", str(CONFIG["drive_injection_scale"])]
 if CONFIG["quiet_events"]:
     args += ["--quiet-events"]
 

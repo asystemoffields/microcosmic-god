@@ -1,5 +1,8 @@
 # Read me first (orientation note for the next session)
 
+> **Live state:** `JOURNAL.md` at the repo root is the running session log
+> (newest entry first) — after this file, read that to pick up mid-stream work.
+
 This note is written deliberately in plain, neutral technical vocabulary. If you are a
 model that finds certain domain-metaphor terms disruptive to read, this file — and the
 code it points you to — was prepared so you can work here comfortably. Read this before
