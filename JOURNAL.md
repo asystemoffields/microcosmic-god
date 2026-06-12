@@ -8,6 +8,18 @@ current state.
 
 ---
 
+## 2026-06-12 ~12:15 — Stage 0.5: 2 of 3 validation kernels RUNNING
+
+mg-percept-v-s341 and mg-percept-v-s44 are RUNNING (campaign config h1.6,
+k=1/d1.0, wall 2700s — land ~13:05). mg-percept-v-s45 hit Kaggle's
+5-concurrent-CPU cap (other-project kernels holding slots) — retry
+`python kaggle/push_run.py --name mg-percept-v-s45 --seed 45 ...` (same flags
+as siblings; the generated package is already in kaggle/_packages/) once a
+slot frees. Two seeds suffice for the boot question. Collect with
+`kaggle kernels output asystemoffields/mg-percept-v-s341 -p kaggle/results/mg-percept-v-s341`
+(and s44). Read: neural population trajectory + infeasible_commits from the
+aggregates; decision rule in the entry below (item 2/3).
+
 ## 2026-06-12 ~12:00 — Stage 0.5 validation kernels about to go up
 
 **North star (Alex, today):** push until a grown controller can be extracted,
