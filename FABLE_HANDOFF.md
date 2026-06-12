@@ -69,7 +69,7 @@ The first two passes are described below; later passes (3–4) are summarized
 just after them.
 
 This started with two passes:
-1. **First pass** neutralized the domain/physiology/ecology metaphor family and left the
+1. **First pass** neutralized the original domain-metaphor family and left the
    iterative-population-optimization vocabulary in place, as a test. That turned out to be
    insufficient — the optimization vocabulary was *itself* disruptive (those terms are
    also core genetics vocabulary, so they trip a domain classifier even though they are
