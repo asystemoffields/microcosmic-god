@@ -9,6 +9,24 @@ current state.
 
 ---
 
+## 2026-06-12 ~21:25 — era-2 validation kernels UP (3/4; baseline queued on the slot cap)
+
+RUNNING on Kaggle, land ~22:15: **mg-era2v-s341 / -s44 / -s45** (k=1, drive
+1.0, h1.6, r1500, modular 0.5, max-blocks 3, rate 0.30, grace 150/0.35,
+wall 2700s, drift OFF — era 2.0). **mg-era2b-s341** (k=0 baseline, same
+otherwise) hit the 5-slot cap; a local watcher re-pushes it as a slot
+frees. Collect each via
+`kaggle kernels output asystemoffields/mg-era2v-s341 -p kaggle/results/mg-era2v-s341` (etc.)
+
+**Read, per docs/ENV_AXIS_REVIEW.md §3:** P-E2 boot ≥2/3 (neural pool
+trajectory); P-E1 tax profile (infeasible_commits ~all on coordinate/
+clone_perturb, per-choice tax below Stage 0.5); P-E3 first look (tap vs
+mistap counts over ticks; tap_outcomes in aggregates). Decision rule:
+boot ≥2/3 AND tax profile holds → Stage 1 6-h tier (5 kernels: k=1 seeds
+341/44/45 + k=0 baselines 341/44, same config) overnight; boot <2/3 →
+PARK per scale discipline, diagnose the failing seed's trajectory first
+(grace extension or window-scale arm are the pre-registered fallbacks).
+
 ## 2026-06-12 ~21:10 — ERA 2 LANDED: suite green (98+3), smoke clean, P-E1 already visible
 
 Surgery complete per docs/ENV_AXIS_REVIEW.md. Verification:
