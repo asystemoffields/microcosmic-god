@@ -164,15 +164,53 @@ contention; aggregates every 100 ticks):
 - **P2 confirmed.** The pressure is real and measurable: 22.8k bounded-search
   commits in B (top: coordinate, pickup, craft, use_tool), zero in legacy.
 
+## Stage 0.5 readout (2026-06-12, Kaggle, campaign config h1.6, k=1/drive 1.0, wall 2700s)
+
+Two seeds landed (s341, s44); the third (s45) hit the concurrency cap and was
+re-pushed as `mg-percept-v-s45b` (in flight). **Boot at h1.6 is SPLIT 1/2 —
+seed-contingent, not robust.**
+
+| Seed | end tick | neural trajectory | recombine births | infeasible total | top infeasible |
+|------|----------|-------------------|------------------|------------------|----------------|
+| 341 | 7100 (2.67 t/s) | 71@t100 → 3@t1300 → 9@t7100; modular cohort gone by t900 | 4 | 5,241 (flat after t3700) | use_tool 2446, pickup 971, craft 682 |
+| 44 | 3700 (1.4 t/s) | 80 → 39@t300 → ~100 plateau → 1087@t2500 → 387@t3700 (declining) | 3,482 | 175,846 | use_tool 104k, craft 41k, coordinate 21k |
+
+- **s44 reproduces the Stage 0 pattern at h1.6**: the same pairing-driven
+  population rise (recombine 3,482), followed here by overshoot — deaths
+  dominated by depletion (3,796) and starvation (1,931) — and a decline still
+  in progress at wall. Structural ops stayed live (add 59 / duplicate 56 /
+  prune 31; blocks_mean 2.6).
+- **s341 does not boot**: the pool drops below 10 by t500 and the modular
+  cohort is gone by t900; the residual handful of legacy individuals are
+  energy-rich (avg 112) but pair only 4 times in 7,100 ticks. The ecology
+  (plant/fungus) stands throughout — this is a neural-cohort failure, not a
+  world failure.
+- **The infeasible-commit tax concentrates on gates the observation vector
+  cannot express.** In both seeds the top payers are use_tool / craft / build /
+  pickup — exactly the actions whose gate inputs (artifact count, collective
+  material count) are listed above as Requirement-B observation gaps. Under
+  k=1 these are taxes no perception can learn to avoid: an unwinnable
+  component of the pressure. (coordinate's 21k in s44 is the legitimate
+  target — its gate inputs are observable.) This independently corroborates
+  the env-review suspicion that the crafting/tool/build/artifact subsystem is
+  dilution for the transfer goal; see `docs/ENV_AXIS_REVIEW.md`.
+- **Decision-rule outcome:** neither clean branch fires. Boot is possible but
+  fragile at h1.6 (1/2, tiebreaker pending). Stage 1 launch is held pending
+  the env-axis review, since the same actions that tax marginal seeds are the
+  review's prime cut candidates — cutting them is plausibly the boot fix the
+  PARK path (k=3 anneal / grace extension) would otherwise approximate.
+
 ## Staging
 
 - **Stage 0** — this pre-flight (boot + counters). Local, short. **Done;
   readout above.**
+- **Stage 0.5** — Kaggle validation at h1.6, campaign config. **Done (split
+  verdict; readout above); s45 tiebreaker in flight.**
 - **Stage 1** — Kaggle 6-h tier at the validated campaign config (mixed boot
   0.5, r1500, h1.6, rate 0.30, max-blocks 3, grace 150/0.35) × **{k=1,
   drive 1.0}** (Stage 0 showed drive 0 does not boot at any k and its removal
   is a separate, k-independent rung), seeds paired with the legacy 6-h runs.
-  Read P3/P5.
+  Read P3/P5. **Held pending the env-axis review** (Stage 0.5 outcome above).
 - **Stage 1.5** — drive annealing: boot at 1.0, decay toward 0 over cycles,
   with neural-population viability and coupling as the paired readout.
 - **Stage 2** — environmental sufficiency: cue-reliability / recalibrated

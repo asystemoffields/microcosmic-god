@@ -9,7 +9,31 @@ current state.
 
 ---
 
-## 2026-06-12 ~13:00 — scrub pass 10 done; NEXT TASK = env review against the transfer axis
+## 2026-06-12 ~15:30 — Stage 0.5 collected: boot at h1.6 SPLIT 1/2; s45b tiebreaker up; Stage 1 held for env review
+
+Collected mg-percept-v-s341 and -s44 (campaign config, k=1/drive 1.0, wall
+2700s). Full readout + table in docs/PERCEPTION_PROGRAM.md (Stage 0.5 section).
+Short version: **s44 boots** — same pairing-driven rise as Stage 0 (recombine
+3,482), peak 1,087 neural @t2500, then overshoot decline (depletion+starvation)
+to 387 @t3700 at wall, structural ops live throughout. **s341 does not boot** —
+pool under 10 by t500, modular cohort gone by t900, 4 pairings in 7,100 ticks,
+ecology fine. So h1.6 boot is seed-contingent. s45 had hit the concurrency cap;
+its slug came back broken from that attempt ("Notebook not found" on every
+re-push), so it went up under a fresh slug: **mg-percept-v-s45b, RUNNING,
+lands ~16:20** — collect via
+`kaggle kernels output asystemoffields/mg-percept-v-s45b -p kaggle/results/mg-percept-v-s45b`.
+
+**The cross-link that matters:** in both seeds the infeasible-commit tax
+concentrates on use_tool / craft / build / pickup — the actions whose gate
+inputs (artifact count, collective material count) are exactly the
+Requirement-B observation gaps. Under k=1 those commits are a tax no
+perception can learn to avoid. The env review's prime suspect (the
+crafting/tool/build/artifact subsystem) is therefore not just classifier
+surface and maintenance weight — it is an *unwinnable* component of the very
+pressure we just turned on, and plausibly what kills boot in marginal seeds.
+**Stage 1 is held until the env-axis review lands** (started, this session):
+if the cut list removes those actions, Stage 1 should run on the trimmed env
+with fresh k=0 baselines rather than burn 5×6h on an env about to change.
 
 **Why the interruption:** a session was switched off this work mid-read on
 one handler in `simulation.py` — an inter-individual energy-transfer interaction
