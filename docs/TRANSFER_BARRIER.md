@@ -101,12 +101,25 @@ leak is free. This explains every arm in one stroke: frozen ≈ trained
 (learning never mattered), remapped ≈ trained (inputs never mattered),
 permuted dead (the ordering is destroyed), random poor (wrong ordering).
 
-**Confirmation arms (in flight on the same 12 worlds):** `blind` (encoder
-weights zeroed — prediction: ≈ trained; already byte-identical to trained in
-a 60-tick smoke) and `outswapped` (action identities permuted on the output
-side only — prediction: collapse toward permuted; smoke agrees). If they land
-as predicted, the obs-side ladder (R1-R4) collapses to a single point for
-this champion and the effector side is the only real axis.
+**Confirmation arms — LANDED as predicted (full battery, 12 paired worlds):**
+`blind` (encoder weights zeroed) alive **0.667 vs trained 0.635**, paired
+worlds 4 wins / 4 losses / 4 ties — dead even; the observation pathway can be
+removed outright without cost. `outswapped` (action identities permuted on
+the output side only) alive **0.101 vs permuted 0.021** (trained 0.635) —
+collapse toward permuted, 7/12 paired wins over it, a small residue
+presumably from preserved core dynamics. The obs-side ladder (R1-R4)
+collapses to a single point for this champion; the effector-side ordering is
+the entire competence.
+
+**Second free-state channel (found while building the lever):** the realized
+energy-conditional behavior (84% coordinate when rich, 11% drain when poor)
+is not the feasibility walk alone — the chooser itself injects a boost into
+coordinate/clone_mutate outputs exactly when an individual is adult and
+energy-rich (`drive_injection_scale`, now config-gated). The champion's
+context sensitivity was harness-supplied twice over: the walk filtered by
+feasibility, and the injection timed reproduction. Both are now removable
+knobs; the full subsidy ledger and growth program live in
+docs/PERCEPTION_PROGRAM.md.
 
 ## What this does to the program
 
@@ -122,6 +135,12 @@ this champion and the effector side is the only real axis.
    resource variant that harms unless a cue channel distinguishes it; (c) the
    already-planned cue-reliability world feature. (a) is a one-knob change to
    `_choose_action_from_outputs` and converts the gates from oracle to cost.
+   *(Built 2026-06-12: `action_search_depth` (k=1 = full pressure) plus
+   `drive_injection_scale` (0 = no harness-timed reproduction), with an
+   `infeasible_commits` counter in every aggregate and
+   `analysis/coupling_probe.py` as the dependent variable. Necessity vs
+   sufficiency, pre-registered predictions, and staging:
+   docs/PERCEPTION_PROGRAM.md.)*
 3. Pre-registered predictions for feasibility-blind resolution: blind arm
    drops below trained; obs-output coupling (output std on a fixed trace)
    becomes selectable and rises across cycles; only then does the ladder
