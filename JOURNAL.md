@@ -9,6 +9,43 @@ current state.
 
 ---
 
+## 2026-06-13 ~03:30 — era 2.1 BUILT + smoke-validated (commit 5a1d518); NOT launched (daytime Kaggle)
+
+Implemented the cue-gated staple against the pre-registration below. Knobs:
+`staple_cue_floor` (1.0 = no gating = legacy AND control; experiment <1),
+`staple_cue_threshold` (percentile gate, 0.70), `staple_cue_drift` (re-draw
+channel per refresh). Reuses the tap-cue percentile machinery; gate applies
+to eat AND absorb_solar via `_staple_cue_factor`; wired through CLI + Kaggle
+harness. 101 tests green (floor 1.0 default is byte-identical era-2).
+
+**Real bug caught in smoke:** first version gated ALL kinds, starving the
+scripted collector/converter food base (which has no controller and CANNOT
+read the cue — gating it is pure economic damage, zero selection upside).
+gated pool crashed 1393→146. Fixed: `_staple_cue_factor` returns 1.0 for
+non-neural individuals. The demand now falls only on the agents we want to
+evolve perception.
+
+**Floor sweep (seed 341, minute, k OFF, drive 1.0, food-base-fixed, to
+t3000), neural endpoint + gate bite:**
+- floor 1.0 (control): neural 286, eat dE +0.870 (baseline).
+- **floor 0.5: neural 355 (healthiest), eat dE +0.576 — bites AND robust.**
+- floor 0.35: neural 9 (declining) — too harsh; population can't carry the
+  penalty at minute scale.
+Operating point = **floor 0.5**: a cue-reader gets ~1.5× the eat efficiency
+of a blind eater (avoids the 0.5× penalty in the ~70% below-cue places)
+while the population persists. (floor-0.35's high avg eat-dE is a red
+herring — dominated by ungated converters, not selection.)
+
+**Validation plan (daytime, NOT fired tonight — won't fire-and-forget a 6-h
+sweep I can't monitor):** Stage-1 protocol, h1.45, k OFF, drive 1.0, seeds
+{341,44,45}, arms = floor {0.5, 0.35} × drift {0,1} + the floor-1.0 same-
+seed CONTROL. Pass `--checkpoint-limit 256`. Read P-2.1-A (boot ≥2/3),
+P-2.1-B (coupling SLOPE over generations vs the flat control — THE test era
+2 failed), P-2.1-C (drift re-mapping), P-2.1-D (frozen-blind gauntlet).
+Deferred build item still open: periodic coupling log in the aggregates
+(y45's late champions were lost to checkpoint eviction; --checkpoint-limit
+256 is a partial mitigation, the periodic log is the real fix).
+
 ## 2026-06-13 ~02:45 — DEFINITIVE STAGE-1 RESULT: coupling is SEED-set and k-INVARIANT. The k=1 mechanism does not work. Pre-registering era 2.1.
 
 All four 6-h arms collected (y341/y44/y45 k=1, by341 k=0). The k=0 baseline
