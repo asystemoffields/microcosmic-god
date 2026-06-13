@@ -141,6 +141,27 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="constant part of the chooser's random-action rate (legacy 0.025)",
     )
+    run.add_argument(
+        "--staple-cue-threshold",
+        dest="staple_cue_threshold",
+        type=float,
+        default=None,
+        help="percentile (0-1) of the staple cue channel at which the eat/absorb_solar gate sits",
+    )
+    run.add_argument(
+        "--staple-cue-floor",
+        dest="staple_cue_floor",
+        type=float,
+        default=None,
+        help="payoff multiplier for eat/absorb_solar below the cue gate (1.0 = no gating / legacy & control; experiment ~0.35)",
+    )
+    run.add_argument(
+        "--staple-cue-drift",
+        dest="staple_cue_drift",
+        type=int,
+        default=None,
+        help="1 = re-draw the staple cue channel at every world refresh (the re-mapping pressure); 0 = fixed channel",
+    )
     run.add_argument("--backend", choices=["cpu", "torch"], default=None, help="controller compute backend")
     run.add_argument("--device", default=None, help="compute device for --backend torch, such as auto, cpu, cuda, or cuda:0")
     run.add_argument("--garden", action="store_true", help="allow logged interventions")
@@ -185,6 +206,9 @@ def config_from_args(args: argparse.Namespace) -> RunConfig:
         "tap_cue_drift": args.tap_cue_drift,
         "combine_intent_window_scale": args.combine_intent_window_scale,
         "exploration_floor": args.exploration_floor,
+        "staple_cue_threshold": args.staple_cue_threshold,
+        "staple_cue_floor": args.staple_cue_floor,
+        "staple_cue_drift": args.staple_cue_drift,
         "compute_backend": args.backend,
         "device": args.device,
         "run_mode": "garden" if args.garden else "sealed",

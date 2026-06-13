@@ -73,15 +73,41 @@ class Simulation:
         # places - a dead action, not a demand).
         self.tap_cue_channel: str = TAP_CUE_CHANNELS[0]
         self.tap_cue_level: float = self._compute_tap_cue_level()
+        # Era 2.1: the staple cue (gates eat/absorb_solar). Inits to a
+        # different channel than tap so the two demands aren't trivially the
+        # same read; both drift independently when their drift knob is on.
+        self.staple_cue_channel: str = TAP_CUE_CHANNELS[1 % len(TAP_CUE_CHANNELS)]
+        self.staple_cue_level: float = self._compute_staple_cue_level()
         self._seed_initial_pool()
 
-    def _compute_tap_cue_level(self) -> float:
-        fraction = min(0.99, max(0.0, float(getattr(self.config, "tap_cue_threshold", 0.70))))
-        values = sorted(place.physics.get(self.tap_cue_channel, 0.0) for place in self.world.places)
+    def _cue_level(self, channel: str, fraction: float) -> float:
+        fraction = min(0.99, max(0.0, fraction))
+        values = sorted(place.physics.get(channel, 0.0) for place in self.world.places)
         if not values:
             return 0.05
         index = min(len(values) - 1, int(fraction * len(values)))
         return max(0.05, float(values[index]))
+
+    def _compute_tap_cue_level(self) -> float:
+        return self._cue_level(self.tap_cue_channel, float(getattr(self.config, "tap_cue_threshold", 0.70)))
+
+    def _compute_staple_cue_level(self) -> float:
+        return self._cue_level(self.staple_cue_channel, float(getattr(self.config, "staple_cue_threshold", 0.70)))
+
+    def _staple_cue_factor(self, individual: Individual, place: Place) -> float:
+        """Era 2.1 payoff multiplier on eat/absorb_solar. 1.0 above the cue
+        gate, staple_cue_floor below it. floor>=1.0 disables gating (legacy).
+
+        Applies ONLY to neural agents — the perception demand falls on the
+        population we want to evolve perception. The scripted collector/
+        converter food base has no controller and cannot read the cue, so
+        gating it would only starve the substrate with no selection upside.
+        """
+        floor = float(getattr(self.config, "staple_cue_floor", 1.0))
+        if floor >= 1.0 or not individual.neural:
+            return 1.0
+        cue = float(place.physics.get(self.staple_cue_channel, 0.0))
+        return 1.0 if cue >= self.staple_cue_level else max(0.0, floor)
 
     def _environment_harshness(self) -> float:
         return max(0.2, float(getattr(self.config, "environment_harshness", 1.0)))
@@ -136,7 +162,10 @@ class Simulation:
         self.world = new_world
         if int(getattr(self.config, "tap_cue_drift", 0)) > 0:
             self.tap_cue_channel = new_rng.choice(TAP_CUE_CHANNELS)
+        if int(getattr(self.config, "staple_cue_drift", 0)) > 0:
+            self.staple_cue_channel = new_rng.choice(TAP_CUE_CHANNELS)
         self.tap_cue_level = self._compute_tap_cue_level()
+        self.staple_cue_level = self._compute_staple_cue_level()
         self.logger.event(
             self.tick,
             "world_refreshed",
@@ -145,6 +174,8 @@ class Simulation:
                 "resources_preserved": True,
                 "tap_cue_channel": self.tap_cue_channel,
                 "tap_cue_level": round(self.tap_cue_level, 5),
+                "staple_cue_channel": self.staple_cue_channel,
+                "staple_cue_level": round(self.staple_cue_level, 5),
             },
         )
 
@@ -846,7 +877,12 @@ class Simulation:
 
     def _eat(self, individual: Individual) -> None:
         place = self.world.places[individual.location]
-        appetite = 2.0 + individual.params.essence_conversion * 7.0 + individual.params.essence_energy_gain * 3.0
+        # Era 2.1 staple cue gate: below-cue eating is less efficient
+        # (appetite scaled), so a blind "eat anywhere" policy is dominated by
+        # a cue-reader. factor 1.0 when gating off. Scaling appetite (not just
+        # gain) keeps consumption proportional so off-cue eating does not
+        # strip the commons and worsen the overshoot.
+        appetite = (2.0 + individual.params.essence_conversion * 7.0 + individual.params.essence_energy_gain * 3.0) * self._staple_cue_factor(individual, place)
         essence = min(place.resources["essence"], appetite * 0.55)
         place.resources["essence"] -= essence
         residue = min(place.resources["residue_store"], appetite - essence)
@@ -858,7 +894,7 @@ class Simulation:
 
     def _absorb_solar(self, individual: Individual) -> None:
         place = self.world.places[individual.location]
-        gain = place.resources["solar"] * 0.018 * individual.params.solar_energy_gain * (0.2 + individual.params.solar_capture_area)
+        gain = place.resources["solar"] * 0.018 * individual.params.solar_energy_gain * (0.2 + individual.params.solar_capture_area) * self._staple_cue_factor(individual, place)
         thermal_stress = max(0.0, place.resources["thermal"] / 120.0 - individual.params.thermal_tolerance)
         individual.energy += gain
         individual.health -= thermal_stress * 0.003
@@ -1600,6 +1636,8 @@ class Simulation:
             "tap_outcomes": dict(self.tap_outcomes),
             "tap_cue_channel": self.tap_cue_channel,
             "tap_cue_level": round(self.tap_cue_level, 5),
+            "staple_cue_channel": self.staple_cue_channel,
+            "staple_cue_level": round(self.staple_cue_level, 5),
             "patch_recovery_triggers": self.patch_recovery_triggers,
             "structural_steps": dict(self.structural_steps),
             "success_profile": success_profile_summary(self.individuals),

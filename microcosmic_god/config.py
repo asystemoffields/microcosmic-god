@@ -111,6 +111,23 @@ class RunConfig:
     # Constant part of the chooser's random-action rate (param terms add to
     # it). Legacy 0.025. Annealable in later stages.
     exploration_floor: float = 0.025
+    # Era 2.1 (docs JOURNAL 2026-06-13 02:45 pre-registration): cue-gate the
+    # STAPLE. The place's eat/absorb_solar payoff is scaled by whether the
+    # local cue channel reads above its gate. Stage-1 proved the
+    # action-resolution tax (action_search_depth) does NOT make perception
+    # pay — coupling was seed-set and k-invariant — because the staples stay
+    # unconditionally profitable, so a blind constant policy is viable. This
+    # makes the staple itself cue-dependent: above the gate it pays full,
+    # below it pays staple_cue_floor x, so a cue-reader strictly dominates a
+    # blind eater on the action everyone uses. floor 1.0 = NO gating (legacy
+    # era-2 behavior AND the pre-registered control arm); the experiment uses
+    # ~0.35. Gate is a percentile of the channel's distribution (like tap),
+    # so a comparable fraction of places stay full-payoff. staple_cue_drift=1
+    # re-draws the channel each refresh (the re-mapping / pocketknife
+    # pressure). A gradient, not a toxic cliff, to protect founder-pool boot.
+    staple_cue_threshold: float = 0.70
+    staple_cue_floor: float = 1.0
+    staple_cue_drift: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

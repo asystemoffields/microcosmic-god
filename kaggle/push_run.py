@@ -58,6 +58,9 @@ def main() -> None:
     parser.add_argument("--tap-cue-drift", type=int, default=None)
     parser.add_argument("--combine-intent-window-scale", type=float, default=None)
     parser.add_argument("--exploration-floor", type=float, default=None)
+    parser.add_argument("--staple-cue-threshold", type=float, default=None)
+    parser.add_argument("--staple-cue-floor", type=float, default=None)
+    parser.add_argument("--staple-cue-drift", type=int, default=None)
     parser.add_argument("--checkpoint-every", type=int, default=1000)
     parser.add_argument("--checkpoint-limit", type=int, default=64)
     parser.add_argument("--log-every", type=int, default=100)
@@ -89,6 +92,9 @@ def main() -> None:
         "tap_cue_drift": args.tap_cue_drift,
         "combine_intent_window_scale": args.combine_intent_window_scale,
         "exploration_floor": args.exploration_floor,
+        "staple_cue_threshold": args.staple_cue_threshold,
+        "staple_cue_floor": args.staple_cue_floor,
+        "staple_cue_drift": args.staple_cue_drift,
     }
 
     package = HERE / "_packages" / args.name

@@ -25,6 +25,9 @@ CONFIG = {
     "tap_cue_drift": None,
     "combine_intent_window_scale": None,
     "exploration_floor": None,
+    "staple_cue_threshold": None,
+    "staple_cue_floor": None,
+    "staple_cue_drift": None,
 }
 
 import json
@@ -77,6 +80,12 @@ if CONFIG.get("combine_intent_window_scale") is not None:
     args += ["--combine-intent-window-scale", str(CONFIG["combine_intent_window_scale"])]
 if CONFIG.get("exploration_floor") is not None:
     args += ["--exploration-floor", str(CONFIG["exploration_floor"])]
+if CONFIG.get("staple_cue_threshold") is not None:
+    args += ["--staple-cue-threshold", str(CONFIG["staple_cue_threshold"])]
+if CONFIG.get("staple_cue_floor") is not None:
+    args += ["--staple-cue-floor", str(CONFIG["staple_cue_floor"])]
+if CONFIG.get("staple_cue_drift") is not None:
+    args += ["--staple-cue-drift", str(CONFIG["staple_cue_drift"])]
 if CONFIG["quiet_events"]:
     args += ["--quiet-events"]
 
