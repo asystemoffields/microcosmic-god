@@ -9,6 +9,28 @@ current state.
 
 ---
 
+## 2026-06-12 20:35 — first era-2 arm landed: perception side WORKS, macro-economy COLLAPSES at h1.6
+
+mg-era2v341-c14 (k=1/d1.0, h1.6, era-2): **neural boots hard then the whole
+world starves.** Neural 80→366@t1500 riding 1,549 combine births (era-1
+s341 managed 4 — the pairing dynamics under k=1 are emphatically alive);
+P-E1 EXACT (infeasible tax 100% on coordinate/clone_perturb); tap shows
+discrimination signal already (241 tap / 4,416 mistap, avg dE +0.072).
+BUT total pool (collectors included) crashed 1808→86, deaths depletion
+5,190, neural washout t3382. Not a perception failure — a macro-energetic
+one: era 2 removed several world income faucets (tool-effect releases,
+causal unlocks, structures' passive generation) and h1.6 was calibrated
+against that richer economy. P-E2's non-inferiority framing assumed
+comparable energetics; it doesn't hold — era 2 needs its own harshness
+band, which is consistent with the fresh-baselines rule.
+
+PARK per scale discipline, recalibrate with pre-registered dials only:
+local minute-scale scan (box idle), seed 341, k=1/d1.0, three arms —
+(A) h1.6 + combine_intent_window_scale 0.5 (damp the boom, keep pressure),
+(B) h1.45, (C) h1.35. The launcher's remaining h1.6 arms stay up as the
+attribution matrix: if the k=0 baseline collapses too, the collapse is
+economic, not k-pressure (expected).
+
 ## 2026-06-12 14:45 — LAUNCH CORRECTION: tonight's pushes were silently dropped; trickle-launcher armed
 
 The ~21:25 entry was wrong: none of the four kernels materialized. Browser
