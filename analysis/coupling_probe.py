@@ -30,7 +30,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from microcosmic_god.controller import TinyController  # noqa: E402
 from microcosmic_god.modular import ModularController  # noqa: E402
-from microcosmic_god.individuals import ACTIONS  # noqa: E402
+from microcosmic_god.coupling import measure_coupling  # noqa: E402
 
 
 def _load_controller(path: Path):
@@ -41,65 +41,13 @@ def _load_controller(path: Path):
     return controller_dict, TinyController.from_dict
 
 
-def _ranking(outputs: list[float]) -> tuple[int, ...]:
-    head = outputs[: len(ACTIONS)]
-    return tuple(sorted(range(len(head)), key=lambda i: head[i], reverse=True))
-
-
 def probe(path: Path, steps: int, settle: int, seed: int) -> dict:
     controller_dict, from_dict = _load_controller(path)
-    rng = Random(seed)
-
-    # Zero-input attractor: what the network does with nothing to see.
-    zero_ctrl = from_dict(controller_dict)
-    zero_vector = [0.0] * zero_ctrl.input_size
-    for _ in range(settle):
-        zero_outputs = zero_ctrl.forward(zero_vector)
-    zero_rank = _ranking(zero_outputs)
-
-    # Streamed inputs: observation features live in [0, 1] for the most part
-    # (clipped to [-1, 1.5] at the source), so uniform [0, 1] draws are a
-    # reasonable stand-in for a live stream without needing a world.
-    ctrl = from_dict(controller_dict)
-    n_in = ctrl.input_size
-    for _ in range(settle):
-        ctrl.forward([rng.random() for _ in range(n_in)])
-    n_actions = len(ACTIONS)
-    sums = [0.0] * n_actions
-    sq_sums = [0.0] * n_actions
-    rankings: set[tuple[int, ...]] = set()
-    heads: dict[int, int] = {}
-    for _ in range(steps):
-        outputs = ctrl.forward([rng.random() for _ in range(n_in)])
-        rank = _ranking(outputs)
-        rankings.add(rank)
-        heads[rank[0]] = heads.get(rank[0], 0) + 1
-        for i in range(n_actions):
-            sums[i] += outputs[i]
-            sq_sums[i] += outputs[i] * outputs[i]
-
-    means = [s / steps for s in sums]
-    stds = [max(0.0, sq_sums[i] / steps - means[i] ** 2) ** 0.5 for i in range(n_actions)]
-    ordered_means = sorted(means, reverse=True)
-    gaps = [ordered_means[i] - ordered_means[i + 1] for i in range(n_actions - 1)]
-    mean_std = sum(stds) / n_actions
-    mean_gap = sum(gaps) / len(gaps)
-    modal_head = max(heads, key=heads.get)
-
+    row = measure_coupling(lambda: from_dict(controller_dict), steps=steps, settle=settle, seed=seed)
     tick_match = re.search(r"_t(\d+)_", path.name)
-    return {
-        "checkpoint": str(path),
-        "tick": int(tick_match.group(1)) if tick_match else None,
-        "distinct_rankings": len(rankings),
-        "distinct_heads": len(heads),
-        "stream_head": [ACTIONS[i] for i in _ranking(means)[:3]],
-        "zero_input_head": [ACTIONS[i] for i in zero_rank[:3]],
-        "zero_head_matches_stream": zero_rank[0] == modal_head,
-        "output_std_mean": round(mean_std, 6),
-        "output_std_max": round(max(stds), 6),
-        "adjacent_gap_mean": round(mean_gap, 6),
-        "coupling_ratio": round(mean_std / mean_gap, 6) if mean_gap > 0 else None,
-    }
+    row["checkpoint"] = str(path)
+    row["tick"] = int(tick_match.group(1)) if tick_match else None
+    return row
 
 
 def main() -> None:

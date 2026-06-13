@@ -20,9 +20,11 @@ from .individuals import (
     ACTION_INDEX,
     OBSERVATION_SIZE,
     Individual,
+    controller_from_dict,
     individual_from_params,
     make_modular_controller_for_params,
 )
+from .coupling import measure_coupling
 from .runlog import RunLogger
 from .world import Place, World
 
@@ -1547,6 +1549,38 @@ class Simulation:
             "top_all_time": top_all_time,
         }
 
+    def _coupling_sample(self, max_controllers: int = 10) -> dict[str, Any]:
+        """Live coupling sample for the aggregate — the dependent variable for
+        the perception program, logged every log_every ticks so the slope over
+        cycles is captured regardless of which checkpoints the score-based
+        retention keeps (the 64-cap eviction lost y45's late champions). Each
+        sampled controller is cloned (state-free) before probing so the live
+        recurrent state is never disturbed."""
+        live = [o for o in self.individuals.values() if o.alive and o.controller is not None]
+        if not live:
+            return {}
+        sample = live if len(live) <= max_controllers else self.rng.sample(live, max_controllers)
+        ratios: list[float] = []
+        decoupled = 0
+        for individual in sample:
+            cdict = individual.controller.to_dict(include_state=False)
+            result = measure_coupling(lambda: controller_from_dict(cdict), steps=150, settle=40, seed=self.tick or 1)
+            ratio = result.get("coupling_ratio")
+            if ratio is not None:
+                ratios.append(ratio)
+                if not result.get("zero_head_matches_stream", True):
+                    decoupled += 1
+        if not ratios:
+            return {}
+        ratios.sort()
+        return {
+            "n": len(ratios),
+            "median": round(ratios[len(ratios) // 2], 5),
+            "mean": round(sum(ratios) / len(ratios), 5),
+            "max": round(ratios[-1], 5),
+            "decoupled_head_frac": round(decoupled / len(ratios), 3),
+        }
+
     def _log_aggregate(self) -> None:
         active = [individual for individual in self.individuals.values() if individual.alive]
         neural = [individual for individual in active if individual.neural]
@@ -1638,6 +1672,7 @@ class Simulation:
             "tap_cue_level": round(self.tap_cue_level, 5),
             "staple_cue_channel": self.staple_cue_channel,
             "staple_cue_level": round(self.staple_cue_level, 5),
+            "coupling_sample": self._coupling_sample(),
             "patch_recovery_triggers": self.patch_recovery_triggers,
             "structural_steps": dict(self.structural_steps),
             "success_profile": success_profile_summary(self.individuals),
