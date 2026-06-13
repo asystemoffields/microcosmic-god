@@ -106,7 +106,55 @@ a bolt-on tap action TO the staple everyone already uses (make eat's payoff
 cue-predicted and drift WHICH channel predicts food) — but that is a
 decision for after the baseline, not a 1am single-seed reflex.
 
-## 2026-06-13 ~01:40 — k-DEPENDENCE PREVIEW (matched local pair): coupling is a thin TAIL, not a population shift
+## 2026-06-13 ~02:20 — y45 (k=1) SURVIVED 6h to cap: washout is SEED-CONTINGENT, not a k property; coupling FLAT not rising
+
+The "k=1 is lethal" conclusion in the entry below is a SCALE ARTIFACT —
+corrected here by the full 6-h evidence. mg-era2y45-c3 (k=1, seed 45) ran
+the whole 21,600s / 31,277 ticks and ended at the population CAP (4000, 848
+neural alive). Trajectory: violent boom-bust for ~12k ticks with troughs
+shallowing (neural trough 113@t1500 → 79@t3500 → 170@t5500 → never below
+~250 after t12500), then a METASTABLE cap-saturated regime that persists to
+the wall (neural cycling 600-2300, total pinned near 4000). So:
+- **Washout is seed-contingent** (early-overshoot bottleneck): y341/y44/
+  x341/local-k1 are early-crash seeds; y45 rides through to a stable high-
+  population state. Same boot-2/3 stochasticity as era 1. My 480s local
+  preview only ever saw the first crash — too short by ~25k ticks to see
+  the recovery. (This is precisely the mg scale-discipline trap: KILL only
+  at pre-registered scale. I nearly declared k=1 lethal at 8-min scale.)
+- **Coupling is FLAT over time, not rising — even in a 31k-tick survivor.**
+  y45 champion coupling (visible window t<13k): median 0.599 early →
+  0.557 mid; max hits 2.01 (a strongly-perceiving outlier, coupling>1). The
+  level is higher than the crashing seeds (0.16-0.35) — a seed/survivor
+  effect — but it does NOT climb across generations. Many generations of
+  k=1 selection in a persistent population did not drive perception up.
+- **Tap still dominated at deep time:** 679 success / 118,089 mistap =
+  0.57% hit over 31k ticks. The cue contract is never solved, ever.
+
+**Synthesis (now robust across 4 crashing + 1 surviving 6h arm + the local
+pair):** era 2 CAN sustain a multi-generation population under k=1 (seed-
+contingent boot → metastable cap regime), but **perception stays a stable
+seed-level property, not something selection drives upward** — because it
+isn't necessary (blind staple policy stays viable), so no gradient pushes
+coupling up over generations. The earlier "perception now pays its way" and
+"k=1 lethal" claims are BOTH wrong; the true result is the flat middle: a
+persistent population whose perception doesn't compound.
+
+**Instrumentation gap exposed:** checkpoint_limit=64 with score-based
+retention evicts late-game champions (y45 keeps nothing past t13000), so
+coupling-over-full-cycles is unmeasurable for long runs. Fix for next
+build: log a periodic coupling sample into the aggregates (cheap: a few
+live neural controllers through the checkpoint-free measure) — an
+OBSERVABILITY change, not a dynamics change. Noted, not done at 2am.
+
+**Gate unchanged:** by341 (Kaggle k=0, 6h, seed 341) still RUNNING. It is
+the matched control for "is the coupling level k-dependent at all": if k=0
+survives and shows y45-like coupling, k adds nothing; if lower, k enriches
+the level (but still doesn't make it rise). Read it, then decide the
+cue-gate-the-staples redesign. Core direction is unchanged and now better
+supported: make perception NECESSARY so a persistent population's selection
+actually compounds it.
+
+## 2026-06-13 ~01:40 — k-DEPENDENCE PREVIEW (matched local pair): coupling is a thin TAIL, not a population shift  [k=1-lethal claim CORRECTED by the entry above]
 
 Didn't wait idle for the Kaggle baseline — ran the matched contrast locally
 (box idle): seed 341, h1.45, identical config, PYTHONHASHSEED=0, 480s wall,
