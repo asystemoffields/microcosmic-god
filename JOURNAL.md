@@ -38,18 +38,73 @@ ground down to that point):
   champions ≠ population mean — but it is the program's first direct
   evidence that perception now pays its way through selection.
 
-**Registered next step (era-2.0.1, one new mechanism, pre-registered
-here):** make the sealed reserve a slow FLOW, not a stock —
-`tap_reserve_regen` energy/tick/place (default ~0.03, 0=off), capped at
-the place's generation-time level. Rationale: (a) the economy needs a
-flywheel; the one we removed was harness-cognition-coupled, this one is
-perception-coupled by construction (only discriminating taps can milk
-it); (b) it strengthens the A4 sufficiency lever exactly where the
-mid/late world currently goes payoff-dark. Prediction P-R1: survival to
-the 6-h wall in ≥2/3 seeds at h1.45 with regen on; P-R2: late-run tap
-rate rises while mistap fraction falls (the flow rewards repeat
-discrimination); P-R3: coupling tail persists or widens vs y341.
-Implement after the k=0 baseline lands.
+**Registered next step (era-2.0.1):** make the sealed reserve a slow FLOW
+(`tap_reserve_regen`). — ***RETRACTED below, same night, on the evidence.***
+
+## 2026-06-13 ~01:10 — CORRECTION (Opus, picking up the thread): the diagnosis above is WRONG; tap is a DOMINATED action
+
+Verified the "reserve drains to a one-shot stock" claim against y341's
+world-energy trace before building the fix. It is false on every count:
+- **Sealed reserve stays abundant the whole run:** 1471 (t500) → trough
+  1027 (t2500) → 1232 (t6000). Never near zero; barely touched.
+- **The world recovers as the population crashes:** essence 63→4 at the
+  boom peak (t2000) then climbs to 1607 by t6000; residue likewise. Solar
+  abundant throughout (800-3200). This is a population OVERSHOOT, not an
+  energy drain — the boom (combine 2,893) overshoots carrying capacity,
+  strips accessible essence/residue at the peak (→ depletion 5,150
+  deaths), crashes below the density that sustains combine flux, and the
+  world refills because almost nothing is left to eat it.
+- **Energy is NOT the binding constraint:** eat +0.70, absorb_solar +0.79,
+  drain +0.53 per action, all run long. `tap_reserve_regen` would add fuel
+  to an overshoot — exactly wrong. RETRACTED.
+
+**Bigger finding — tap is a dominated action, and the A4 requirement was
+never met.** tap pays −0.02 averaged over attempts because it misfires
+98.5% of the time (195 success / 13,094). Per-champion decomposition of the
+34 checkpoints:
+- overall/spawn champions (the reproductively dominant lines, 33-201
+  offspring) tap ~never (0-1 success, hit ~0.0);
+- tap_champions (the only discriminators, hit 0.10-0.27) leave ZERO
+  offspring.
+The selection currency (reproduction) is decoupled from the installed
+perception task. Reason: tap is gate-free and competes with eat/
+absorb_solar, which stay UNCONDITIONALLY profitable — so a blind
+"absorb_solar forever" policy is still viable (A4 not satisfied), and a
+perceiving individual correctly learns to AVOID tap. Tapping a lot costs
+you your fitness; the tap_champions with 0 kids are the proof.
+
+**Reframe of the P3 signal:** coupling 0.29-0.94 is real, but its source is
+almost certainly the STAPLE loop (eat where food is, drain where crowded,
+absorb where solar is — all observable-gated and profitable), NOT tap.
+That's still perception-coupled competence, and arguably more portable
+(multi-channel). But it means the cue-contract-drift "pocketknife" pressure
+(era 2.1) currently has NO TEETH: nobody taps, so drifting the cue channel
+selects on nothing.
+
+**Two distinct problems, do NOT conflate:**
+1. *Population overshoot* (blocks multi-generation selection from
+   compounding) — lever is to damp spawning (drive anneal / combine cost /
+   density-dependent brake), NOT to add energy.
+2. *Installed cue contract is dominated* (the designed perception demand
+   isn't the one being met) — lever is to make cue-reading NECESSARY, i.e.
+   make the staples insufficient or make eat/absorb_solar themselves
+   cue-dependent, rather than bolt a worse extra action onto an
+   already-sufficient staple economy.
+
+**Highest-value open question, and it is exactly what the pending k=0
+baseline answers:** is the coupling signal k-DEPENDENT? If by341 (k=0) also
+shows coupling 0.3-0.9, the staple loop selects for perception regardless
+of k and the whole k=1 apparatus is redundant with it. If by341 collapses
+to the 0.155 attractor baseline, k=1 IS forcing perception (through the
+staples) and the only failure is that tap-specifically is dominated.
+
+**HELD: no mechanism change tonight.** This is one seed in a crashing world;
+champions ≠ population. Let y45 finish, READ THE k=0 BASELINE FIRST (it
+disambiguates the entire program), then choose the lever the full evidence
+supports. Candidate redesign to weigh then — relocate the cue contract FROM
+a bolt-on tap action TO the staple everyone already uses (make eat's payoff
+cue-predicted and drift WHICH channel predicts food) — but that is a
+decision for after the baseline, not a 1am single-seed reflex.
 
 ## 2026-06-12 ~23:20 — STAGE 1 LAUNCHED at 6-h scale; 45-min tier retired; PYTHONHASHSEED pinned
 
