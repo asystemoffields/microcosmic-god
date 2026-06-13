@@ -9,6 +9,31 @@ current state.
 
 ---
 
+## 2026-06-12 ~23:20 — STAGE 1 LAUNCHED at 6-h scale; 45-min tier retired; PYTHONHASHSEED pinned
+
+x341 (h1.45, Kaggle) washed at t2858 — same seed and config that was viable
+locally. The discrepancy is the finding: **runs were never bit-repeatable**
+(unpinned PYTHONHASHSEED → set-iteration order in pairing resolution makes
+each run an independent draw), and at the era-2 operating point each
+boom-trough cycle carries real washout probability. Era 1's cut income
+faucets had doubled as a flywheel; era 2's economy oscillates harder.
+Consequences applied:
+1. **PYTHONHASHSEED=0 pinned in the kernel template** (committed) — paired
+   seeds are now actually paired. Local runs should export it too.
+2. **The 45-min validation tier is retired** — per scale discipline the
+   persistence question belongs to the 6-h tier (s44 locally rode three
+   troughs; the dynamic is metastable, not doomed), and each 6-h run's
+   first 45 min duplicates the validation for free.
+
+**STAGE 1 IS LAUNCHING (trickle): mg-era2y341/-y44/-y45 (k=1) +
+mg-era2by341 (k=0 baseline), h1.45/w1.0, wall 21600s, 60k ticks**, campaign
+rest unchanged, fresh -cN slugs, materialization-verified. Pre-registered
+reads (docs/PERCEPTION_PROGRAM.md P3/P5 + ENV_AXIS_REVIEW P-E3/E4):
+per-champion coupling ratio and head count vs the 0.155/1 blind baseline
+across cycles; mistap fraction slope; infeasible-per-choice slope; capacity
+erosion slope vs the k=0 baseline. Survival fraction is itself a readout
+now (washouts are data, not failures); collect everything that lands.
+
 ## 2026-06-12 ~22:30 — GRID VERDICT: era-2 operating point = h1.45, window 1.0
 
 Full cross-tab over {h1.6, 1.45, 1.35} × {w1.0, w0.5} × seeds {341, 44}
