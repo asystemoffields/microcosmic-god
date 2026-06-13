@@ -9,6 +9,29 @@ current state.
 
 ---
 
+## 2026-06-12 ~22:30 — GRID VERDICT: era-2 operating point = h1.45, window 1.0
+
+Full cross-tab over {h1.6, 1.45, 1.35} × {w1.0, w0.5} × seeds {341, 44}
+(local minute-scale + the two Kaggle h1.6 arms):
+- **h1.45/w1.0 is the only both-seeds-green cell**: s44 reached t4869 with
+  neural 875 RISING through three boom-trough cycles (390→39→…→607→875-ish);
+  s341 viable (earlier arm B, neural 176 rising).
+- Surprise with a lesson: **window damping HURTS at the right harshness** —
+  s44 at h1.45/w0.5 keeps a healthy world (pool 1759) but the neural cohort
+  starves to 9 (needs the pairing flux). The w0.5 "rescue" at h1.6 was seed
+  luck. The spawn-timing channel stays a Stage-1.5 annealing question, as
+  originally pre-registered; the knob exists when needed.
+- h1.35 is NOT uniformly easier: s44/h1.35/w1.0 full-washes at t2852 (the
+  boom runs hotter at lower harshness, then starves deeper). Pressure and
+  stability are non-monotonic in h — the band is genuinely narrow.
+
+**Era-2 campaign config locked: h1.45, w1.0, k=1/d1.0**, modular 0.5,
+max-blocks 3, rate 0.30, grace 150/0.35, r1500. v3 validation launcher up:
+arms mg-era2x341/-x44/-x45 (k=1) + mg-era2bx341 (k=0 baseline), 45-min,
+fresh -cN slugs, materialization-verified. Decision rule: boot ≥2/3 →
+Stage 1 6-h tier at this config (k=1 ×3 + k=0 ×2). mg-era2w341-c1
+(h1.6/w0.5) still in flight as a completeness datum.
+
 ## 2026-06-12 ~22:00 — h1.6 is DEAD in era 2: w44 full-washes at window 0.5 too; systematic grid running
 
 mg-era2w44-c2 (h1.6/w0.5/k=1): **FULL washout t1710** — total pool 1679@t500
