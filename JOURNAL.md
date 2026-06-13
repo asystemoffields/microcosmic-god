@@ -9,6 +9,48 @@ current state.
 
 ---
 
+## 2026-06-13 ~00:30 — FIRST P3 SIGNAL: era-2 champions hold coupling 0.29-0.94 deep into the run
+
+Stage-1 facts so far: y341 boomed (combine 2,893), rode three refreshes,
+neural washout t6330 (34 checkpoints saved); y44 full-washed t1512. The
+boom-bust is structural at horizon in every config — the local grid's
+420s windows were too short to see the slide; "viable" cells were
+unfinished crashes. Root cause stands: the tap reserve is a one-shot
+stock; once the boom drains the world, the only perception-gated payoff
+left is a pure tax. y45 in flight; k=0 baseline pending (attribution:
+is the boom k-independent? expectation yes — drive 1.0 carries it).
+
+**But the P3 readout exists regardless of washout, and it is positive.**
+Coupling probe over y341's champion series vs the era-1 blind baseline
+(0.155 / heads 1 / zero_match True; era-1's t3000 champion was already
+ground down to that point):
+- t2000-6000 era-2 champions (post-selection, multiple generations under
+  k=1): **coupling 0.29-0.94, median ~0.36 (2.3× baseline), heads 2-5,
+  zero_match frequently False** — the settled-state attractor no longer
+  determines the behavioral head.
+- **tap enters champions' behavioral heads by t2000** (coordinate>tap>
+  drain; tap>drain>coordinate): the cue-gated action is ranked
+  conditionally, not constantly.
+- Honest framing: founders init coupled (t59-89 show 0.6-0.86 from random
+  seeding), so the claim is NOT "coupling rose" — it is that **selection
+  under k=1 PRESERVED the high-coupling tail** instead of collapsing it to
+  the attractor program as era-1 selection did. One seed, a dying world,
+  champions ≠ population mean — but it is the program's first direct
+  evidence that perception now pays its way through selection.
+
+**Registered next step (era-2.0.1, one new mechanism, pre-registered
+here):** make the sealed reserve a slow FLOW, not a stock —
+`tap_reserve_regen` energy/tick/place (default ~0.03, 0=off), capped at
+the place's generation-time level. Rationale: (a) the economy needs a
+flywheel; the one we removed was harness-cognition-coupled, this one is
+perception-coupled by construction (only discriminating taps can milk
+it); (b) it strengthens the A4 sufficiency lever exactly where the
+mid/late world currently goes payoff-dark. Prediction P-R1: survival to
+the 6-h wall in ≥2/3 seeds at h1.45 with regen on; P-R2: late-run tap
+rate rises while mistap fraction falls (the flow rewards repeat
+discrimination); P-R3: coupling tail persists or widens vs y341.
+Implement after the k=0 baseline lands.
+
 ## 2026-06-12 ~23:20 — STAGE 1 LAUNCHED at 6-h scale; 45-min tier retired; PYTHONHASHSEED pinned
 
 x341 (h1.45, Kaggle) washed at t2858 — same seed and config that was viable
