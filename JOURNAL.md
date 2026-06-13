@@ -9,6 +9,30 @@ current state.
 
 ---
 
+## 2026-06-12 20:55 — recalibration scan VERDICT: damp the pairing window, keep h1.6
+
+Local 3-arm scan (seed 341, era 2, k=1/d1.0, 420s wall, box idle):
+- **A: h1.6 + combine_intent_window_scale 0.5 — SURVIVES AND RECOVERS.**
+  Total 1743@t1500 → trough 637@t2500 → 724@t3500 with neural 80→140→298
+  still climbing at t3674 (past the tick where the window-1.0 Kaggle arm
+  washed out). Combine stays healthy (2,194 births): the damping spreads
+  pairing, doesn't kill it.
+- B: h1.45/w1.0 — viable (total 1893, neural 176 rising @t2780).
+- C: h1.35/w1.0 — viable but re-runs the unbounded boom (neural 948@t1794).
+
+Mechanism pinned: the passive pairing window drives the overshoot the
+post-cut economy can't absorb. Window 0.5 is the right fix on both counts —
+it stabilizes the economy at unchanged pressure AND closes half of the
+ungated spawn-timing channel the shaping map flagged (one knob, both
+problems; pre-registered dial, single-seed caveat).
+
+**Era-2 v2 validation config locked: h1.6, window 0.5, k=1/d1.0,** campaign
+rest unchanged. New trickle-launcher up for 4 arms at 45-min scale: k=1
+seeds 341/44/45 (slugs mg-era2w341/-w44/-w45-cN) + k=0 baseline s341
+(mg-era2bw341-cN). The old-config s44 arm (mg-era2v44-c15, h1.6/w1.0)
+finishes as the collapse-confirmation datum. Decision rule: boot ≥2/3 →
+Stage 1 6-h tier at this config.
+
 ## 2026-06-12 20:35 — first era-2 arm landed: perception side WORKS, macro-economy COLLAPSES at h1.6
 
 mg-era2v341-c14 (k=1/d1.0, h1.6, era-2): **neural boots hard then the whole
