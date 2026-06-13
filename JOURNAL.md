@@ -9,6 +9,20 @@ current state.
 
 ---
 
+## 2026-06-13 ~midday — era-2.1 validation ABORTED at Alex's request ("kill anything running"); incomplete
+
+Stopped everything mid-run. Local trickle launcher killed, box clean. The 3
+in-flight Kaggle kernels (f50s45/f50s341 treatment, f10s45 control — the
+survivor candidates that would have given the decisive large-n verdict) were
+left running remotely (kaggle CLI has no cancel; UI stop not drivable via cb;
+they self-terminate at the 6h wall). **No surviving-pair P-2.1-B verdict was
+reached.** What we have: crash arms only (founder-decline, control≥treatment
+coupling, tiny-n/noisy — not conclusive). If/when resumed: re-launch the
+seed-45 treatment+control pair (f50s45/f10s45) and read late-quarter
+coupling_sample median once both reach the metastable cap; that is the open
+question. Standing lesson reinforced this session: keep long sim runs OFF the
+box (it's a hot laptop — drove it to 98°C), Kaggle only.
+
 ## 2026-06-13 ~midday — crash arms are too noisy to read (tiny surviving n); reliable test = the large-n survivors (pending)
 
 Methodology check before reading the era-2.1 arms. The early-crash arms
