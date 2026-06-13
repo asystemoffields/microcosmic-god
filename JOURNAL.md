@@ -152,6 +152,23 @@ refresh — and relax or anneal the k-tax so the population persists long
 enough for that pressure to compound. Tap-as-bolt-on is retired in spirit.
 Decision after by341 confirms the median-blind / tail-only result at scale.
 
+**Trajectory check (confirms the survival contrast is REAL, not a wall
+cutoff) — and reorders the priorities:** k=1 neural 80→600@t1200→crash→3,
+flatlined (dead). k=0 80→496@t1500→TROUGH 104@t1800→RECOVERS 422@t2100→
+618@t2400 (climbing at the wall). Both arms boom-bust — the oscillation is
+the economy's base dynamic — but k=0's troughs are shallow enough to
+re-seed while k=1's are not. Mechanism: the k=1 infeasible tax (12,098
+coordinate commits × ~0.018 ≈ 220 energy) bleeds the exact would-be
+spawners at the trough, deepening it past recovery density. **So the
+k-tax-as-priced is what makes the overshoot fatal — not perception being
+hard, just the tax being expensive relative to the trough margin.**
+PRIORITY REORDER: a population that PERSISTS under k>0 is prerequisite to
+everything (no persistence → no multi-gen selection → cue contracts moot).
+First lever to weigh is therefore the tax/overshoot interaction
+(cheaper infeasible-commit cost, or k-anneal, or spawn damping), THEN the
+make-perception-necessary staple-cue redesign. by341 (Kaggle k=0, 6h) is
+the matched-scale confirmation; reading it is the gate.
+
 ## 2026-06-12 ~23:20 — STAGE 1 LAUNCHED at 6-h scale; 45-min tier retired; PYTHONHASHSEED pinned
 
 x341 (h1.45, Kaggle) washed at t2858 — same seed and config that was viable
