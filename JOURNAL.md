@@ -9,6 +9,29 @@ current state.
 
 ---
 
+## 2026-06-13 ~midday — crash arms are too noisy to read (tiny surviving n); reliable test = the large-n survivors (pending)
+
+Methodology check before reading the era-2.1 arms. The early-crash arms
+(f50s44, f10s341, f10s44 — all wash by t2400-3300) end with neural n=1-3, so
+their "coupling median" is one noisy controller, not a population. Evidence
+they're noise: the SAME seed-44 config gives OPPOSITE coupling trajectories
+across hardware — local DECLINED (control 1.6→0.47, treatment 1.2→0.12),
+Kaggle ROSE (control 0.96→1.32, treatment 0.93→1.0). BLAS nondeterminism
+survives the PYTHONHASHSEED pin, so "same seed" ≠ same run, and in a
+tiny-n crash the surviving line is a coin-flip. Do NOT read crash-arm
+coupling.
+
+One thing IS consistent across both seed-44 pairs (local + Kaggle) and
+worth a weak flag: **control (floor 1.0) ≥ treatment (floor 0.5) coupling**
+— the cue-gate is not raising it, the no-gate control sits at least as
+high. Weak (noisy crash arms) but directionally unfavorable to era 2.1.
+
+**The reliable test is the large-n metastable survivors** — f50s341,
+f50s45 still RUNNING (seed 45 ran 6h in Stage 1, best survivor hope);
+their late-quarter coupling is a median over hundreds of controllers. Need
+a surviving treatment+control same-seed pair; f10s45 control still pending.
+Holding the verdict for that.
+
 ## 2026-06-13 ~late morning — FOUNDER-DECLINE: coupling starts HIGH and selection grinds it DOWN; cue-gate gives no benefit (first arm + same-seed local control)
 
 First treatment arm f50s44 (floor 0.5, seed 44) crashed t2731 and its live
