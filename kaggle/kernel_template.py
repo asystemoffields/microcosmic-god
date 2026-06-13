@@ -29,6 +29,7 @@ CONFIG = {
 
 import json
 import shutil
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -82,7 +83,9 @@ if CONFIG["quiet_events"]:
 env_marker = WORK / "config_used.json"
 env_marker.write_text(json.dumps(CONFIG, indent=2))
 
-subprocess.run(args, check=True, cwd=str(SRC))
+run_env = dict(os.environ)
+run_env["PYTHONHASHSEED"] = "0"  # set-iteration order affects pairing resolution; pin for repeatability
+subprocess.run(args, check=True, cwd=str(SRC), env=run_env)
 
 # Keep the output bundle small and analysis-ready: events (aggregates),
 # champion checkpoints, and the run summary - drop story logs.
