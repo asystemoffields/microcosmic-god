@@ -9,6 +9,49 @@ current state.
 
 ---
 
+## 2026-06-13 ~late morning — FOUNDER-DECLINE: coupling starts HIGH and selection grinds it DOWN; cue-gate gives no benefit (first arm + same-seed local control)
+
+First treatment arm f50s44 (floor 0.5, seed 44) crashed t2731 and its live
+coupling_sample read ~1.0 — I almost reported "mechanism works." Stopped and
+controlled it. Two checks:
+1. **Instrumentation is SOUND** (not the earlier worry): per-controller, the
+   live sample (steps 150) and the independent checkpoint probe (steps 400)
+   give IDENTICAL coupling, stable across seeds/steps. My first alarm was a
+   subset error (compared live population to all-checkpoints-incl-deaths,
+   which the early death checkpoints drag to 0.38). Like-for-like, f50s44's
+   champions really are ~0.7-1.0.
+2. **But it's a FOUNDER effect, not selection.** Same-seed local
+   treatment-vs-control (seed 44, minute, k off, the live sample):
+   - floor 1.0 (control): coupMedian 1.62→1.11→0.89→0.63→0.47 over t250-2500
+   - floor 0.5 (treatment): coupMedian 1.24→0.84→0.13→0.10→0.12
+   Random modular founders init HIGH coupling (noisy outputs vary with input);
+   selection DECLINES it toward the attractor baseline under BOTH floors. The
+   cue-gate gives NO benefit — it declines FASTER, and the control ends
+   HIGHER. f50s44's ~1.0 is just the high-founder phase frozen by an early
+   crash (it died before the decline finished).
+
+**The deep finding (now consistent across the whole program):** in this
+world selection actively grinds coupling DOWN — the clean attractor program
+out-survives the noisy perceiver — and NONE of the environmental pressures
+(k=1, tap, cue-gated staple) reverse it. Perception isn't merely
+unnecessary; it's a fitness COST (a responsive controller behaves noisily)
+that the cue-reading benefit doesn't outweigh, because the controller can't
+reliably convert observation into the right action faster than a fixed good
+ranking does it blind.
+
+**Reframe — what to actually read in the SURVIVING 6h arms:** the question
+is NOT "does coupling rise from low" (it starts high). It is: **does the
+floor-0.5 asymptotic (metastable-cap-regime, t>~12k) coupling stabilize
+ABOVE the floor-1.0 control's asymptote?** And CRUCIAL methodology: only
+SURVIVORS show the true asymptote — crashed arms (f50s44, and seed-44/341
+tend to crash) freeze the founder-high phase and will spuriously read high.
+Trust only arms that reach the metastable cap and compare their LATE
+quarters, treatment vs control, same seed.
+
+Still in flight: f50s341, f50s45 (treatment, running — seed 45 survived 6h
+in Stage 1, best hope for a survivor), f10s* controls pending. Hold the
+verdict for a surviving treatment/control same-seed pair.
+
 ## 2026-06-13 ~morning — era-2.1 VALIDATION LAUNCHED + live coupling instrumentation added
 
 Alex: don't park for a "monitored session" — I'm the monitor. Rolling.
