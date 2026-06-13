@@ -9,7 +9,93 @@ current state.
 
 ---
 
-## 2026-06-13 ~00:30 — "FIRST P3 SIGNAL" (over-claimed; see the ~01:40 matched-pair correction two entries below)
+## 2026-06-13 ~02:45 — DEFINITIVE STAGE-1 RESULT: coupling is SEED-set and k-INVARIANT. The k=1 mechanism does not work. Pre-registering era 2.1.
+
+All four 6-h arms collected (y341/y44/y45 k=1, by341 k=0). The k=0 baseline
+landed and gives the clean control. The result is unambiguous and it is a
+NEGATIVE result for the era-2 core mechanism:
+
+**Coupling is determined by SEED, not by the perception pressure.** Matched
+same-seed contrasts:
+- seed 341, Kaggle 6h: k=1 (y341) coupling med 0.354 vs k=0 (by341) med
+  0.345 — identical.
+- seed 341, local: k=1 0.165 vs k=0 0.159 — identical.
+- cross-seed: 341→0.35, 45→0.57. The SEED effect (~0.20) dwarfs the k
+  effect (~0.00).
+Two independent same-seed pairs agree: **turning k=1 on vs off does not
+change how perceiving the population becomes.** The y45 (k=1) 0.57 that
+looked like a win is a seed-45 property, present under k=0 too. The
+mechanism (tax wrong rankings → force perception) does not raise coupling
+because k taxes wrong rankings without changing what is PROFITABLE — the
+staples reward the same fixed policy regardless of k, so behavior-on-
+observation (coupling) tracks the seed/world, not the pressure.
+
+**What k=1 DID do: deepen the overshoot trough** (12k+ infeasible-commit
+energy bled from spawners at the trough), making early washout more likely
+(seed 341 crashes under k=1, survives under k=0; same seed). So k=1 is
+net-harmful: viability cost, zero coupling benefit. **Retire k=1 as the
+perception lever.** (Keep `action_search_depth` the config knob — it is the
+clean OFF switch now, default back to 0.)
+
+**Full robust picture (4 crashing + 2 surviving 6h arms + local pair):**
+1. Era 2 sustains a multi-gen population (seed-contingent boot → metastable
+   cap regime); both k=0 and surviving-k=1 reach pool 4000.
+2. Coupling is seed-set, k-invariant, FLAT over generations — selection
+   does not compound perception, because perception is not NECESSARY: the
+   blind staple policy stays viable (eat/absorb_solar unconditionally pay).
+3. Tap is a dominated action, never solved (0.57% hit over 31k ticks).
+The through-line, now proven not asserted: **era 2 does not make a blind
+policy non-viable, and no action-resolution tax can fix that — only the
+ENVIRONMENT can.**
+
+---
+
+### PRE-REGISTERED — era 2.1: cue-gate the STAPLE (make perception necessary)
+
+Mechanism (one change, environmental not harness): the place's eat/absorb_
+solar payoff is gated by an observable cue channel.
+- `staple_cue_channel` drawn from a small physics set (residue_activity /
+  current_exposure / wet_dry_cycle), re-drawn per refresh when
+  `staple_cue_drift=1` (the re-mapping pressure — pocketknife).
+- When local cue ≥ the gate (percentile, like tap), eat/absorb_solar pay
+  FULL. When below, they pay a REDUCED fraction `staple_cue_floor` (default
+  0.35) — a gradient, NOT a toxic cliff, so the all-blind founder pool does
+  not mass-die before a cue-reader emerges (boot viability protected).
+- Net effect: "eat wherever food is" earns 0.35× of "eat where food is AND
+  cue is high". A blind constant policy is now strictly dominated by a
+  cue-reader. Perception becomes NECESSARY for full fitness, on the action
+  everyone already uses — no bolt-on, no tax.
+- k stays OFF (action_search_depth 0); drive stays 1.0 for boot. Tap stays
+  in the action set but is now beside a cue-gated staple, so its cue and the
+  staple cue can share machinery; tap is no longer load-bearing.
+
+Predictions (pre-registered, falsifiable):
+- **P-2.1-A (boot):** ≥2/3 seeds {341,44,45} reach the metastable cap regime
+  at h1.45, staple_cue_floor 0.35, drift 0 (fixed cue), 6-h.
+- **P-2.1-B (the test that era 2 failed):** champion coupling RISES over
+  generations within a surviving run and exceeds the k-invariant seed
+  baseline (seed 341 ~0.35) by a margin that a k=0/floor-1.0 control (no
+  cue gating, same seed) does NOT show. THIS is the real perception-is-
+  selected signal; era 2 produced flat, this should produce a slope.
+- **P-2.1-C (drift = re-mapping):** with drift 1, post-refresh mistap-on-
+  staple (eating below-cue) spikes then re-declines within lifetimes for
+  high-coupling lines; absent/slower for low-coupling lines.
+- **P-2.1-D (necessity):** a frozen blind champion dropped into the cue-
+  gated env underperforms a co-evolved cue-reader (the gauntlet, re-run).
+
+Bundle with the build (instrumentation, NOT dynamics):
+- raise checkpoint_limit and/or log a periodic coupling sample into the
+  aggregates (a few live neural controllers through the checkpoint-free
+  measure) so coupling-over-cycles is measurable for full-length runs
+  (y45's late champions were lost to the 64-cap eviction — must not recur).
+
+HELD on implementation only by daylight/care: this is a scope change +
+pre-registration; the design above is the spec. Implement against it, smoke
+at minute scale, then the Stage-1 protocol with the floor-1.0 same-seed
+control for P-2.1-B. The hold that's now RELEASED: the baseline has landed,
+the k-mechanism is disproven, the direction is evidence-backed.
+
+## 2026-06-13 ~00:30 — "FIRST P3 SIGNAL" (over-claimed; see the corrections below — superseded by the 02:45 definitive result above)
 
 Stage-1 facts so far: y341 boomed (combine 2,893), rode three refreshes,
 neural washout t6330 (34 checkpoints saved); y44 full-washed t1512. The
