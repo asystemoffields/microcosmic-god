@@ -9,6 +9,27 @@ current state.
 
 ---
 
+## 2026-06-12 ~22:00 — h1.6 is DEAD in era 2: w44 full-washes at window 0.5 too; systematic grid running
+
+mg-era2w44-c2 (h1.6/w0.5/k=1): **FULL washout t1710** — total pool 1679@t500
+→ 39@t1000 → 0, collectors included; depletion 4,051. Harder failure than
+window 1.0 (which kept 356 collectors at t2423). So the window-0.5 rescue
+seen on s341 locally was seed luck, not a fix: **h1.6 fails for s44 at both
+window settings.** The era-2 income arithmetic (tool releases, causal
+unlocks, structures' passive generation all removed) moved the viable
+harshness band down — h1.6 was an era-1 constant.
+
+Both old-config Kaggle arms (s341, s44) and the s44 v2 arm now agree: the
+collapse is macro-economic and systematic. mg-era2w341-c1 (h1.6/w0.5) is
+still running and completes the picture; the v2 launcher is stopped (no
+more h1.6 arms).
+
+Now running the grid that should have come first: local minute-scale,
+era-2 k=1/d1.0, {h1.45, h1.35} × {w1.0, w0.5} × seeds {341, 44} (6 new
+points; s341 h1.45/w1.0 and h1.35/w1.0 already measured viable). Pick the
+(h, w) where BOTH seeds hold a stable total pool with neural persistence
+→ re-validate 45-min Kaggle ×3 seeds → Stage 1.
+
 ## 2026-06-12 20:55 — recalibration scan VERDICT: damp the pairing window, keep h1.6
 
 Local 3-arm scan (seed 341, era 2, k=1/d1.0, 420s wall, box idle):
