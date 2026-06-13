@@ -9,6 +9,34 @@ current state.
 
 ---
 
+## 2026-06-13 ~morning — era-2.1 VALIDATION LAUNCHED + live coupling instrumentation added
+
+Alex: don't park for a "monitored session" — I'm the monitor. Rolling.
+First built the instrumentation the validation needs (commit f6e4984):
+`microcosmic_god/coupling.py` (`measure_coupling`, shared with the probe) +
+a live periodic coupling sample in every aggregate — samples ≤10 live neural
+controllers, clones each state-free, logs population coupling median/mean/max
++ decoupled-head frac. This captures the P-2.1-B slope CONTINUOUSLY,
+immune to the checkpoint-eviction that lost y45's late champions. Verified:
+lands in aggregates, ~2% overhead, 101 tests green. (It measures POPULATION
+coupling, not champion — the honest 'is the population perceiving' signal;
+minute-scale floor-0.5 reads ~0.12 = blind baseline, as expected pre-slope.)
+
+**Validation LAUNCHED (trickle, monitor bscc4sb3k):** 6-arm decisive batch —
+**floor 0.5 (treatment) vs floor 1.0 (control) × seeds {341,44,45}**, all
+k OFF (action_search_depth 0), drive 1.0, h1.45, r1500, modular 0.5/mb3/
+rate0.30, grace150/0.35, drift 0, wall 21600s, --checkpoint-limit 256.
+Slugs mg-e21-f50s{341,44,45}-cN (treatment) / mg-e21-f10s{...}-cN (control);
+collect via kaggle kernels output. PMRA slots mostly freed (only hessian
+live) so they should materialize fast.
+
+**THE read (P-2.1-B):** does the live coupling_sample MEDIAN rise over cycles
+in the floor-0.5 arms while the floor-1.0 controls stay FLAT (~0.12-0.35,
+the k-invariant seed baseline)? Era 2 produced flat; a slope here = perception
+made necessary = the mechanism works. Also P-2.1-A boot ≥2/3 (it's the same
+metastable-cap dynamics, k off, so boot should be ≥ the k=1 arms). drift=1
+(P-2.1-C) + floor 0.35 are the NEXT batch if this confirms.
+
 ## 2026-06-13 ~03:30 — era 2.1 BUILT + smoke-validated (commit 5a1d518); NOT launched (daytime Kaggle)
 
 Implemented the cue-gated staple against the pre-registration below. Knobs:
