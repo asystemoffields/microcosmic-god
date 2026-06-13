@@ -9,7 +9,7 @@ current state.
 
 ---
 
-## 2026-06-13 ~00:30 — FIRST P3 SIGNAL: era-2 champions hold coupling 0.29-0.94 deep into the run
+## 2026-06-13 ~00:30 — "FIRST P3 SIGNAL" (over-claimed; see the ~01:40 matched-pair correction two entries below)
 
 Stage-1 facts so far: y341 boomed (combine 2,893), rode three refreshes,
 neural washout t6330 (34 checkpoints saved); y44 full-washed t1512. The
@@ -105,6 +105,52 @@ supports. Candidate redesign to weigh then — relocate the cue contract FROM
 a bolt-on tap action TO the staple everyone already uses (make eat's payoff
 cue-predicted and drift WHICH channel predicts food) — but that is a
 decision for after the baseline, not a 1am single-seed reflex.
+
+## 2026-06-13 ~01:40 — k-DEPENDENCE PREVIEW (matched local pair): coupling is a thin TAIL, not a population shift
+
+Didn't wait idle for the Kaggle baseline — ran the matched contrast locally
+(box idle): seed 341, h1.45, identical config, PYTHONHASHSEED=0, 480s wall,
+ONLY action_search_depth differs (k=1 vs k=0). This is the cleanest causal
+statement about k available tonight (same hardware, same seed, same draws).
+
+- **Population: k=1 is LETHAL, k=0 SURVIVES.** k=1 → neural washout t2773,
+  pool 58; 15,011 infeasible commits (12,098 on coordinate). k=0 → survives
+  to wall, pool 1030 with 718 neural alive, ZERO infeasible (free walk). The
+  k-tax stacked on the overshoot is what tips the crash; without it the
+  same world persists. (y341/y44/x341 all k=1, all washed — consistent.)
+- **Coupling (late champions, t≥1000): k barely moves the MEDIAN, only the
+  TAIL.** k=1 median 0.165 / max 0.790 / heads 1.7 / decoupled-head 3/10;
+  k=0 median 0.159 / max 0.345 / heads 1.3 / decoupled-head 1/15. Both
+  medians sit at the era-1 blind-attractor baseline (~0.155). The *typical
+  reproducing individual is blind in BOTH arms.* k=1's only effect is a
+  modestly heavier high-coupling tail.
+
+**This walks back the ~00:30 "perception now pays its way" claim.** What is
+actually true: **perception is SELECTABLE but not NECESSARY in era 2.** A
+blind attractor program ranking the staples in a good fixed order survives
+and reproduces fine — it dominates the reproducing population in both arms.
+k=1 enriches a thin perception tail (real signal: 0.79 vs 0.35 max, more
+multi/decoupled heads) but (a) the tail doesn't reproduce (y341: tap_/high-
+coupling champions leave 0 offspring; spawn champions tap ~never) and (b)
+k=1 buys the tail at the cost of the whole population's viability.
+
+Caveat held honestly: 480s single-seed preview on local hardware. y341
+(Kaggle k=1) shows a higher absolute median (0.354) than local-k1 (0.165) —
+absolute coupling is hardware/checkpoint-bucket-sensitive, so I do NOT trust
+absolute levels across machines. The *internal* k-contrast (same machine) is
+the trustworthy part, and the authoritative matched-scale version is the
+6-h Kaggle by341 baseline (RUNNING now, mg-era2by341-c4) vs the y-arms.
+
+**Design conclusion this licenses (still HELD for the Kaggle baseline):**
+the binding problem is not tap-specifically and not energy — it is that
+*era 2 admits a viable blind policy at all.* For perception to be necessary,
+no fixed action-ranking can be viable: the profitable staple must change
+with observable state faster than a fixed priority can track. Direction:
+make the STAPLE everyone uses (eat/absorb_solar) cue-gated — the place's
+food/solar payoff conditioned on an observable channel that drifts per
+refresh — and relax or anneal the k-tax so the population persists long
+enough for that pressure to compound. Tap-as-bolt-on is retired in spirit.
+Decision after by341 confirms the median-blind / tail-only result at scale.
 
 ## 2026-06-12 ~23:20 — STAGE 1 LAUNCHED at 6-h scale; 45-min tier retired; PYTHONHASHSEED pinned
 
