@@ -9,7 +9,22 @@ current state.
 
 ---
 
-## 2026-06-13 ~midday — era-2.1 validation ABORTED at Alex's request ("kill anything running"); incomplete
+## 2026-07-27 — seed-45 pair RELAUNCHED (c20/c21); original survivor-arm outputs confirmed destroyed
+
+Back from the break; executed the standing resume path from the 06-13 abort entry. Attempted
+collection of the three "uncollected survivor arms" first: all three (f50s341-c1, f50s45-c3,
+f10s45-c19) return only a ~1s "cancelled by maintainer; no-op exit" log — the no-op stubs
+pushed during the abort became each kernel's latest version, and `kernels output` serves the
+latest version's output, so the real 6h runs are unrecoverable via CLI. Relaunched the decisive
+pair with fresh suffixes per the slug hazard rule: **mg-e21-f50s45-c20 (treatment, floor 0.5) +
+mg-e21-f10s45-c21 (control, floor 1.0)**, bundles copied verbatim from _packages (config
+identical; clone branch fable-working tip 6a42519 = unchanged since the original launch, so the
+relaunch is condition-identical). f50s341 NOT relaunched: its same-seed control (f10s341) was a
+crash arm, so no pair verdict is available from it (per the 06-13 methodology entry, do not read
+crash-arm coupling). Harvest is armed mechanically — `kaggle/harvest_e21.sh` on cron */15
+downloads each arm on COMPLETE into kaggle/results/<slug>/ (sanity-checks run/*/summary.json so
+a stub can never again masquerade as a harvest). Read protocol when both land: late-quarter
+coupling_sample median once both reach the metastable cap = the P-2.1-B verdict.
 
 Stopped everything mid-run. Local trickle launcher killed, box clean. The 3
 in-flight Kaggle kernels (f50s45/f50s341 treatment, f10s45 control — the
