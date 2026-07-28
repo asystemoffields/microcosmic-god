@@ -9,7 +9,36 @@ current state.
 
 ---
 
-## 2026-07-27 — seed-45 pair RELAUNCHED (c20/c21); original survivor-arm outputs confirmed destroyed
+## 2026-07-28 — P-2.1-B pair read: verdict UNREADABLE a second time; era-2.1 CLOSED (line killed)
+
+Both relaunched arms landed and were auto-harvested. The same-seed pair split maximally:
+
+- **Treatment (f50s45-c20, cue-gated staples, floor 0.5): EXTINCT** — final population n=2 at
+  ~1.2h (5,265 depletion deaths; the 06-13 methodology entry binds: crash-arm coupling is
+  unreadable noise). The original Stage-1 f50s45 survived 6h on the same seed — BLAS
+  nondeterminism means survival is a lottery, exactly as documented.
+- **Control (f10s45-c21, no gate, floor 1.0): the first large-n metastable survivor ever
+  collected** — 1,919 controllers at end t=23100. Its registered late-quarter read
+  (read_coupling_slope): coupling_median 0.625 → peaks 0.879 @ t4700 → **falls to 0.634
+  (early-q 0.751 → late-q 0.636, Δ −0.115)**. FOUNDER-DECLINE CONFIRMED AT LARGE-N: even with
+  no gate, selection grinds coupling down after an early rise.
+
+**Verdict: P-2.1-B is UNREADABLE — for the second consecutive launch — because the cue-gate
+itself is a survival catastrophe** (same seed: gated arm dies, ungated arm thrives ×1000).
+The experiment cannot test its hypothesis at this design point; the gate's mortality cost
+dominates before perception can become valuable. Combined with the unrefuted crash-arm signal
+(control ≥ treatment coupling), the k-tax null, and now large-n founder-decline, every measured
+signal is unfavorable.
+
+**LINE CLOSED under Alex's 2026-07-27 evidence-audit directive** (the standing "kill what the
+evidence isn't supporting" — I flagged yesterday that a second unreadable pair would trigger
+this). Banked positives: the large-n control trajectory (the project's cleanest single
+measurement), the crash-arm noise methodology, the instrumentation-soundness proof, and the
+mechanical harvest pattern. Revival bar (HOPPER idea, not a commitment): a redesign that
+DECOUPLES the gate's mortality cost from the perception incentive — graduated gate floors, a
+subsidized transition era, or selection on lineages rather than individuals — plus population
+sizes that make survivorship non-lottery. No relaunch of the current design; two full launches
+(≈50 CPU-h) bought zero readable treatment data. Harvest cron disarmed (DONE).
 
 Back from the break; executed the standing resume path from the 06-13 abort entry. Attempted
 collection of the three "uncollected survivor arms" first: all three (f50s341-c1, f50s45-c3,
